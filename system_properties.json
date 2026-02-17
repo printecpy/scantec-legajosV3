@@ -1,0 +1,27 @@
+{
+    "nombre": "Sistema de Gestión Documental SCANTEC",
+    "version": "1.2.0",
+    "desarrollador": "Printec SA",
+    "descripcion": "Un sistema de gestión documental para empresas que permite almacenar, organizar y acceder a documentos de manera segura y eficiente.",
+    "copyright": "© 2024 Printec SA. Todos los derechos reservados.",
+    "licencia": {
+      "tipo": "Propietario",
+      "version": "1.2.0",
+      "texto": "El texto completo de la licencia se encuentra en el archivo LICENSE."
+    },
+    "otros_detalles": {
+      "requisitos_del_sistema": "PHP 7.4 o superior, MySQL 8.0 o superior, Apache 2.4, Sistema Operativo: Windows 10 o superior (64 bits) para entornos de escritorio y Windows Server para servidores",
+      "integraciones": ["FPDI 2.4.1",
+                        "FPDF 1.82",
+                        "TCPDF 6.3.2",
+                        "PHPExcel 1.8.2",
+                        "PhpSpreadsheet 1.18.0",
+                        "PHPMailer 5.2.27",
+                        "PHP QR Code 1.1.4"],
+      "compatibilidad": {
+        "navegadores": ["Chrome", "Firefox", "Edge", "Safari"],
+        "sistemas_operativos": ["Windows", "Linux", "macOS"]
+      }
+    }
+  }
+  

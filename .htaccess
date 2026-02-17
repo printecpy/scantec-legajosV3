@@ -1,0 +1,49 @@
+# 1. AJUSTES BÁSICOS
+Options -MultiViews
+Options -Indexes
+RewriteEngine On
+
+# 2. SOPORTE PARA FUENTES (Resuelve el error "Rejected by Sanitizer")
+# Esto asegura que Apache entregue el archivo binario y no un HTML de error
+<IfModule mod_mime.c>
+    AddType font/woff2 .woff2
+    AddType font/woff .woff
+    AddType application/vnd.ms-fontobject .eot
+    AddType font/ttf .ttf
+    AddType font/otf .otf
+</IfModule>
+
+# 3. CABECERAS DE SEGURIDAD (Recomendado para Licitaciones/PBC)
+<IfModule mod_headers.c>
+    # Evita que el navegador adivine el tipo de contenido (previene XSS)
+    Header set X-Content-Type-Options "nosniff"
+    # Protege contra Clickjacking (el sistema no se puede meter en un iframe extraño)
+    Header set X-Frame-Options "SAMEORIGIN"
+    # Habilita el filtro XSS del navegador
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# 4. ENRUTAMIENTO MVC (Mantiene tus reglas originales)
+# El flag [QSA] es vital para que ?msg= no se pierda
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
+
+# 5. PROTECCIÓN DE ARCHIVOS SENSIBLES
+<FilesMatch "^(phpinfo\.php|phpmyadmin)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<Files config.php>
+    Order allow,deny
+    Deny from all
+</Files>
+
+# 6. OCULTAR INFORMACIÓN DEL SERVIDOR
+ServerSignature Off
+php_flag expose_php Off
+
+# 7. GESTIÓN DE SESIONES (Tus valores originales)
+php_value session.cookie_lifetime 0
+php_value session.gc_maxlifetime 1800

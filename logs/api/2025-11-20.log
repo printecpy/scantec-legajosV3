@@ -1,0 +1,73 @@
+{
+    "timestamp": "2025-11-20 16:25:15",
+    "user_id": 1,
+    "user_roles": [],
+    "endpoint": "/scantec2/api/v1/expedientesController/subirDocumentoApi",
+    "http_method": "POST",
+    "http_code": 201,
+    "audit_message": "Archivo subido, procesado y registrado correctamente.",
+    "ip_origen": "::1",
+    "request_post": {
+        "id_tipoDoc": "1",
+        "indice_01": "printec",
+        "indice_02": "Juan P\u00e9rez",
+        "indice_03": "12/03/2025",
+        "indice_04": "CI-5509911",
+        "indice_05": "Ciudad",
+        "indice_06": "Firma y sello"
+    },
+    "response_data": {
+        "id_proceso": "20251120-162506",
+        "indice_01": "printec",
+        "indice_04": "CI-5509911",
+        "ruta_original": "Expedientes/CI-5509911.pdf",
+        "paginas": 1,
+        "procesado_ok": true
+    }
+}
+================================================================================
+{
+    "timestamp": "2025-11-20 16:35:13",
+    "user_id": 0,
+    "user_roles": [],
+    "endpoint": "/scantec2/api/v1/expedientesController/verDocumento?ruta=Expedientes/CERTIFICADO%20MATRIMONIO-7777777.pdf&id_expediente=10292",
+    "http_method": "GET",
+    "http_code": 401,
+    "audit_message": "Error: Token inv\u00e1lido o expirado.",
+    "ip_origen": "::1",
+    "request_post": [],
+    "response_data": {
+        "error_message": "Token inv\u00e1lido o expirado."
+    }
+}
+================================================================================
+{
+    "timestamp": "2025-11-20 16:40:09",
+    "user_id": 0,
+    "user_roles": [],
+    "endpoint": "/scantec2/api/v1/expedientesController/verDocumento?ruta=Expedientes/CERTIFICADO%20MATRIMONIO-7777777.pdf&id_expediente=10292",
+    "http_method": "GET",
+    "http_code": 401,
+    "audit_message": "Error: Token inv\u00e1lido o expirado.",
+    "ip_origen": "::1",
+    "request_post": [],
+    "response_data": {
+        "error_message": "Token inv\u00e1lido o expirado."
+    }
+}
+================================================================================
+{
+    "timestamp": "2025-11-20 17:18:00",
+    "user_id": 0,
+    "user_roles": [],
+    "endpoint": "/scantec2/api/v1/expedientesController/listar?indice_01=printec&nombre_tipoDoc=FACTURAS&termino=00",
+    "http_method": "GET",
+    "http_code": 401,
+    "audit_message": "Error: Token invalido o expirado.",
+    "ip_origen": "::1",
+    "request_post": [],
+    "response_data": {
+        "error_message": "Token invalido o expirado."
+    }
+}
+================================================================================

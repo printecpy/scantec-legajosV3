@@ -1,0 +1,9 @@
+table.table thead{
+    background-color: rgb(74, 190, 123);
+    color: azure;
+}
+
+.page-item-active .page-link {
+    background-color: rgb(74, 190, 123);
+    color: azure;
+}

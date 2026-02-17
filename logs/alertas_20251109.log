@@ -1,0 +1,5 @@
+[2025-11-09 21:38:53] Conexión exitosa a la base de datos.
+[2025-11-09 21:38:53] 🔹 Procesando tarea ID 1: prueba alerta.
+[2025-11-09 21:38:54] 📄 PDF generado: C:\xampp\htdocs\scantec2\scrips/../temp/
+[2025-11-09 21:38:57] ❌ Error al enviar correo a aldo.silva@printec.com.py: SMTP Error: data not accepted.SMTP server error: DATA command failed
+[2025-11-09 21:38:57] ❌ Error al enviar correo a silvajavier1993@gmail.com: SMTP Error: Could not connect to SMTP host. Failed to connect to serverSMTP server error: Failed to connect to server Additional SMTP info: php_network_getaddresses: getaddrinfo for mail.printec.com.py failed: El nombre solicitado es v�lido pero no se encontraron datos del tipo solicitado. 

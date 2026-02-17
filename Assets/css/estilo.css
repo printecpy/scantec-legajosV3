@@ -1,0 +1,1086 @@
+:root {
+  /* Mapeamos tus variables a los nombres que usas abajo */
+  --scantec-blue: #182541; /* Igual a --background-primary */
+  --scantec-red: #dc153d;  /* Igual a --background-secondary */
+  
+  --background-primary: #182541;
+  --background-secondary: #dc153d;
+  --background-white: #e3e3e3;
+  --background-gray: #878787;
+  --background-black: #1d1d1b;
+  --text-red: #dc153d;
+  --text-blue: #182541;
+  --text-white: #e3e3e3;
+  --text-gray: #878787;
+  --text-black: #1d1d1b;
+}
+
+body {
+  font-family: "Roboto", "Montserrat", "Arial", "sans-serif" !important;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+}
+
+/* Contenedor para permitir scroll horizontal */
+.table-container {
+  @apply w-full overflow-x-auto rounded-xl shadow-sm border border-gray-100 bg-white;
+  /* Si no usas compilador Tailwind, usa esto equivalente: */
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  background-color: white;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #f3f4f6;
+}
+
+/* La Tabla en sí */
+.scantec-table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  /* CRÍTICO: Evita que el texto se rompa y force el scroll */
+}
+
+/* Cabeceras */
+.scantec-table thead th {
+  background-color: #f9fafb;
+  color: var(--scantec-blue); 
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Celdas */
+.scantec-table tbody td {
+  padding: 1rem 1.5rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+/* Efecto Hover en filas */
+.scantec-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* --- AJUSTE DE POSICIÓN DE PAGINACIÓN Y DATA INFO --- */
+.dataTables_wrapper {
+  padding: 20px; /* Padding general para que respire */
+}
+
+/* Avatar de iniciales */
+.avatar-circle {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  /* Evita que se aplaste */
+}
+
+/* 1. ELIMINAR EL ESTILO DE "LISTA" DE LA PAGINACIÓN */
+.dataTables_wrapper .pagination {
+  display: flex !important;
+  padding-left: 0;
+  list-style: none;
+  border-radius: 0.75rem;
+  gap: 5px;
+  /* Espacio entre botones */
+}
+
+/* 2. TRANSFORMAR LOS ÍTEMS EN BOTONES MODERNOS */
+.dataTables_wrapper .page-item .page-link {
+  border: 1px solid #e5e7eb !important;
+  background-color: white !important;
+  color: #374151 !important;
+  border-radius: 8px !important;
+  /* Bordes redondeados Scantec */
+  padding: 8px 16px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+/* 3. BOTÓN ACTIVO (AZUL SCANTEC) */
+.dataTables_wrapper .page-item.active .page-link {
+  background-color: var(--scantec-blue) !important;
+  border-color: var(--scantec-blue) !important;
+  color: white !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 4. HOVER (ROJO SCANTEC) */
+.dataTables_wrapper .page-item:hover .page-link:not(.active) {
+  border-color: var(--scantec-red) !important;
+  color: var(--scantec-red) !important;
+  background-color: #fff1f2 !important;
+}
+
+/* 5. LIMPIAR EL BUSCADOR */
+.dataTables_filter input {
+  border-radius: 10px !important;
+  border: 1px solid #d1d5db !important;
+  padding: 6px 12px !important;
+  outline: none !important;
+}
+
+.dataTables_filter input:focus {
+  border-color: var(--scantec-blue) !important;
+  ring: 2px var(--scantec-blue);
+}
+
+.dataTables_info {
+  font-size: 0.75rem !important;
+  /* 12px */
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  color: #9ca3af !important;
+  float: left;
+  /* A la izquierda */
+  padding-top: 0.5rem !important;
+  /* Ajustado: solo un poco de espacio */
+  margin-top: 0 !important;
+}
+
+.dataTables_scrollBody {
+  border: none !important;
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+.dataTables_info,
+.dataTables_paginate {
+  margin-top: 0.5rem !important;
+  /* EMPUJA LA PAGINACIÓN HACIA ABAJO */
+  padding-top: 0.5rem !important;
+  border-top: 1px solid #f3f4f6;
+  /* Opcional: Línea sutil separadora */
+  margin-left: 1rem;
+}
+
+.dataTables_paginate {
+  float: right;
+  /* A la derecha en escritorio */
+  text-align: right;
+}
+
+.dataTables_wrapper::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* 2. FORZAR LOS ICONOS EN LA PAGINACIÓN */
+.page-item.previous .page-link,
+.page-item.next .page-link {
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+}
+
+/* 3. BOTONES DE PAGINACIÓN MODERNOS (Estilo Scantec) */
+.pagination {
+  gap: 5px;
+}
+
+.page-link {
+  border-radius: 8px !important;
+  border: 1px solid #e5e7eb !important;
+  color: var(--scantec-blue) !important;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.page-item.active .page-link {
+  background-color: var(--scantec-blue) !important;
+  border-color: var(--scantec-blue) !important;
+  color: white !important;
+}
+
+
+@media (max-width: 768px) {
+
+  /* 1. AJUSTES DE LA TABLA COMPACTA */
+  /* Reducimos el padding para que quepa más info en pantalla */
+  .scantec-table thead th,
+  .scantec-table tbody td {
+    padding: 0.75rem 0.5rem !important;
+    /* Menos espacio a los lados */
+    font-size: 0.75rem !important;
+    /* Texto un poco más pequeño */
+  }
+
+  /* Avatar más pequeño en móvil */
+  .avatar-circle {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.65rem;
+    margin-right: 0.5rem !important;
+  }
+
+  /* 2. DATATABLES: BUSCADOR Y LENGTH */
+  /* Hacemos que se apilen verticalmente y se centren */
+  .dataTables_wrapper .dataTables_filter,
+  .dataTables_wrapper .dataTables_length,
+  .dataTables_wrapper .dataTables_info,
+  .dataTables_wrapper .dataTables_paginate {
+    text-align: center !important;
+    float: none !important;
+    display: block !important;
+    margin-bottom: 10px !important;
+    width: 100% !important;
+  }
+
+  .dataTables_filter input {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .dataTables_wrapper .pagination {
+    justify-content: center !important;
+  }
+
+  /* Botones de paginación más táctiles pero compactos */
+  .dataTables_wrapper .page-item .page-link {
+    padding: 6px 10px !important;
+    font-size: 11px !important;
+    margin-bottom: 3px;
+    /* Espacio si hace salto de línea */
+  }
+
+  /* Ocultar elementos menos importantes de la paginación en pantallas muy chicas */
+  /* Opcional: Si quieres ocultar el botón "Anterior" y "Siguiente" texto y dejar solo iconos */
+  .page-item.previous .page-link,
+  .page-item.next .page-link {
+    min-width: 30px;
+  }
+
+  .dataTables_filter,
+  .dataTables_info,
+  .dataTables_paginate {
+    float: none !important;
+    text-align: center !important;
+    width: 100% !important;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .dataTables_wrapper .pagination {
+    justify-content: center !important;
+  }
+
+  /* Ajustar padding celda en movil */
+  .scantec-table thead th,
+  .scantec-table tbody td {
+    padding: 0.75rem 0.5rem;
+  }
+
+}
+
+/* Estilo general para todos los botones */
+.btn-icon {
+  all: unset;
+  padding: 5px 10px;
+  background-color: #e3e3e3;
+  border-radius: 5px;
+  text-decoration: none !important;
+  display: inline-block;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Estilo para el botón de PDF */
+.btn-icon-pdf {
+  color: #dc153d;
+  /* Rojo PDF */
+}
+
+.btn-icon-pdf i {
+  color: #dc153d;
+  /* Color del icono */
+}
+
+.btn-icon-pdf:hover {
+  background-color: #1d1d1b;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de Excel */
+.btn-icon-excel {
+  color: #12bf09;
+  /* Verde Excel */
+}
+
+.btn-icon-excel i {
+  color: #12bf09;
+  /* Color del icono */
+}
+
+.btn-icon-excel:hover {
+  background-color: #1d1d1b;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de Email */
+.btn-icon-email {
+  color: #878787;
+  /* Gris Email */
+}
+
+.btn-icon-email i {
+  color: #878787;
+  /* Color del icono */
+}
+
+.btn-icon-email:hover {
+  background-color: #1d1d1b;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de Reporte */
+.btn-icon-reporte {
+  color: #1d1d1b;
+  /* Negro para Reporte */
+}
+
+.btn-icon-reporte i {
+  color: #1d1d1b;
+  /* Color del icono */
+}
+
+.btn-icon-reporte:hover {
+  background-color: #1d1d1b;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de nuevo o agregar*/
+.btn-icon-new {
+  color: #182541;
+  /* Rojo PDF */
+}
+
+.btn-icon-new i {
+  color: #182541;
+  /* Color del icono */
+}
+
+.btn-icon-new:hover {
+  background-color: #182541;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de editar */
+.btn-icon-edit {
+  color: #12bf09;
+}
+
+.btn-icon-edit i {
+  color: #12bf09;
+  /* Color del icono */
+}
+
+.btn-icon-edit:hover {
+  background-color: #182541;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de anular */
+.btn-icon-delete {
+  color: #dc153d;
+}
+
+.btn-icon-delete i {
+  color: #dc153d;
+  /* Color del icono */
+}
+
+.btn-icon-delete:hover {
+  background-color: #182541;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de reingresar */
+.btn-icon-reingres {
+  color: #878787;
+}
+
+.btn-icon-reingres i {
+  color: #878787;
+  /* Color del icono */
+}
+
+.btn-icon-reingres:hover {
+  background-color: #182541;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de metadatos */
+.btn-icon-metadato {
+  color: blue;
+}
+
+.btn-icon-metadato i {
+  color: blue;
+  /* Color del icono */
+}
+
+.btn-icon-metadato:hover {
+  background-color: white;
+  color: #182541;
+  /* Blanco en hover */
+}
+
+.btn-icon-volver {
+  color: #1d1d1b;
+  /* Negro para el texto y el ícono */
+}
+
+/* Hover para Volver */
+.btn-icon-volver:hover {
+  background-color: #1d1d1b;
+  /* Fondo oscuro en hover */
+  color: #ffffff;
+  /* Texto en blanco en hover */
+}
+
+/* Ajustes del icono en Volver */
+.btn-icon-volver i {
+  font-size: 20px;
+  transition: color 0.3s ease;
+}
+
+.btn-icon-volver:hover i {
+  color: #ffffff;
+  /* Icono blanco en hover */
+}
+
+.btn-icon-search {
+  background-color: var(--background-gray);
+  color: #1d1d1b;
+  /* Negro para el texto y el ícono */
+}
+
+/* Hover para search */
+.btn-icon-search:hover {
+  background-color: #1d1d1b;
+  /* Fondo oscuro en hover */
+  color: #ffffff;
+  /* Texto en blanco en hover */
+}
+
+/* Ajustes del icono en buscar */
+.btn-icon-search i {
+  font-size: 20px;
+  transition: color 0.3s ease;
+  padding: 8px 12px;
+}
+
+.btn-icon-search:hover i {
+  color: #ffffff;
+  /* Icono blanco en hover */
+}
+
+/* Estilo para el botón de nuevo o agregar*/
+.btn-icon-registrar {
+  color: var(--text-blue);
+  background-color: var(--background-gray);
+  font-weight: 500;
+}
+
+.btn-icon-registrar i {
+  font-size: 20px;
+  transition: color 0.3s ease;
+  color: var(--text-blue);
+  /* Color del icono */
+}
+
+.btn-icon-registrar:hover {
+  background-color: var(--text-blue);
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de anular */
+.btn-icon-cancelar {
+  background-color: var(--background-gray);
+  font-weight: 500;
+  color: var(--text-red);
+}
+
+.btn-icon-cancelar i {
+  font-size: 20px;
+  transition: color 0.3s ease;
+  color: var(--text-red);
+  /* Color del icono */
+}
+
+.btn-icon-cancelar:hover {
+  background-color: var(--text-blue);
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Estilo para el botón de editar */
+.btn-icon-modificar {
+  background-color: var(--background-gray);
+  font-weight: 500;
+  color: var(--text-blue);
+}
+
+.btn-icon-modificar i {
+  font-size: 20px;
+  transition: color 0.3s ease;
+  color: var(--text-blue);
+  /* Color del icono */
+}
+
+.btn-icon-modificar:hover {
+  background-color: #182541;
+  color: #ffffff;
+  /* Blanco en hover */
+}
+
+/* Hover para todos los botones */
+.btn-icon:hover {
+  background-color: #1d1d1b;
+  /* Fondo oscuro al pasar el cursor */
+  transform: scale(1.1);
+  /* Pequeño aumento para destacar */
+}
+
+/* Hover para todos los botones */
+.btn-icon:hover {
+  background-color: #1d1d1b;
+  /* Fondo oscuro al pasar el cursor */
+  transform: scale(1.1);
+  /* Pequeño aumento para destacar */
+}
+
+/* Ajustes de icono */
+.btn-icon i {
+  font-size: 1.3rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin-bottom: 0.3rem;
+  margin-left: 0.1rem;
+  margin-right: 0.1rem;
+  transition: color 0.3s ease;
+  /* Suaviza el cambio de color */
+}
+
+/* Estado de enfoque (accesibilidad) */
+.btn-icon:focus {
+  outline: 2px solid #dc153d;
+  /* Resalta el botón enfocado */
+  outline-offset: 2px;
+}
+
+/* metadatos*/
+/* Personalizar el ancho del modal (opcional si no usas modal-lg) */
+.modal-dialog {
+  max-width: 60%;
+  /* Ajusta el valor según lo necesites */
+  font-size: 14px;
+}
+
+/* Personalizar el título del modal */
+.custom-modal-title {
+  font-family: "Arial", sans-serif;
+  /* Cambia la fuente si deseas */
+  font-size: 1.5rem;
+  /* Ajusta el tamaño de la fuente */
+  font-weight: bold;
+  /* Añade negrita al título */
+  color: #182541;
+  /* Color del título (puedes usar cualquier color) */
+}
+
+/* Estilo adicional para la cabecera */
+.modal-header {
+  background-color: #e3e3e3;
+  /* Fondo claro para el encabezado */
+  border-bottom: 2px solid #dc153d;
+  /* Borde inferior para separar el título */
+}
+
+/* Estilo para los títulos */
+.tituloMetadatos {
+  font-size: 1.5em;
+  color: #182541;
+  /* Color del texto de los títulos */
+  background-color: #e3e3e3;
+  /* Fondo gris claro para los títulos */
+  padding: 5px;
+  margin-top: 10px;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Estilo para los párrafos de los metadatos */
+.contenidoMetadatos {
+  font-size: 1em;
+  color: #182541;
+  /* Color del texto para los metadatos */
+  background-color: #e3e3e3;
+  /* Fondo blanco suave */
+  padding: 8px;
+  border-left: 4px solid #878787;
+  /* Borde azul para resaltar */
+  margin-bottom: 10px;
+  border-radius: 3px;
+}
+
+/* Estilo para el contenedor del modal */
+#contenidoMetadatos {
+  padding: 10px;
+  background-color: #e3e3e3;
+  /* Fondo general suave */
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilo para mostrar un mensaje de carga */
+#contenidoMetadatos p {
+  font-size: 0.8rem;
+  text-align: left;
+  font-size: 1.2em;
+  color: #182541;
+}
+
+/* Cards info*/
+.card-info {
+  border: 1px solid #000 !important;
+  border-radius: 8px !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  height: 100% !important;
+  background-color: var(--background-white);
+}
+
+.card-info:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.table-dashb {
+  max-width: 45%;
+  background-color: var(--background-white);
+  border: 1.5px solid var(--background-black);
+  transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+.table-dashb:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/*logo scantec*/
+.logo-header {
+  border: none;
+  width: 7rem;
+  height: auto;
+  border-radius: 8px !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  background-color: rgba(255, 255, 255, 0);
+}
+
+.logo-header:hover {
+  transform: translateX(10px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.logo-printec {
+  width: auto !important;
+  height: 9rem !important;
+  right: 15px !important;
+  bottom: 0px !important;
+  position: fixed !important;
+  background-color: rgba(255, 255, 255, 0);
+  border: none;
+}
+
+.logo-home {
+  border: none;
+  width: 11rem;
+  height: 5rem;
+  border-radius: 8px !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  background-color: rgba(255, 255, 255, 0);
+}
+
+.logo-home:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/*----------  login Styles  ----------*/
+.btn-login {
+  width: 90%;
+  padding: 10px 0;
+  display: block;
+  margin: 0 auto;
+  border-radius: 3px;
+  margin-top: 30px;
+  background-color: var(--background-primary);
+  color: var(--text-white);
+  border: 1px solid var(--text-black);
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-login:hover {
+  background-color: var(--background-white);
+  border: 1px solid var(--text-black);
+  color: var(--text-black);
+  transform: translateY(-2px);
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  /* Sombra suave */
+}
+
+.btn-login:active,
+.btn-login:focus {
+  outline: none;
+}
+
+.btn-restablecer {
+  text-decoration: none;
+  color: var(--text-black) !important;
+  background-color: var(--background-gray) transparent;
+  border: 1px solid var(--text-black);
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  font-weight: 600;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-restablecer:hover {
+  background-color: var(--background-primary);
+  border: 1px solid var(--text-white);
+  color: var(--text-white) !important;
+  transform: translateY(-2px);
+}
+
+.loginForm input {
+  color: var(--text-black) !important;
+  font-size: 16px !important;
+  padding: 10px;
+  /* border: 1px solid var(--text-black); */
+  border-radius: 5px;
+}
+
+.loginForm label {
+  color: var(--text-black) !important;
+  font-size: 14px !important;
+  padding: 10px;
+  /* border: 1px solid var(--text-black); */
+  border-radius: 5px;
+}
+
+.loginForm i {
+  color: var(--text-black) !important;
+}
+
+.loginForm form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  /* Espacio entre los elementos */
+}
+
+.div-login {
+  margin: 3.5rem 25rem;
+  padding: 1.2rem;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 28rem;
+  height: 31rem;
+  min-height: 31rem;
+}
+
+.row-login {
+  margin-left: -45rem !important;
+  justify-content: center;
+  margin: -1rem 0rem;
+}
+
+.image-layoutautentication {
+  width: 100% !important;
+  background-image: url("../img/iStock.jpg") !important;
+  background-size: cover;
+  background-position: center center !important;
+  background-attachment: inherit;
+  height: 100% !important;
+}
+
+.image-layoutautentication::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(38, 54, 143, 0);
+  z-index: 1;
+}
+
+.image-layoutautentication * {
+  position: initial;
+  z-index: 2;
+  /* Asegura que los elementos estén sobre la superposición */
+}
+
+/* Diseño responsivo */
+@media (max-width: 1200px) {
+  .div-login {
+    width: 95%;
+    /* Más ancho en pantallas medianas */
+    max-width: 30rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .div-login {
+    width: 90%;
+    /* Más espacio en pantallas pequeñas */
+    max-width: 25rem;
+  }
+
+  .btn-login {
+    width: 100%;
+    /* Botón fluido */
+  }
+}
+
+@media (max-width: 480px) {
+  .div-login {
+    width: 85%;
+    /* Ancho máximo en pantallas muy pequeñas */
+    padding: 1rem;
+    /* Reduce el relleno */
+  }
+}
+
+.dataTables_scrollBody {
+  max-height: 350px !important;
+  /* misma altura que scrollY */
+}
+
+.dataTables_empty {
+  text-align: center !important;
+  padding: 30px 0 !important;
+}
+
+#footer {
+  background-color: var(--background-white);
+  margin-top: auto !important;
+  padding-bottom: 1rem !important;
+  padding-top: 1rem !important;
+}
+
+.div-footer {
+  color: var(--background-black);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.div-main2 {
+  background-color: var(--background-white);
+  color: var(--text-black) !important;
+}
+
+.div-main1 {
+  background-color: var(--background-gray);
+  color: var(--text-black) !important;
+}
+
+.nav-head {
+  background-color: var(--background-white);
+}
+
+/* Estilo general para los elementos dropdown */
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1.5rem;
+  /* Ajustar el padding para mayor espacio */
+  clear: both;
+  color: var(--text-blue);
+  /* Cambiado a texto azul por defecto para mejor contraste */
+  font-weight: 600;
+  text-align: inherit;
+  white-space: nowrap;
+  background-color: var(--background-white);
+  /* Fondo claro para un contraste limpio */
+  border: 0;
+  transition: all 0.4s ease;
+  /* Transición suave para cambios visuales */
+}
+
+/* Efecto hover y focus */
+.dropdown-item:hover,
+.dropdown-item:focus {
+  color: var(--text-white);
+  /* Texto blanco al pasar el cursor */
+  text-decoration: none;
+  background-color: var(--background-secondary);
+  /* Fondo rojo al hover */
+}
+
+/* Estilo para elementos activos */
+.dropdown-item.active,
+.dropdown-item:active {
+  color: var(--text-red);
+  text-decoration: none;
+  background-color: var(--background-primary);
+  /* Fondo azul oscuro para elementos activos */
+}
+
+/* Estilo para elementos deshabilitados */
+.dropdown-item.disabled,
+.dropdown-item:disabled {
+  color: var(--background-gray);
+  /* Texto gris para elementos deshabilitados */
+  pointer-events: none;
+  /* Desactivar interacción */
+  background-color: transparent;
+  /* Fondo transparente */
+}
+
+/* Divider entre elementos */
+.dropdown-divider {
+  height: 1px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  background-color: var(--background-gray);
+  /* Color del divisor */
+  border: none;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  display: none;
+  float: left;
+  min-width: 10rem;
+  padding: 0.5rem 0;
+  margin: 0.125rem 0 0;
+  font-size: 1rem;
+  text-align: left;
+  list-style: none;
+  background-color: var(--background-white);
+  background-clip: padding-box;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 0.25rem;
+}
+
+.dropdown-menu-left {
+  right: auto;
+  left: 0;
+}
+
+.dropdown-menu-right {
+  right: 0;
+  left: auto;
+}
+
+@media (min-width: 576px) {
+  .dropdown-menu-sm-left {
+    right: auto;
+    left: 0;
+  }
+
+  .dropdown-menu-sm-right {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (min-width: 768px) {
+  .dropdown-menu-md-left {
+    right: auto;
+    left: 0;
+  }
+
+  .dropdown-menu-md-right {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (min-width: 992px) {
+  .dropdown-menu-lg-left {
+    right: auto;
+    left: 0;
+  }
+
+  .dropdown-menu-lg-right {
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (min-width: 1200px) {
+  .dropdown-menu-xl-left {
+    right: auto;
+    left: 0;
+  }
+
+  .dropdown-menu-xl-right {
+    right: 0;
+    left: auto;
+  }
+}
+
+.dropup .dropdown-menu {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 0.125rem;
+}
+
+#main-menu {
+  background-color: var(--background-primary);
+  color: var(--text-white);
+  font-weight: bold;
+}
+
+#table thead {
+  background-color: var(--background-primary);
+  color: var(--text-white);
+}
+
+#table tbody {
+  color: var(--text-black);
+  font-size: 1rem;
+}

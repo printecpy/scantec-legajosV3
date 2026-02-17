@@ -1,0 +1,57 @@
+/**
+ * Este proyecto utiliza varias bibliotecas de código abierto, que están licenciadas bajo diferentes licencias.
+ * 
+ * Bibliotecas y sus licencias:
+ * 
+ * 1. **FPDI 2.4.1**
+ *  - Licencia: Licencia MIT
+ *  - Más información: (https://github.com/Setasign/FPDI)
+ * 
+ * 2. **FPDF 1.82**
+ *    - Licencia: Licencia MIT
+ *    - Más información: http://www.fpdf.org/
+ * 
+ * 3. **TCPDF 6.3.2**
+ *    - Licencia: Licencia LGPLv3
+ *    - Más información: https://tcpdf.org/
+ *    - Licencia: https://www.gnu.org/licenses/lgpl-3.0.html
+ * 
+ * 4. **PHPExcel**
+ *    - Licencia: Licencia BSD
+ *    - Más información: https://github.com/PHPOffice/PHPExcel
+ *    - Licencia: https://opensource.org/licenses/BSD-3-Clause
+ * 
+ * 5. **php-jwt 6.10.0 2023-11-28**
+ *    - Licencia: Licencia MIT
+ *    - Más información: https://github.com/firebase/php-jwt
+ *    - Licencia: https://opensource.org/licenses/MIT
+ * 
+ * 6. **PHP 8.2**
+ *   - Licencia: Licencia PHP v3.01
+ *   - Más información: https://www.php.net/license/index.php
+ *
+ * 7. **MySQL Server Community 8.1.0**
+ *   - Licencia: Licencia Pública General de GNU (GPL)
+ *   - Más información: https://www.mysql.com/products/community/
+ *
+ * 8. **PhpSpreadsheet 1.18.0 - 2021-05-31**
+ *     - Licencia: Licencia MIT
+ *     - Más información: https://github.com/PHPOffice/PhpSpreadsheet/blob/master/LICENSE
+ *
+ * 9. **PHPMailer 5.2.27**
+ *    - Licencia: LGPL 2.1
+ *    - Más información: (https://github.com/PHPMailer/PHPMailer)
+ *
+ * 10. **PHP QR Code 1.1.4 2010100721**
+ *     - Licencia: LGPL
+ *     - Más información: (https://phpqrcode.sourceforge.net/)
+ *
+ * 11. **Apache 2.4**
+ *     - Licencia: Licencia Apache 2.0
+ *     - Más información: https://httpd.apache.org/
+ *     - Licencia: Licencia Apache 2.0
+ *
+ * Este archivo de aviso y el contenido de este proyecto solo pueden ser modificados por el desarrollador designado por la empresa PRINTEC SA.
+ * 
+    requerido mysql-8.1.0-winx64.msi     xampp-windows-x64-8.1.25-0-VS16-installer.exe
+ */

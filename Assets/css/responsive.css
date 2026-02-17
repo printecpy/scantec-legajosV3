@@ -1,0 +1,53 @@
+/* Ajustes para dispositivos pequeños */
+@media screen and (max-width: 768px) {
+    body {
+        height: auto;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .brand-section {
+        flex-direction: inherit;
+        height: auto;
+        width: auto;
+    }
+
+    .search-bar input {
+        width: 100%;
+    }
+
+    .second {
+        height: auto;
+        position: inherit;
+    }
+    
+    .row-login {
+        width: 100%;
+        height: auto;
+        position: absolute;
+        display: contents;
+        margin: 0px 30px !important;
+    }
+
+    .logo-home{
+        width: auto;
+        height: auto;
+    }
+}
+
+@media screen and (max-width: 300px) {
+    nav {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+}

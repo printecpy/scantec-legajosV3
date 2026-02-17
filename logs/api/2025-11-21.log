@@ -1,0 +1,16 @@
+{
+    "timestamp": "2025-11-21 08:20:28",
+    "user_id": 1,
+    "user_roles": [],
+    "endpoint": "/scantec2/api/v1/expedientesController/verDocumento?ruta=Expedientes/CERTIFICADO%20MATRIMONIO-7777777.pdf&id_expediente=10292",
+    "http_method": "GET",
+    "http_code": 200,
+    "audit_message": "Visualizaci\u00f3n exitosa del documento ID 10292.",
+    "ip_origen": "::1",
+    "request_post": [],
+    "response_data": {
+        "id_expediente": 10292,
+        "filename": "CERTIFICADO MATRIMONIO-7777777.pdf"
+    }
+}
+================================================================================
