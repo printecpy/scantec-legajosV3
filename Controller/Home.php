@@ -30,62 +30,6 @@ class Home extends Controllers
         $this->views->getView($this, "restablecer_pw", $data);
     }
 
-    /* public function restaurarPass() {
-        if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            // Redirigir y mostrar un mensaje de error en caso de token CSRF inválido o caducado
-        header("Location: " . base_url() . "?error=csrf");
-        die();
-        }
-
-        // Limpieza de entradas y hash de la nueva contraseña
-        $nombre = htmlspecialchars($_POST['nombre']);
-        $usuario = htmlspecialchars($_POST['usuario']);
-        $nueva = hash("SHA512", $_POST['nueva']);
-
-        // Comprueba si el usuario existe
-        $data = $this->model->consultarPW($nombre, $usuario);
-        if ($data != null && $data != "") {
-            $cambio = $this->model->restaurar_pw($nueva, $nombre, $usuario);
-            if ($cambio == 1) {
-                // Destruye la sesión después del cambio de contraseña
-                header("Location: " . base_url() . "home/restablecer_pw?success");
-                exit();
-            }
-        }
-
-        // En caso de error, redirecciona con un mensaje de error
-        header("Location: " . base_url() . "home/restablecer_pw?error");
-        exit();
-    } */
-    /* public function restaurarPass() {
-        if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            // Redirigir y mostrar un mensaje de error en caso de token CSRF inválido o caducado
-            header("Location: " . base_url() . "?error=csrf");
-            die();
-        }
-
-        // Limpieza de entradas
-        $nombre = htmlspecialchars($_POST['nombre']);
-        $usuario = htmlspecialchars($_POST['usuario']);
-
-        // Hashear la nueva contraseña con bcrypt y un costo de 10
-        $nueva = password_hash($_POST['nueva'], PASSWORD_BCRYPT, ['cost' => 12]);
-
-        // Comprueba si el usuario existe
-        $data = $this->model->consultarPW($nombre, $usuario);
-        if ($data != null && $data != "") {
-            $cambio = $this->model->restaurar_pw($nueva, $nombre, $usuario);
-            if ($cambio == 1) {
-                // Destruye la sesión después del cambio de contraseña
-                header("Location: " . base_url() . "home/restablecer_pw?success");
-                exit();
-            }
-        }
-
-        // En caso de error, redirecciona con un mensaje de error
-        header("Location: " . base_url() . "home/restablecer_pw?error");
-        exit();
-    } */
     public function restaurarPass()
     {
         if (session_status() === PHP_SESSION_NONE) {

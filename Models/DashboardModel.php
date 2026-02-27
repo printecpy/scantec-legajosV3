@@ -1,5 +1,6 @@
 <?php
-class DashboardModel extends Mysql{
+class DashboardModel extends Mysql
+{
     public function __construct()
     {
         parent::__construct();
@@ -17,7 +18,7 @@ class DashboardModel extends Mysql{
         $res = $this->select($sql);
         return $res;
     }
-    
+
     public function selectLotesFinalizado()
     {
         $sql = "SELECT COUNT(*) AS lote_finalizados FROM lote WHERE estado = 'FINALIZADO';";
@@ -30,7 +31,7 @@ class DashboardModel extends Mysql{
         $res = $this->select_all($sql);
         return $res;
     }
-    
+
     public function selectarchivosTipoDoc()
     {
         $sql = "SELECT v.id_tipoDoc, MIN(v.nombre_tipoDoc) AS nombre_tipoDoc, SUM(v.paginas) AS total_paginas, COUNT(*) AS cantidad_archivos 
@@ -60,17 +61,17 @@ class DashboardModel extends Mysql{
 
     public function selectPaginasProcesada()
     {
-        $sql = "SELECT SUM(paginas) as paginas_procesadas FROM expediente where estado = 'Activo';";
+        $sql = "SELECT IFNULL(SUM(paginas), 0) as paginas_procesadas FROM expediente WHERE estado = 'Activo';";
         $res = $this->select($sql);
-       // echo $res;
         return $res;
     }
+
     public function selectPorcAvanza()
     {
         $sql = "SELECT ((SUM(a.total_pag)) / ((select b.total_pag) * 100)) as porc_avanzar 
         FROM detalle_proceso a, configuracion b group by b.total_pag";
         $res = $this->select($sql);
-       // echo $res;
+        // echo $res;
         return $res;
     }
 
@@ -79,16 +80,18 @@ class DashboardModel extends Mysql{
         $sql = "SELECT (SELECT total_pag FROM configuracion) - (SUM(a.total_pag))  as cant_faltantes 
         FROM detalle_proceso a ";
         $res = $this->select($sql);
-       // echo $res;
+        // echo $res;
         return $res;
     }
-    public function selectExpedLote(){
+    public function selectExpedLote()
+    {
         $sql = "SELECT id_registro,  cant_expediente, total_paginas FROM lote ORDER BY id_registro ASC;";
         $res = $this->select_all($sql);
         return $res;
     }
 
-    public function selectLogs_uman(){
+    public function selectLogs_uman()
+    {
         $sql = "SELECT idlog_umango, id_proceso_umango, id_lote, fuente_captura,
          archivo_origen, orden_documento, paginas_exportadas, fecha_inicio, fecha_finalizacion, 
          creador, usuario, trabajo, estado, nombre_host, ip_host FROM logs_umango  WHERE STR_TO_DATE(fecha_finalizacion, '%Y-%m-%d') = DATE_SUB(CURDATE(),
@@ -121,27 +124,27 @@ class DashboardModel extends Mysql{
         return $res;
     }
 
-    public function getChartData() {
+    public function getChartData()
+    {
         $sql = "SELECT fecha_indexado, COUNT(*) AS cantidad FROM expediente 
         WHERE fecha_indexado >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH) GROUP BY fecha_indexado";
         $res = $this->select($sql);
         $labels = [];
         $data = [];
-        while ($row = $res->fetch())
-        {
+        while ($row = $res->fetch()) {
             $labels[] = $row['fecha_indexado'];
             $data[] = $row['cantidad'];
         }
         return [$labels, $data];
     }
 
-       public function selectPrestamoCantidad()
+    public function selectPrestamoCantidad()
     {
         $sql = "SELECT * FROM prestamo WHERE estado = 1";
         $res = $this->select($sql);
         return $res;
     }
- 
+
     public function selectDatos()
     {
         $sql = "SELECT * FROM configuracion";
@@ -156,5 +159,5 @@ class DashboardModel extends Mysql{
         $res = $this->select_all($sql);
         return $res;
     }
-    
+
 }

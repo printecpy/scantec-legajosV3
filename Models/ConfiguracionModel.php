@@ -1,13 +1,13 @@
 <?php
 class ConfiguracionModel extends Mysql
 {
-    //protected $id, $nombre, $telefono, $direccion;
     private $db;
     public function __construct()
     {
         parent::__construct();
         $this->db = new Mysql();
     }
+
     public function selectConfiguracion()
     {
         $sql = "SELECT 
@@ -22,21 +22,18 @@ class ConfiguracionModel extends Mysql
     {
         $sql = "SELECT id, ldapHost, ldapPort, ldapUser, ldapPass, ldapBaseDn, fecha_registro, fecha_sincronizacion, estado 
             FROM ldap_datos where estado='activo';";
-        $res = $this->select_all($sql);
-        return $res;
+        return $this->select_all($sql);
     }
 
     public function selectSMTP_datos()
     {
         $sql = "SELECT host, username, password, smtpsecure, remitente, nombre_remitente, PORT, estado 
             FROM smtp_datos where estado='activo' limit 1;";
-        $res = $this->select($sql);
-        return $res;
+        return $this->select_all($sql);
     }
 
     public function actualizarConfiguracion(string $nombre, string $telefono, string $direccion, string $correo, int $total_pag, int $id)
     {
-        $return = "";
         $this->nombre = $nombre;
         $this->telefono = $telefono;
         $this->direccion = $direccion;
@@ -45,47 +42,53 @@ class ConfiguracionModel extends Mysql
         $this->id = $id;
         $query = "UPDATE configuracion SET nombre=?, telefono=?, direccion=?, correo=?, total_pag=? WHERE id=?";
         $data = array($this->nombre, $this->telefono, $this->direccion, $this->correo, $this->total_pag, $this->id);
-        $resul = $this->update($query, $data);
-        $return = $resul;
-        return $return;
+        return $this->update($query, $data);
     }
 
-    public function insertarServSMTP(
-        string $host,
-        string $username,
-        string $password,
-        string $smtpsecure,
-        string $port
-    ) {
-        $this->host = $host;
-        $this->username = $username;
-        $this->password = $password;
-        $this->smtpsecure = $smtpsecure;
-        $this->port = $port;
-        $query = "INSERT INTO smtp_datos (host, username, password, smtpsecure, port, estado) 
-            VALUES (?, ?, ?, ?, ?, 'activo');";
-        $data = array($host, $username, $password, $smtpsecure, $port);
-        $this->insert($query, $data);
-        return true;
+    // Insertar nueva configuración y desactivar las anteriores
+    public function insertarServSMTP(string $host, string $username, string $password, string $smtpsecure, string $port, string $remitente, string $nombre_remitente) 
+    {
+        // 1. Primero ponemos TODO en 'inactivo' para evitar duplicidad
+        $sql_update = "UPDATE smtp_datos SET estado = 'inactivo'";
+        $this->update($sql_update, array());
+
+        // 2. Insertamos el nuevo como 'activo'
+        $query = "INSERT INTO smtp_datos (host, username, password, smtpsecure, port, remitente, nombre_remitente, estado) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, 'activo')";
+        
+        $arrData = array($host, $username, $password, $smtpsecure, $port, $remitente, $nombre_remitente);
+        $request = $this->insert($query, $arrData);
+        return $request;
     }
 
-    public function insertarServLDAP(
-        string $ldapHost,
-        string $ldapPort,
-        string $ldapBaseDn,
-        string $ldapUser,
-        string $ldapPass,
-        string $fecha_registro
-    ) {
+    // Obtener la configuración activa
+    public function getActiveSMTP()
+    {
+        $sql = "SELECT * FROM smtp_datos WHERE estado = 'activo' ORDER BY id DESC LIMIT 1";
+        return $this->select($sql);
+    }
+
+    // Método para apagar el servicio SMTP
+    public function desactivarSMTP()
+    {
+        $sql = "UPDATE smtp_datos SET estado = 'inactivo'";
+        return $this->update($sql, array());
+    }
+
+    public function insertarServLDAP(string $ldapHost, string $ldapPort, string $ldapBaseDn, string $ldapUser, string $ldapPass, string $fecha_registro) 
+    {
         $this->ldapHost = $ldapHost;
         $this->ldapPort = $ldapPort;
         $this->ldapBaseDn = $ldapBaseDn;
         $this->ldapUser = $ldapUser;
-        $this->ldapPass = $ldapPass;
+    
+        $this->ldapPass = stringEncryption($ldapPass); 
+        
         $this->fecha_registro = $fecha_registro;
+        
         $query = "INSERT INTO ldap_datos (ldapHost, ldapPort, ldapUser, ldapPass, ldapBaseDn, fecha_registro, estado) 
             VALUES (?, ?, ?, ?, ?, ?, 'activo');";
-        $data = array($ldapHost, $ldapPort, $ldapUser, $ldapPass, $ldapBaseDn, $fecha_registro);
+        $data = array($this->ldapHost, $this->ldapPort, $this->ldapUser, $this->ldapPass, $this->ldapBaseDn, $this->fecha_registro);
         $this->insert($query, $data);
         return true;
     }
@@ -93,8 +96,7 @@ class ConfiguracionModel extends Mysql
     public function selectLDAP_sincronizar()
     {
         $sql = "SELECT * FROM ldap_datos where estado='activo';";
-        $res = $this->select($sql);
-        return $res;
+        return $this->select($sql);
     }
 
     public function backupDatabase()
@@ -104,29 +106,38 @@ class ConfiguracionModel extends Mysql
         $user = DB_USER;
         $pass = PASS;
         $dbname = BD;
-        $backup_dir = BACKUP_PATH; // Usamos la ruta del config
-        // Verificar que la ruta exista o crearla
+        
+        // CORRECCIÓN: Usar constante o ruta por defecto, pero asegurarse que exista
+        $backup_dir = defined('BACKUP_PATH') ? BACKUP_PATH : dirname(__DIR__) . "\\backups\\";
+        
         if (!file_exists($backup_dir)) {
             mkdir($backup_dir, 0777, true);
         }
-        // Generar nombre del archivo con fecha/hora
-        $backup_file = $backup_dir . $dbname . '_' . date("Y-m-d_H-i-s") . '.sql';
-        // Ruta completa al archivo mysqldump.exe
+
+        $date = date("Y-m-d_H-i-s");
+        $filename = $dbname . "_" . $date . ".sql";
+        $backup_file = $backup_dir . $filename;
+
+        // CORRECCIÓN: Ruta de mysqldump con comillas por si hay espacios
+        // NOTA: Verifica que esta ruta exista en tu servidor. 
+        // Idealmente debería estar en una constante en Config.php
         $mysqldumpPath = '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysqldump.exe"';
 
-        $command = "$mysqldumpPath --opt --host=$host --user=$user --password=$pass $dbname > $backup_file";
+        // Comando con manejo de errores y comillas en rutas
+        $command = "$mysqldumpPath --opt --host=$host --user=$user --password=$pass $dbname > \"$backup_file\"";
 
-        // Ejecutar el comando
-        system($command, $output);
+        $output = null;
+        $result_code = null;
+        exec($command, $output, $result_code);
 
-        if ($output == 0) {
-            return "Respaldo completado exitosamente.";
+        if ($result_code === 0) {
+            return ['status' => true, 'msg' => "Respaldo creado correctamente.", 'file' => $filename];
         } else {
-            return "Error al realizar el respaldo.";
+            return ['status' => false, 'msg' => "Error al crear respaldo (Código: $result_code)."];
         }
     }
 
-    public function RestoreDatabase($backup_file)
+    public function RestoreDatabase($backup_file_path)
     {
         require_once 'Config/Config.php';
         $host = HOST;
@@ -134,27 +145,68 @@ class ConfiguracionModel extends Mysql
         $pass = PASS;
         $dbname = BD;
 
-        // Ruta completa al archivo mysql.exe
+        // CORRECCIÓN: Ruta de mysql.exe con comillas
         $mysqlPath = '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysql.exe"';
 
-        // Comando para restaurar la base de datos
-        $command = "$mysqlPath --host=$host --user=$user --password=$pass $dbname < $backup_file";
+        // Validar que el archivo existe antes de intentar
+        if (!file_exists($backup_file_path)) {
+             return ['status' => false, 'msg' => "El archivo temporal no se encuentra."];
+        }
 
-        // Ejecutar el comando
-        system($command, $output);
+        // Comando seguro: comillas alrededor del archivo de entrada
+        $command = "$mysqlPath --host=$host --user=$user --password=$pass $dbname < \"$backup_file_path\"";
 
-        // Validar el resultado
-        if ($output == 0) {
-            return "Restauración completada exitosamente.";
+        $output = null;
+        $result_code = null;
+        exec($command, $output, $result_code);
+
+        if ($result_code === 0) {
+            return ['status' => true, 'msg' => "Base de datos restaurada exitosamente."];
         } else {
-            return "Error al realizar la restauración.";
+            return ['status' => false, 'msg' => "Error crítico al restaurar. Código: $result_code."];
         }
     }
 
-    public function ejecutarRespaldo()
+    public function ejecutarRespaldo($ruta_destino)
     {
-        $scriptPath = "C:\\xampp\\htdocs\\scantec2\\scrips\\backup.bat";
-        pclose(popen("start /B " . $scriptPath, "r"));
-        return true;
+        try {
+            // 1. Validar destino
+            if (!is_dir($ruta_destino)) {
+                if (!@mkdir($ruta_destino, 0777, true)) {
+                    return ['status' => false, 'msg' => 'La ruta destino no existe y no pudo ser creada.'];
+                }
+            }
+
+            if (!defined('RUTA_BASE')) {
+                return ['status' => false, 'msg' => 'La constante RUTA_BASE no está definida.'];
+            }
+
+            // 2. Dividir la ruta para que Windows Explorer lea bien el ZIP
+            // Si RUTA_BASE es "C:/xampp/scantec_storage/"
+            $ruta_base_limpia = rtrim(RUTA_BASE, '/\\');
+            $directorio_padre = dirname($ruta_base_limpia); // Queda: "C:/xampp"
+            $nombre_carpeta   = basename($ruta_base_limpia); // Queda: "scantec_storage"
+
+            if (!is_dir($ruta_base_limpia)) {
+                return ['status' => false, 'msg' => 'La carpeta origen no existe: ' . $ruta_base_limpia];
+            }
+
+            // 3. Crear el comando exacto
+            $fecha = date('Ymd_His');
+            $archivo_zip = rtrim($ruta_destino, '/\\') . DIRECTORY_SEPARATOR . "backup_documentos_{$fecha}.zip";
+
+            // tar comprimirá la carpeta completa desde afuera
+            $comando = 'tar -a -c -f ' . escapeshellarg($archivo_zip) . ' -C ' . escapeshellarg($directorio_padre) . ' ' . escapeshellarg($nombre_carpeta);
+
+            // 4. Ejecutar en segundo plano
+            exec('start "" /B ' . $comando);
+            
+            return ['status' => true, 'msg' => 'El respaldo físico se inició. Archivo: backup_documentos_' . $fecha . '.zip'];
+
+        } catch (Throwable $e) {
+            return ['status' => false, 'msg' => 'Error en el modelo: ' . $e->getMessage()];
+        }
     }
+
 }
+?>

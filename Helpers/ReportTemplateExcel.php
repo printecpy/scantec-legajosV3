@@ -29,9 +29,12 @@ class ReportTemplateExcel
         $this->spreadsheet->getDefaultStyle()->getFont()->setName('Arial');
         $this->spreadsheet->getDefaultStyle()->getFont()->setSize(10);
 
+        $this->spreadsheet->getDefaultStyle()->getAlignment()->setWrapText(true);
+        $this->spreadsheet->getDefaultStyle()->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+
         $this->sheet = $this->spreadsheet->getActiveSheet();
         $this->sheet->setTitle(substr($titulo, 0, 30)); // Excel limita nombres de hoja a 31 chars
-        
+
         $this->setHeader($titulo, $empresa);
     }
 
@@ -55,15 +58,33 @@ class ReportTemplateExcel
         return $this->sheet;
     }
 
+    public function setColumnWidths(array $widths)
+    {
+        foreach ($widths as $col => $width) {
+            if ($width === 'auto') {
+                // Si es auto, Excel decide el ancho (ideal para fechas o números cortos)
+                $this->sheet->getColumnDimension($col)->setAutoSize(true);
+            } else {
+                // Si es un número, fuerza ese ancho máximo. Al llegar al límite, el texto bajará de renglón
+                $this->sheet->getColumnDimension($col)->setWidth($width);
+            }
+        }
+    }
+
     public function output(string $nombreArchivo)
     {
-        // LIMPIEZA DE BUFFER (Obligatorio para evitar archivo corrupto)
-        if (ob_get_length()) ob_end_clean();
+        error_reporting(0);
+        ini_set('display_errors', 0);
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
 
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="'.$nombreArchivo.'.xlsx"');
+        header('Content-Disposition: attachment;filename="' . $nombreArchivo . '.xlsx"');
         header('Cache-Control: max-age=0');
 
+        //Guardar archivo
         $writer = new Xlsx($this->spreadsheet);
         $writer->save('php://output');
         exit;

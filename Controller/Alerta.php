@@ -1,262 +1,286 @@
 <?php
 require_once 'Controller/Configuracion.php'; 
+
 class Alerta extends Controllers
 {
-    private $alertaModel;
-    private $db;
-    private $mailController; // Nuevo objeto para el controlador de correo/configuración
+    private $mailController; 
 
-     public function __construct()
+    public function __construct()
     {
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
         }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit();
         }
         parent::__construct();
-        $this->alertaModel = new AlertaModel();
-        $this->db = new Mysql();
+        $this->mailController = new Configuracion(); 
     }
 
     public function listar()
     {
         if (!isset($_SESSION['id_rol']) || !in_array($_SESSION['id_rol'], [1, 2]))  {
-            setAlert('warning', "No tienes permiso para acceder a esta sección!");
-            session_write_close();
-            $motivo = 'Acceso no autorizado a sección de usuarios';
-            $usuario = $_SESSION['nombre'];
-            $data = $this->model->bloquarPC_IP($usuario, $motivo);
-            header("Location: ".base_url()."expedientes/indice_busqueda");  // Redirigir a la página de índice de búsqueda
+            $_SESSION['alert'] = ['type' => 'warning', 'message' => 'No tienes permiso para acceder a esta sección.'];
+            header("Location: ".base_url()."expedientes/indice_busqueda"); 
             exit();
         }
-        $alerts =  $this->model->getTareasPendientes();
+        
+        $alerts = $this->model->getTareasPendientes();
         $data = ['alerts' => $alerts];
         $this->views->getView($this, "listar", $data);
     }
+
     public function historial()
     {
         if (!isset($_SESSION['id_rol']) || !in_array($_SESSION['id_rol'], [1, 2]))  {
-            setAlert('warning', "No tienes permiso para acceder a esta sección!");
-            session_write_close();
-            $motivo = 'Acceso no autorizado a sección de usuarios';
-            $usuario = $_SESSION['nombre'];
-            $data = $this->model->bloquarPC_IP($usuario, $motivo);
-            header("Location: ".base_url()."expedientes/indice_busqueda");  // Redirigir a la página de índice de búsqueda
+            $_SESSION['alert'] = ['type' => 'warning', 'message' => 'No tienes permiso para acceder a esta sección.'];
+            header("Location: ".base_url()."expedientes/indice_busqueda"); 
             exit();
         }
-        $alerts =  $this->model->getTareasPendientes();
-        $data = ['alerts' => $alerts];
+        
+        $historial = $this->model->select_all("SELECT * FROM alerta_historial ORDER BY fecha_envio DESC"); 
+        $data = ['historial' => $historial];
         $this->views->getView($this, "historial", $data);
     }
-/**
-     * Método principal que será llamado por el cron job (CLI).
-     */
-    
+
+    public function editar()
+    {
+        if (empty($_GET['id'])) {
+            header("Location: " . base_url() . "alerta/listar");
+            exit();
+        }
+        $id_tarea = intval($_GET['id']);
+
+        $respuesta_tarea = $this->model->getTareaById($id_tarea);
+        
+        // Aplanar el array si viene dentro de [0]
+        if (!empty($respuesta_tarea) && isset($respuesta_tarea[0])) {
+            $tarea = $respuesta_tarea[0];
+        } else {
+            $tarea = $respuesta_tarea;
+        }
+
+        if (empty($tarea)) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'La alerta solicitada no existe.'];
+            header("Location: " . base_url() . "alerta/listar");
+            exit();
+        }
+
+        $destinatarios = $this->model->getDestinatariosPorTarea($id_tarea);
+
+        $data = [
+            'page_title' => 'Modificar Alerta',
+            'tarea' => $tarea,
+            'destinatarios' => $destinatarios
+        ];
+
+        $this->views->getView($this, "editar", $data);
+    }
+
+    public function modificar()
+    {
+        if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad CSRF.'];
+            header("Location: " . base_url() . "alerta/listar");
+            die();
+        }
+
+        $id_tarea = intval($_POST['id_tarea']);
+        $nombre_tarea = htmlspecialchars(trim($_POST['nombre_tarea']));
+        $tipo_informe = htmlspecialchars(trim($_POST['tipo_informe']));
+        $frecuencia = htmlspecialchars(trim($_POST['frecuencia']));
+
+        $request = $this->model->updateTarea($id_tarea, $nombre_tarea, $tipo_informe, $frecuencia);
+
+        if ($request) {
+            $_SESSION['alert'] = ['type' => 'success', 'message' => 'Alerta actualizada correctamente.'];
+        } else {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'No se pudieron guardar los cambios.'];
+        }
+        
+        header("Location: " . base_url() . "alerta/editar?id=" . $id_tarea);
+        die();
+    }
+
+    public function agregarDestinatario()
+    {
+        if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) { die(); }
+
+        $id_tarea = intval($_POST['id_tarea']);
+        $correo = filter_var(trim($_POST['correo_destino']), FILTER_SANITIZE_EMAIL);
+
+        if (filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+            $this->model->addDestinatario($id_tarea, $correo);
+            $_SESSION['alert'] = ['type' => 'success', 'message' => 'Destinatario agregado con éxito.'];
+        } else {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'El correo ingresado no es válido.'];
+        }
+
+        header("Location: " . base_url() . "alerta/editar?id=" . $id_tarea);
+        die();
+    }
+
+    public function eliminarDestinatario()
+    {
+        if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) { die(); }
+
+        $id_destinatario = intval($_POST['id_destinatario']);
+        $id_tarea = intval($_POST['id_tarea']); 
+
+        $this->model->deleteDestinatario($id_destinatario);
+        
+        $_SESSION['alert'] = ['type' => 'success', 'message' => 'Destinatario eliminado.'];
+        header("Location: " . base_url() . "alerta/editar?id=" . $id_tarea);
+        die();
+    }
+
+    public function eliminar()
+    {
+        if (!isset($_POST['id']) || !isset($_POST['token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad.'];
+            header("Location: " . base_url() . "alerta/listar");
+            die();
+        }
+        $id_tarea = intval($_POST['id']);
+        $this->model->estadoTarea($id_tarea, 'inactivo');
+        $_SESSION['alert'] = ['type' => 'success', 'message' => 'Alerta desactivada correctamente.'];
+        header("Location: " . base_url() . "alerta/listar");
+        die();
+    }
+
+    public function reingresar()
+    {
+        if (!isset($_POST['id']) || !isset($_POST['token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad.'];
+            header("Location: " . base_url() . "alerta/listar");
+            die();
+        }
+        $id_tarea = intval($_POST['id']);
+        $this->model->estadoTarea($id_tarea, 'activo');
+        $_SESSION['alert'] = ['type' => 'success', 'message' => 'Alerta reactivada correctamente.'];
+        header("Location: " . base_url() . "alerta/listar");
+        die();
+    }
+
     public function ejecutarPendientes() {
         if (php_sapi_name() !== "cli") {
-            echo "Acceso denegado. Este script solo puede ejecutarse desde la línea de comandos.\n";
+            echo "Acceso denegado. Solo línea de comandos.\n";
             return;
         }
 
-        echo "Iniciando procesamiento de alertas dinámicas...\n";
-        
-        $tareas = $this->alertaModel->getTareasPendientes();
+        echo "Iniciando procesamiento...\n";
+        $tareas = $this->model->getTareasPendientes();
         
         if (empty($tareas)) {
-            echo "No hay tareas programadas para ejecutar ahora.\n";
+            echo "No hay tareas.\n";
             return;
         }
-
-        echo "Se encontraron " . count($tareas) . " tareas pendientes.\n";
 
         foreach ($tareas as $tarea) {
             $id_tarea = $tarea['id'];
-            $tipo_informe = $tarea['tipo_informe'];
-            echo "--------------------------------------------------\n";
-            echo "Procesando Tarea: '{$tarea['nombre_tarea']}' (ID: $id_tarea)\n";
+            echo "Procesando Tarea: '{$tarea['nombre_tarea']}'\n";
             
-            // 1. Generar el informe
-            $reporte = $this->generarContenidoReporte($tipo_informe);
+            $reporte = $this->generarContenidoReporte($tarea);
 
             if ($reporte === false) {
-                echo "ERROR: No se pudo generar el reporte. Saltando tarea.\n";
-                $this->alertaModel->logHistorial($id_tarea, 'N/A', 'Error', "Fallo al generar el reporte $tipo_informe");
+                echo "ERROR: Saltando tarea.\n";
+                $this->model->logHistorial($id_tarea, 'N/A', 'Error', "Fallo al generar el reporte");
                 continue;
             }
 
-            // 2. Obtener destinatarios
-            $destinatarios = $this->alertaModel->getDestinatariosPorTarea($id_tarea);
+            $destinatarios = $this->model->getDestinatariosPorTarea($id_tarea);
             if (empty($destinatarios)) {
-                echo "ADVERTENCIA: La tarea $id_tarea no tiene destinatarios activos. Actualizando fecha.\n";
-                $this->alertaModel->actualizarTareaProgramada($id_tarea, $tarea['frecuencia']);
+                $this->model->actualizarTareaProgramada($id_tarea, $tarea['frecuencia']);
                 continue; 
             }
 
-            // 3. Enviar el informe a cada destinatario
             foreach ($destinatarios as $destinatario) {
                 $correo = $destinatario['correo_destino'];
-                echo "Enviando a: $correo ... ";
-                
-                $asunto = "Gestor Documental: {$tarea['nombre_tarea']}";
-                $mensaje_html = $reporte['cuerpo_html'];
-                $adjunto_path = $reporte['adjunto_path'];
-                
-                $nombreDestinatario = $correo; // Usar el correo como nombre por defecto
+                $asunto = "SCANTEC: {$tarea['nombre_tarea']}";
                 
                 $enviado = false;
                 try {
-                    // LLAMANDO AL MÉTODO CENTRALIZADO EN CONFIGURACION
-                    $enviado = $this->mailController->sendEmailWithAttachment(
-                        $adjunto_path, 
-                        $correo, 
-                        $nombreDestinatario, 
-                        $asunto,
-                        $mensaje_html
-                    );
+                    $enviado = $this->mailController->sendEmailWithAttachment($reporte['adjunto_path'], $correo, $correo, $asunto, $reporte['cuerpo_html']);
                 } catch (\Throwable $e) {
-                    // Captura cualquier excepción no manejada por el otro controlador
                     $detalleError = $e->getMessage();
                 }
 
-                // 4. Loguear el resultado INDIVIDUAL
                 if ($enviado) {
-                    echo "OK\n";
-                    $this->alertaModel->logHistorial($id_tarea, $correo, 'Exitoso', "Correo enviado exitosamente.");
+                    $this->model->logHistorial($id_tarea, $correo, 'Exitoso', "Correo enviado exitosamente.");
                 } else {
-                    $detalleError = $detalleError ?? "Error desconocido en el envío por sendEmailWithAttachment.";
-                    echo "FALLO. Error: " . $detalleError . "\n";
-                    $detalle = "Error al llamar al servicio de correo: " . $detalleError;
-                    $this->alertaModel->logHistorial($id_tarea, $correo, 'Error', $detalle);
+                    $detalleError = $detalleError ?? "Error SMTP.";
+                    $this->model->logHistorial($id_tarea, $correo, 'Error', $detalleError);
                 }
             }
-
-            // 5. Actualizar la 'tarea_programada' para su próxima ejecución
-            $this->alertaModel->actualizarTareaProgramada($id_tarea, $tarea['frecuencia']);
-            echo "Tarea (ID: $id_tarea) actualizada para próxima ejecución.\n";
+            $this->model->actualizarTareaProgramada($id_tarea, $tarea['frecuencia']);
         }
-        
-        echo "--------------------------------------------------\n";
-        echo "Procesamiento finalizado.\n";
     }
 
-/*     public function obtenerExpedientesPorTipo($tipo_informe)
-{
-    // 1️⃣ Conexión al modelo (ajusta si tu modelo se llama distinto)
-    $db = $this->db; // o $this->conexion según tu estructura
-
-    // 2️⃣ Obtener los días de vencimiento según el tipo de informe
-    $query = $db->prepare("SELECT dias_vencimiento FROM tipo_informe WHERE nombre_tipo = ?");
-    $query->execute([$tipo_informe]);
-    $tipo = $query->fetch(PDO::FETCH_ASSOC);
-
-    // Verifica si se encontró el tipo
-    if (!$tipo) {
-        return []; // Tipo de informe no encontrado
-    }
-
-    $dias = (int) $tipo['dias_vencimiento'];
-
-    // 3️⃣ Consulta de expedientes que vencen dentro del rango
-    $sql = "
-        SELECT 
-            id_expediente, 
-            indice_01,
-            fecha_vencimiento 
-        FROM 
-            expediente 
-        WHERE 
-            estado = 'Activo'
-            AND fecha_vencimiento BETWEEN DATE_ADD(NOW(), INTERVAL 1 DAY) 
-                                      AND DATE_ADD(NOW(), INTERVAL :dias DAY)
-        ORDER BY fecha_vencimiento ASC
-    ";
-
-    $stmt = $db->prepare($sql);
-    $stmt->bindParam(':dias', $dias, PDO::PARAM_INT);
-    $stmt->execute();
-
-    $resultados = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    return $resultados;
-} */
-
-    /**
-     * Genera el contenido HTML del correo y la ruta del adjunto para el informe.
-     * @return array|false Retorna ['cuerpo_html' => '...', 'adjunto_path' => '...'] o false en caso de error.
-     */
-    private function generarContenidoReporte($tipo_informe) {
-        // Definir la ruta temporal donde se guardará el adjunto (si aplica)
+    private function generarContenidoReporte(array $tarea) {
+        $tipo_informe = $tarea['tipo_informe'];
         $temp_dir = sys_get_temp_dir() . '/scantec_reportes/';
-        if (!is_dir($temp_dir)) {
-            mkdir($temp_dir, 0777, true);
-        }
+        if (!is_dir($temp_dir)) { mkdir($temp_dir, 0777, true); }
         
-        $cuerpo_html = "<p>Estimado usuario,</p>";
+        $cuerpo_html = "<p>Estimado usuario,</p><p>Este es un correo automático generado por el sistema de alertas de SCANTEC.</p>";
         $adjunto_path = null;
 
         switch ($tipo_informe) {
-            case 'FACTURAS_VENCIDAS':
-                // 1. Obtener los datos reales de facturas vencidas (llamada a un Modelo de Facturas)
-                $datos = ['datos_de_facturas' => '...']; 
-                
-                // 2. Generar el PDF (usando librerías como mpdf, dompdf, o FPDF)
-                // $pdf_content = $this->pdfLibrary->generate('vista_facturas_vencidas', $datos);
+            case 'VENC_5_DIAS':
+            case 'VENC_15_DIAS':
+            case 'VENC_1_MES':
+            case 'VENC_3_MESES':
+                $datos_reporte = $this->model->getReporteData($tarea);
 
-                // 3. Guardar el PDF en una ubicación temporal
-                $filename = 'reporte_facturas_' . date('Ymd') . '.pdf';
+                if (empty($datos_reporte)) {
+                    $cuerpo_html .= "<p>Para la alerta '{$tarea['nombre_tarea']}', no se encontraron documentos por vencer en el período configurado.</p>";
+                    break; 
+                }
+
+                $filename = 'reporte_vencimientos_' . date('Ymd_His') . '.pdf';
                 $adjunto_path = $temp_dir . $filename;
-                // file_put_contents($adjunto_path, $pdf_content); // Descomentar al implementar el generador de PDF real
+
+                // 1. Llamamos a tu archivo de Plantilla Centralizada
+                require_once 'Helpers/ReportTemplatePDF.php';
+
+                // 2. Inicializamos la plantilla con datos estáticos (Sin consultar BD)
+                $titulo = 'Reporte de Documentos por Vencer';
+                $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], $titulo, 'P', 'A4');
+
+                // 3. Dibujamos las cabeceras de la tabla (Fondo gris claro)
+                $pdf->SetFont('Arial', 'B', 10);
+                $pdf->SetFillColor(240, 240, 240); 
+                $pdf->SetTextColor(0, 0, 0);
                 
-                // SIMULACIÓN
-                file_put_contents($adjunto_path, "Contenido de prueba para $tipo_informe.");
+                $pdf->Cell(30, 8, 'ID Exp.', 1, 0, 'C', true);
+                $pdf->Cell(110, 8, 'Indice Principal', 1, 0, 'C', true);
+                $pdf->Cell(50, 8, 'Fecha Vencimiento', 1, 1, 'C', true);
                 
-                $cuerpo_html .= "<p>Adjunto encontrará el reporte de Facturas Vencidas al día de hoy.</p>";
-                break;
+                // 4. Configurar el motor multilínea para los datos del bucle
+                $pdf->SetWidths(array(30, 110, 50));
+                $pdf->SetAligns(array('C', 'L', 'C'));
+                $pdf->SetFont('Arial', '', 10);
                 
-            case 'TAREAS_PENDIENTES':
-                $cuerpo_html .= "<p>El sistema informa que tiene Tareas Pendientes sin procesar. Revise su panel de control.</p>";
+                // 5. Imprimir el contenido de la tabla ajustando el texto largo
+                foreach ($datos_reporte as $item) {
+                    $pdf->Row(array(
+                        $item['id_expediente'],
+                        utf8_decode($item['indice_01']),
+                        date("d/m/Y", strtotime($item['fecha_vencimiento']))
+                    ));
+                }
+
+                // 6. Generar y guardar físicamente el PDF ('F' para archivo temporal)
+                $pdf->Output('F', $adjunto_path);
+
+                $cuerpo_html .= "<p>Adjunto encontrará el reporte de documentos correspondientes a la alerta '{$tarea['nombre_tarea']}'.</p>";
                 break;
                 
             default:
-                return false; // Tipo de informe no reconocido
+                return false; 
         }
 
-        return [
-            'cuerpo_html' => $cuerpo_html . "<p>Atentamente, El Equipo SCANTEC.</p>",
-            'adjunto_path' => $adjunto_path,
-        ];
+        $cuerpo_html .= "<br><p>Atentamente,<br>El Equipo de SCANTEC</p>";
+        return ['cuerpo_html' => $cuerpo_html, 'adjunto_path' => $adjunto_path];
     }
-
-    /**
-     * Genera el contenido del informe. (sin cambios)
-     */
-    private function generarContenidoReporte2($tipo_informe) {
-        $html = "<h1>Informe: $tipo_informe</h1>";
-        $ruta_adjunto = null;
-
-        try {
-            switch ($tipo_informe) {
-                case 'INFORME_DIARIO_VENTAS':
-                    $html .= "<p>Contenido del informe de ventas diarias...</p>";
-                    break;
-                case 'INFORME_DOCUMENTOS_PENDIENTES':
-                    $html .= "<p>Listado de documentos pendientes de firma...</p>";
-                    break;
-                default:
-                    $html .= "<p>Tipo de informe no reconocido.</p>";
-                    break;
-            }
-
-            return [
-                'cuerpo_html' => $html,
-                'adjunto_path' => $ruta_adjunto
-            ];
-
-        } catch (Exception $e) {
-            echo "Error al generar reporte $tipo_informe: " . $e->getMessage() . "\n";
-            return false;
-        }
-    }
-
 }

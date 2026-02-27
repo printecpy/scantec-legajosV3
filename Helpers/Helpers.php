@@ -52,3 +52,27 @@ function limpiar($cadena)
 
     return $cadena;
 }
+
+function stringEncryption($string)
+{
+    if (!$string) return false;
+    
+    // Usamos tu clave maestra existente
+    $key = hash('sha256', ENCRYPTION_KEY);
+    // Generamos un vector de inicialización basado en tu clave
+    $iv = substr(hash('sha256', md5(ENCRYPTION_KEY)), 0, 16);
+    
+    $output = openssl_encrypt($string, 'AES-256-CBC', $key, 0, $iv);
+    return base64_encode($output);
+}
+
+function stringDecryption($string)
+{
+    if (!$string) return false;
+    
+    $key = hash('sha256', ENCRYPTION_KEY);
+    $iv = substr(hash('sha256', md5(ENCRYPTION_KEY)), 0, 16);
+    
+    $output = openssl_decrypt(base64_decode($string), 'AES-256-CBC', $key, 0, $iv);
+    return $output;
+}

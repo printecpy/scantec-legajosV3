@@ -676,98 +676,275 @@ class Usuarios extends Controllers
 
     public function importar()
     {
-        if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            header("Location: " . base_url() . "?error=csrf");
+        // 1. Validación de Seguridad (CSRF)
+        if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad CSRF.'];
+            header("Location: " . base_url() . "usuarios/listar");
             die();
         }
-        require_once 'Config/Config.php';
 
-        try {
-            $pdo = new PDO(
-                "mysql:host=" . HOST . ";dbname=" . BD . ";charset=utf8",
-                DB_USER,
-                PASS,
-                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-            );
-        } catch (Exception $ex) {
-            exit($ex->getMessage());
-        }
+        // 2. Verificar que se subió un archivo sin errores
+        if (isset($_FILES["file"]) && $_FILES["file"]["error"] === UPLOAD_ERR_OK) {
 
-        if (isset($_FILES["file"])) {
-            $file_type = $_FILES["file"]["type"];
-            $file_name = $_FILES["file"]["name"];
-            $file_size = $_FILES["file"]["size"];
             $file_tmp = $_FILES["file"]["tmp_name"];
-            $file_ext = pathinfo($file_name, PATHINFO_EXTENSION);
+            $file_name = $_FILES["file"]["name"];
+            $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
-            $usuarios = []; // Guardará los datos validados antes de insertarlos
+            $usuarios = [];
+            $errores = []; // Acumulador de errores para no dejar el proceso a medias
+            $fila_actual = 0;
 
-            if ($file_ext == 'csv') {
+            // 3. PROCESAR CSV
+            if ($file_ext === 'csv') {
                 $fh = fopen($file_tmp, "r");
                 if ($fh === false) {
-                    exit("No se pudo abrir el archivo CSV cargado");
+                    $_SESSION['alert'] = ['type' => 'error', 'message' => 'No se pudo leer el archivo CSV.'];
+                    header("Location: " . base_url() . "usuarios/listar");
+                    die();
                 }
 
                 while (($row = fgetcsv($fh)) !== false) {
-                    $nombre = htmlspecialchars($row[0]);
-                    $usuario = htmlspecialchars($row[1]);
-                    $clave = $row[2];
-                    $id_rol = (int) $row[3];
-                    $id_grupo = (int) $row[4];
-                    $fuente_registro = 'scantec-import';
-                    $email = filter_var($row[5], FILTER_SANITIZE_EMAIL);
+                    $fila_actual++;
+                    // Saltar la primera fila si contiene cabeceras (títulos)
+                    if ($fila_actual === 1)
+                        continue;
 
-                    if (!$this->validarClave($clave)) {
-                        fclose($fh);
-                        setAlert('error', "La contraseña del usuario '$usuario' no cumple con los requisitos.");
-                        session_write_close();
-                        header('location: ' . base_url() . "usuarios/listar");
-                        exit();
-                        //exit("Error: La contraseña de '$usuario' no cumple con los requisitos.");
+                    // Evitar filas vacías
+                    if (empty(array_filter($row)))
+                        continue;
+
+                    $nombre = htmlspecialchars(trim($row[0] ?? ''));
+                    $usuario = htmlspecialchars(trim($row[1] ?? ''));
+                    $clave = trim($row[2] ?? '');
+                    $id_rol = (int) ($row[3] ?? 0);
+                    $id_grupo = (int) ($row[4] ?? 0);
+                    $email = filter_var(trim($row[5] ?? ''), FILTER_SANITIZE_EMAIL);
+                    $fuente_registro = 'scantec-import';
+
+                    if (empty($usuario) || empty($email)) {
+                        $errores[] = "Fila {$fila_actual}: El usuario y el correo son obligatorios.";
+                        continue;
+                    }
+
+                    if (empty($clave) || !$this->validarClave($clave)) {
+                        $errores[] = "Fila {$fila_actual}: La contraseña del usuario '{$usuario}' es débil.";
+                        continue;
                     }
 
                     $usuarios[] = [$nombre, $usuario, $clave, $id_rol, $id_grupo, $fuente_registro, $email];
                 }
                 fclose($fh);
-            } else if ($file_ext == 'xls' || $file_ext == 'xlsx') {
+
+                // 4. PROCESAR EXCEL (XLS, XLSX)
+            } else if ($file_ext === 'xls' || $file_ext === 'xlsx') {
                 require_once 'Libraries/vendor/autoload.php';
 
-                $reader = ($file_ext == 'xlsx') ? new \PhpOffice\PhpSpreadsheet\Reader\Xlsx() : new \PhpOffice\PhpSpreadsheet\Reader\Xls();
+                $reader = ($file_ext === 'xlsx') ? new \PhpOffice\PhpSpreadsheet\Reader\Xlsx() : new \PhpOffice\PhpSpreadsheet\Reader\Xls();
+                $reader->setReadDataOnly(true); // Optimiza la lectura de memoria
                 $spreadsheet = $reader->load($file_tmp);
                 $sheetData = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
 
-                foreach ($sheetData as $value) {
-                    $nombre = htmlspecialchars($value['A']);
-                    $usuario = htmlspecialchars($value['B']);
-                    $clave = $value['C'];
-                    $id_rol = (int) $value['D'];
-                    $id_grupo = (int) $value['E'];
+                foreach ($sheetData as $index => $row) {
+                    $fila_actual = $index;
+                    // Saltar la cabecera (Fila 1 de Excel)
+                    if ($fila_actual === 1)
+                        continue;
+
+                    // Evitar filas vacías
+                    if (empty(array_filter($row)))
+                        continue;
+
+                    $nombre = htmlspecialchars(trim($row['A'] ?? ''));
+                    $usuario = htmlspecialchars(trim($row['B'] ?? ''));
+                    $clave = trim($row['C'] ?? '');
+                    $id_rol = (int) ($row['D'] ?? 0);
+                    $id_grupo = (int) ($row['E'] ?? 0);
+                    $email = filter_var(trim($row['F'] ?? ''), FILTER_SANITIZE_EMAIL);
                     $fuente_registro = 'scantec-import';
-                    $email = filter_var($value['F'], FILTER_SANITIZE_EMAIL);
+
+                    if (empty($usuario) || empty($email)) {
+                        $errores[] = "Fila {$fila_actual}: El usuario y el correo son obligatorios.";
+                        continue;
+                    }
 
                     if (empty($clave) || !$this->validarClave($clave)) {
-                        setAlert('error', "La contraseña del usuario '$usuario' no cumple con los requisitos.");
-                        session_write_close();
-                        header('location: ' . base_url() . "usuarios/listar");
-                        exit();
+                        $errores[] = "Fila {$fila_actual}: La contraseña del usuario '{$usuario}' es débil.";
+                        continue;
                     }
 
                     $usuarios[] = [$nombre, $usuario, $clave, $id_rol, $id_grupo, $fuente_registro, $email];
                 }
+            } else {
+                $_SESSION['alert'] = ['type' => 'warning', 'message' => 'Formato no soportado. Use CSV, XLS o XLSX.'];
+                header("Location: " . base_url() . "usuarios/listar");
+                die();
             }
 
-            // **Si todas las contraseñas y datos son válidos, proceder con la importación**
+            // 5. VALIDACIÓN FINAL: Si hay un solo error, frenar todo para proteger la BD
+            if (count($errores) > 0) {
+                // Limitamos a mostrar solo los primeros 5 errores para no desbordar la alerta
+                $errores_mostrar = array_slice($errores, 0, 5);
+                $mensaje_error = "<b>La importación fue cancelada por errores de formato:</b><br><br>" . implode("<br>", $errores_mostrar);
+                if (count($errores) > 5)
+                    $mensaje_error .= "<br><i>...y " . (count($errores) - 5) . " errores más.</i>";
+
+                $_SESSION['alert'] = ['type' => 'error', 'message' => $mensaje_error];
+                header("Location: " . base_url() . "usuarios/listar");
+                die();
+            }
+
+            // 6. INSERCIÓN SEGURA (Solo llega aquí si el 100% de los usuarios pasaron las validaciones)
+            $importados = 0;
             foreach ($usuarios as $user) {
                 [$nombre, $usuario, $clave, $id_rol, $id_grupo, $fuente_registro, $email] = $user;
                 $passwordHash = password_hash($clave, PASSWORD_BCRYPT, ['cost' => 12]);
-                $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol, $id_grupo, $fuente_registro, $email);
+
+                $insert = $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, (string) $id_rol, (string) $id_grupo, $fuente_registro, $email);
+                if ($insert) {
+                    $importados++;
+                }
             }
 
-            header("location: " . base_url() . "usuarios/listar");
-            die();
+            if ($importados > 0) {
+                $_SESSION['alert'] = ['type' => 'success', 'message' => "¡Éxito! Se importaron correctamente $importados usuarios."];
+            } else {
+                $_SESSION['alert'] = ['type' => 'warning', 'message' => 'El archivo se leyó, pero no se importó ningún usuario (Archivo vacío).'];
+            }
+
+        } else {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Ocurrió un error al subir el archivo.'];
         }
+
+        header("Location: " . base_url() . "usuarios/listar");
+        die();
     }
 
+    public function sincronizarAD()
+    {
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
+        ini_set('max_execution_time', 300);
+
+        // 1. Verificar Token CSRF
+        if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad (Token inválido).'];
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            die();
+        }
+
+        // 2. Obtener configuración
+        $id_config = intval($_POST['id']);
+        $ldapConfig = $this->model->getLdapConfigById($id_config);
+
+        // Parche de robustez: Si el modelo devuelve un array de arrays, tomamos el primero
+        if (isset($ldapConfig[0]['ldapHost'])) {
+            $ldapConfig = $ldapConfig[0];
+        }
+
+        if (empty($ldapConfig) || !isset($ldapConfig['ldapHost'])) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error: No se pudieron leer los datos de la configuración (ID: ' . $id_config . ').'];
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            die();
+        }
+
+        // 3. DESENCRIPTAR CONTRASEÑA
+        // Usamos la función si existe, sino texto plano (para evitar errores fatales)
+        if (function_exists('stringDecryption')) {
+            $password_real = stringDecryption($ldapConfig['ldapPass']);
+        } else {
+            $password_real = $ldapConfig['ldapPass'];
+        }
+
+        // 4. Conexión LDAP
+        $ldapConn = ldap_connect($ldapConfig['ldapHost'], $ldapConfig['ldapPort']);
+        ldap_set_option($ldapConn, LDAP_OPT_PROTOCOL_VERSION, 3);
+        ldap_set_option($ldapConn, LDAP_OPT_REFERRALS, 0);
+
+        if (!$ldapConn || !@ldap_bind($ldapConn, $ldapConfig['ldapUser'], $password_real)) {
+            $err = ldap_error($ldapConn);
+            $_SESSION['alert'] = ['type' => 'error', 'message' => "Fallo de conexión LDAP: $err"];
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            die();
+        }
+
+        // 5. Búsqueda
+        $filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=*))";
+        $attributes = ['samaccountname', 'mail', 'displayname', 'givenname', 'sn'];
+
+        $search = ldap_search($ldapConn, $ldapConfig['ldapBaseDn'], $filter, $attributes);
+
+        if (!$search) {
+            $_SESSION['alert'] = ['type' => 'warning', 'message' => 'Error en la búsqueda. Verifique el BaseDN configurado.'];
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            die();
+        }
+
+        $entries = ldap_get_entries($ldapConn, $search);
+
+        $contador_nuevos = 0;
+        $contador_actualizados = 0;
+
+        // Validamos que haya resultados antes de iterar
+        if ($entries['count'] > 0) {
+            for ($i = 0; $i < $entries['count']; $i++) {
+
+                $username = isset($entries[$i]['samaccountname'][0]) ? trim($entries[$i]['samaccountname'][0]) : '';
+                $email = isset($entries[$i]['mail'][0]) ? trim($entries[$i]['mail'][0]) : '';
+
+                // Construir nombre
+                $nombre = '';
+                if (isset($entries[$i]['displayname'][0])) {
+                    $nombre = $entries[$i]['displayname'][0];
+                } else {
+                    $given = isset($entries[$i]['givenname'][0]) ? $entries[$i]['givenname'][0] : '';
+                    $sn = isset($entries[$i]['sn'][0]) ? $entries[$i]['sn'][0] : '';
+                    $nombre = trim($given . ' ' . $sn);
+                }
+
+                if (!empty($username) && !empty($email)) {
+
+                    // Contraseña dummy segura
+                    try {
+                        $bytes = random_bytes(10);
+                    } catch (Exception $e) {
+                        $bytes = openssl_random_pseudo_bytes(10);
+                    }
+                    $password_dummy = password_hash(bin2hex($bytes), PASSWORD_DEFAULT);
+
+                    $rol_defecto = 3;
+
+                    $resultado = $this->model->sincronizarUsuarioLDAP($username, $nombre, $email, $password_dummy, $rol_defecto);
+
+                    if ($resultado == 'insert')
+                        $contador_nuevos++;
+                    if ($resultado == 'update')
+                        $contador_actualizados++;
+                }
+            }
+        } else {
+            // MENSAJE MEJORADO: Caso sin resultados
+            $_SESSION['alert'] = ['type' => 'info', 'message' => 'Conexión exitosa, pero no se encontraron usuarios activos con correo en la ruta especificada.'];
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            die();
+        }
+
+        ldap_unbind($ldapConn);
+
+        // MENSAJE FINAL MEJORADO (Sin HTML)
+        if ($contador_nuevos == 0 && $contador_actualizados == 0) {
+            $msg = "Sincronización completada. No se encontraron usuarios nuevos ni cambios en los existentes.";
+            $tipo = "info";
+        } else {
+            // Ejemplo: "Proceso finalizado. Registrados: 5 | Actualizados: 2"
+            $msg = "Proceso finalizado correctamente. Registrados: $contador_nuevos | Actualizados: $contador_actualizados.";
+            $tipo = "success";
+        }
+
+        $_SESSION['alert'] = ['type' => $tipo, 'message' => $msg];
+
+        header("Location: " . base_url() . "configuracion/servidor_AD");
+        die();
+    }
 
     // public function importar(){
     //     if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
@@ -850,31 +1027,25 @@ class Usuarios extends Controllers
 
     public function pdf()
     {
+        if (ob_get_length()) ob_end_clean();
+
         // 1. Obtener datos
-        $datosEmpresa = $this->model->selectDatos();
         $usuarios = $this->model->selectUsuarios();
         $roles = $this->model->selectRoles();
         $grupos = $this->model->selectGrupos();
-        $rutaPlantilla = __DIR__ . '/../Helpers/ReportTemplatePDF.php';
-        if (file_exists($rutaPlantilla)) {
-            require_once $rutaPlantilla;
-        } else {
-            die("Error: No se encuentra el archivo en: " . $rutaPlantilla);
-        }
-        // 3. Instanciar PDF (Orientación L, Tamaño A4)
-        // El constructor maneja la creación de página y el header automático
-        $pdf = new ReportTemplatePDF($datosEmpresa, 'Reporte de Usuarios', 'L', 'A4');
 
-        // 4. Configurar Cabecera de la Tabla
+        // 2. Instanciar PDF (Usamos plantilla con SCANTEC fijo)
+        require_once 'Helpers/ReportTemplatePDF.php';
+        $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Reporte de Usuarios', 'L', 'A4');
+
+        // 3. Configurar Cabecera
         $pdf->SetFont('Arial', 'B', 11);
-        $pdf->SetFillColor(230, 230, 230); // Un gris más suave para la tabla
+        $pdf->SetFillColor(230, 230, 230);
         $pdf->SetTextColor(0, 0, 0);
 
-        // Definir anchos de columna para reutilizar
-        $w = array(15, 70, 45, 50, 50, 35); // Suma: 265mm aprox
-
-        // Centrar la tabla en la página (A4 Landscape es 297mm ancho)
-        // Margen izq = (297 - 265) / 2 = ~16mm. Seteamos X para centrar
+        // Centrar tabla (A4 Landscape = 297mm. Suma anchos = 265mm. Margen = ~16mm)
+        $w = array(15, 70, 45, 50, 50, 35);
+        $pdf->SetLeftMargin(16);
         $pdf->setX(16);
 
         $pdf->Cell($w[0], 7, utf8_decode('N°'), 1, 0, 'C', true);
@@ -884,11 +1055,13 @@ class Usuarios extends Controllers
         $pdf->Cell($w[4], 7, 'Rol', 1, 0, 'C', true);
         $pdf->Cell($w[5], 7, 'Estado', 1, 1, 'C', true);
 
-        // 5. Llenar filas
+        // 4. Configurar motor multilínea
+        $pdf->SetWidths($w);
+        $pdf->SetAligns(array('C', 'L', 'C', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 10);
 
+        // 5. Llenar filas
         foreach ($usuarios as $row) {
-            // Encontrar nombre de Grupo
             $nombreGrupo = '';
             foreach ($grupos as $grup) {
                 if ($grup['id_grupo'] == $row['id_grupo']) {
@@ -896,8 +1069,6 @@ class Usuarios extends Controllers
                     break;
                 }
             }
-
-            // Encontrar nombre de Rol
             $nombreRol = '';
             foreach ($roles as $rol) {
                 if ($rol['id_rol'] == $row['id_rol']) {
@@ -906,18 +1077,19 @@ class Usuarios extends Controllers
                 }
             }
 
-            $pdf->setX(16); // Mantener alineación centrada
-            $pdf->Cell($w[0], 6, $row['id'], 1, 0, 'C');
-            $pdf->Cell($w[1], 6, utf8_decode($row['nombre']), 1, 0, 'L'); // Alineado izq se ve mejor nombre
-            $pdf->Cell($w[2], 6, utf8_decode($row['usuario']), 1, 0, 'C');
-            $pdf->Cell($w[3], 6, utf8_decode($nombreGrupo), 1, 0, 'C');
-            $pdf->Cell($w[4], 6, utf8_decode($nombreRol), 1, 0, 'C');
-            $pdf->Cell($w[5], 6, $row['estado_usuario'], 1, 1, 'C');
+            $pdf->Row(array(
+                $row['id'],
+                utf8_decode($row['nombre']),
+                utf8_decode($row['usuario']),
+                utf8_decode($nombreGrupo),
+                utf8_decode($nombreRol),
+                $row['estado_usuario']
+            ));
         }
 
-        // 6. Salida
         $pdf->Output("Usuarios_" . date('Y_m_d') . ".pdf", "I");
     }
+
     public function pdf_filtro()
     {
         if (ob_get_length()) ob_end_clean();
@@ -925,29 +1097,22 @@ class Usuarios extends Controllers
         // 1. Obtener datos
         $desde = $_POST['desde'];
         $hasta = $_POST['hasta'];
-        $datosEmpresa = $this->model->selectDatos();
         $usuarios = $this->model->reporteUsuarios($desde, $hasta);
-        $roles = $this->model->selectRoles(); // BUG FIX: Este dato faltaba
+        $roles = $this->model->selectRoles();
 
-        // 2. Cargar plantilla
-        $rutaPlantilla = __DIR__ . '/../Helpers/ReportTemplatePDF.php';
-        if (file_exists($rutaPlantilla)) {
-            require_once $rutaPlantilla;
-        } else {
-            die("Error: No se encuentra el archivo de plantilla en: " . $rutaPlantilla);
-        }
+        // 2. Instanciar PDF
+        require_once 'Helpers/ReportTemplatePDF.php';
+        $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Reporte de Usuarios (Filtrado)', 'L', 'A4');
 
-        // 3. Instanciar PDF
-        $pdf = new ReportTemplatePDF($datosEmpresa, 'Reporte de Usuarios (Filtrado)', 'L', 'A4');
-
-        // 4. Configurar Cabecera de la Tabla
+        // 3. Configurar Cabecera
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetFillColor(230, 230, 230);
         $pdf->SetTextColor(0, 0, 0);
 
-        // Definir anchos de columna y centrar tabla
+        // Definir anchos y centrar tabla dinámicamente
         $w = array(15, 70, 45, 50, 35); // Suma: 215mm
         $margin = ($pdf->GetPageWidth() - array_sum($w)) / 2;
+        $pdf->SetLeftMargin($margin);
         $pdf->setX($margin);
 
         $pdf->Cell($w[0], 7, utf8_decode('N°'), 1, 0, 'C', true);
@@ -956,9 +1121,12 @@ class Usuarios extends Controllers
         $pdf->Cell($w[3], 7, 'Rol', 1, 0, 'C', true);
         $pdf->Cell($w[4], 7, 'Estado', 1, 1, 'C', true);
 
-        // 5. Llenar filas
+        // 4. Configurar motor multilínea
+        $pdf->SetWidths($w);
+        $pdf->SetAligns(array('C', 'L', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 10);
 
+        // 5. Llenar filas
         foreach ($usuarios as $row) {
             $nombreRol = '';
             foreach ($roles as $rol) {
@@ -968,15 +1136,15 @@ class Usuarios extends Controllers
                 }
             }
 
-            $pdf->setX($margin);
-            $pdf->Cell($w[0], 6, $row['id'], 1, 0, 'C');
-            $pdf->Cell($w[1], 6, utf8_decode($row['nombre']), 1, 0, 'L');
-            $pdf->Cell($w[2], 6, utf8_decode($row['usuario']), 1, 0, 'C');
-            $pdf->Cell($w[3], 6, utf8_decode($nombreRol), 1, 0, 'C');
-            $pdf->Cell($w[4], 6, $row['estado_usuario'], 1, 1, 'C');
+            $pdf->Row(array(
+                $row['id'],
+                utf8_decode($row['nombre']),
+                utf8_decode($row['usuario']),
+                utf8_decode($nombreRol),
+                $row['estado_usuario']
+            ));
         }
 
-        // 6. Salida
         $pdf->Output("Usuarios_Filtrado_" . date('Y_m_d') . ".pdf", "I");
     }
 
@@ -985,28 +1153,21 @@ class Usuarios extends Controllers
         if (ob_get_length()) ob_end_clean();
 
         // 1. Obtener datos
-        $datosEmpresa = $this->model->selectDatos();
         $permisos = $this->model->selectPerDoc();
 
-        // 2. Cargar plantilla
-        $rutaPlantilla = __DIR__ . '/../Helpers/ReportTemplatePDF.php';
-        if (file_exists($rutaPlantilla)) {
-            require_once $rutaPlantilla;
-        } else {
-            die("Error: No se encuentra el archivo de plantilla en: " . $rutaPlantilla);
-        }
+        // 2. Instanciar PDF
+        require_once 'Helpers/ReportTemplatePDF.php';
+        $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Reporte de Permisos por Grupo', 'P', 'A4');
 
-        // 3. Instanciar PDF
-        $pdf = new ReportTemplatePDF($datosEmpresa, 'Reporte de Permisos por Grupo y Documento', 'P', 'A4');
-
-        // 4. Configurar Cabecera de la Tabla
+        // 3. Configurar Cabecera
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->SetFillColor(230, 230, 230);
         $pdf->SetTextColor(0, 0, 0);
 
-        // Definir anchos de columna y centrar tabla
+        // Centrar tabla
         $w = array(30, 70, 30, 50); // Suma: 180mm
         $margin = ($pdf->GetPageWidth() - array_sum($w)) / 2;
+        $pdf->SetLeftMargin($margin);
         $pdf->setX($margin);
 
         $pdf->Cell($w[0], 7, utf8_decode('N° Grupo'), 1, 0, 'C', true);
@@ -1014,83 +1175,58 @@ class Usuarios extends Controllers
         $pdf->Cell($w[2], 7, utf8_decode('N° Tipo Doc'), 1, 0, 'C', true);
         $pdf->Cell($w[3], 7, 'Tipo Documento', 1, 1, 'C', true);
 
-        // 5. Llenar filas
+        // 4. Configurar motor multilínea
+        $pdf->SetWidths($w);
+        $pdf->SetAligns(array('C', 'L', 'C', 'L'));
         $pdf->SetFont('Arial', '', 10);
 
+        // 5. Llenar filas
         foreach ($permisos as $row) {
-            $pdf->setX($margin);
-            $pdf->Cell($w[0], 6, $row['id_grupo'], 1, 0, 'C');
-            $pdf->Cell($w[1], 6, utf8_decode($row['descripcion']), 1, 0, 'L');
-            $pdf->Cell($w[2], 6, $row['id_tipoDoc'], 1, 0, 'C');
-            $pdf->Cell($w[3], 6, utf8_decode($row['nombre_tipoDoc']), 1, 1, 'L');
+            $pdf->Row(array(
+                $row['id_grupo'],
+                utf8_decode($row['descripcion']),
+                $row['id_tipoDoc'],
+                utf8_decode($row['nombre_tipoDoc'])
+            ));
         }
 
-        // 6. Salida
         $pdf->Output("Permisos_Grupos_" . date('Y_m_d') . ".pdf", "I");
     }
 
     public function excel()
     {
-        // 1. Limpieza de buffer (Vital para evitar archivos corruptos/error 500)
-        if (ob_get_length()) ob_end_clean();
-
-        // 2. Cargar Helper (Ruta absoluta segura)
-        require_once __DIR__ . '/../Helpers/ReportTemplateExcel.php';
+        ob_start();
+        require_once 'Helpers/ReportTemplateExcel.php';
         date_default_timezone_set('America/Asuncion');
 
-        // 3. Obtener los datos
-        // Importante: Traemos datos de empresa para el encabezado
-        $datosEmpresa = $this->model->selectDatos(); 
         $usuario = $this->model->selectUsuarios();
         $roles = $this->model->selectRoles();
         $grupos = $this->model->selectGrupos();
 
-        // 4. Instanciar la plantilla
-        // El constructor se encarga de las Filas 1 (Empresa) y 2 (Título)
-        $nombreEmpresa = $datosEmpresa['nombre'];
-        $excel = new ReportTemplateExcel('REGISTROS DE USUARIOS', $nombreEmpresa);
+        $excel = new ReportTemplateExcel('REGISTRO DE USUARIOS', 'SCANTEC');
         $sheet = $excel->getSheet();
 
-        // 5. Estilos Visuales (Tu configuración gris #878787)
         $headerStyle = [
-            'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '878787'],
-            ],
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => 'FFFFFF'],
-                'size' => 10, // Un tamaño equilibrado
-            ],
-            'alignment' => [
-                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
-            ],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '878787']],
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
         ];
 
-        // 6. Encabezados de Tabla (Empezamos en Fila 4 para dejar aire)
+        // Encabezados en fila 4
         $headerRow = 4;
         $headers = ['NOMBRE', 'USUARIO', 'GRUPO', 'ROL', 'EMAIL', 'STATUS'];
-        
         $col = 'A';
         foreach ($headers as $txt) {
             $sheet->setCellValue($col . $headerRow, $txt);
             $col++;
         }
-
-        // Aplicar estilos a la fila de encabezados (A4 hasta F4)
         $sheet->getStyle("A$headerRow:F$headerRow")->applyFromArray($headerStyle);
 
-        // 7. Rellenar datos (Desde Fila 5)
-        $contentStyle = [
-            'font' => ['size' => 9],
-            'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]
-        ];
-        
-        $dataRow = $headerRow + 1; // Fila 5
+        // Datos desde fila 5
+        $contentStyle = ['font' => ['size' => 9], 'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
+        $dataRow = $headerRow + 1; 
 
         foreach ($usuario as $value) {
-            // Buscar Nombre del Grupo
             $nombreGrupo = '';
             foreach ($grupos as $grup) {
                 if ($grup['id_grupo'] == $value['id_grupo']) {
@@ -1098,8 +1234,6 @@ class Usuarios extends Controllers
                     break;
                 }
             }
-
-            // Buscar Nombre del Rol
             $nombreRol = '';
             foreach ($roles as $rol) {
                 if ($rol['id_rol'] == $value['id_rol']) {
@@ -1108,98 +1242,87 @@ class Usuarios extends Controllers
                 }
             }
 
-            // Asignar valores
             $sheet->setCellValue('A' . $dataRow, $value["nombre"]);
             $sheet->setCellValue('B' . $dataRow, $value["usuario"]);
             $sheet->setCellValue('C' . $dataRow, $nombreGrupo);
             $sheet->setCellValue('D' . $dataRow, $nombreRol);
-            // Validamos si existe la clave email, sino ponemos vacío
             $email = isset($value['email']) ? $value['email'] : '';
             $sheet->setCellValue('E' . $dataRow, $email);
             $sheet->setCellValue('F' . $dataRow, $value['estado_usuario']);
 
-            // Aplicar estilo de contenido a la fila
             $sheet->getStyle('A' . $dataRow . ':F' . $dataRow)->applyFromArray($contentStyle);
-            
             $dataRow++;
         }
 
-        // 8. Ajustar el ancho de las columnas automáticamente
-        foreach (range('A', 'F') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
+        // Ajustar columnas
+        $excel->setColumnWidths([
+            'A' => 40,     // Nombre
+            'B' => 'auto', // Usuario
+            'C' => 30,     // Grupo
+            'D' => 30,     // Rol
+            'E' => 45,     // Email (Suele ser largo)
+            'F' => 'auto'  // Status
+        ]);
 
-        // 9. Salida
         $nombreArchivo = 'Usuarios_' . date('Y_m_d_His');
         $excel->output($nombreArchivo);
     }
 
     public function grupo_excel()
     {
-        require_once __DIR__ . '/../Helpers/ReportTemplateExcel.php';
+        ob_start();
+        require_once 'Helpers/ReportTemplateExcel.php';
         date_default_timezone_set('America/Asuncion');
 
-        // Obtener los datos
         $perdoc = $this->model->selectPerDoc();
 
-        // 1. Instanciar la plantilla
-        $excel = new ReportTemplateExcel('Grupo Dependencias');
+        $excel = new ReportTemplateExcel('GRUPOS Y DEPENDENCIAS', 'SCANTEC');
         $sheet = $excel->getSheet();
 
-        // 2. Ajustar el encabezado principal
-        $sheet->mergeCells('A1:D1'); // Corregir el rango del merge
-        $sheet->setCellValue('A1', 'REGISTROS DE GRUPOS Y DEPENDENCIAS');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal('center');
-
-        // 3. Establecer encabezados de la tabla (a partir de la fila 3)
-        $headerRow = 3;
-        $sheet->setCellValue('A' . $headerRow, 'ID GRUPO');
-        $sheet->setCellValue('B' . $headerRow, 'NOMBRE GRUPO');
-        $sheet->setCellValue('C' . $headerRow, 'ID TIPO DOC');
-        $sheet->setCellValue('D' . $headerRow, 'TIPO DOCUMENTO');
-
-        // 4. Estilos para encabezados de la tabla
         $headerStyle = [
-            'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '878787'],
-            ],
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => 'FFFFFF'],
-                'size' => 12,
-            ],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '878787']],
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
         ];
-        $sheet->getStyle('A' . $headerRow . ':D' . $headerRow)->applyFromArray($headerStyle);
 
-        // 5. Rellenar datos
-        $contentStyle = ['font' => ['size' => 8]];
+        // Encabezados en fila 4 (estandarizado)
+        $headerRow = 4;
+        $headers = ['ID GRUPO', 'NOMBRE GRUPO', 'ID TIPO DOC', 'TIPO DOCUMENTO'];
+        $col = 'A';
+        foreach ($headers as $txt) {
+            $sheet->setCellValue($col . $headerRow, $txt);
+            $col++;
+        }
+        $sheet->getStyle("A$headerRow:D$headerRow")->applyFromArray($headerStyle);
+
+        // Datos desde fila 5
+        $contentStyle = ['font' => ['size' => 9], 'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
         $dataRow = $headerRow + 1;
+
         foreach ($perdoc as $value) {
             $sheet->setCellValue('A' . $dataRow, $value["id_grupo"]);
             $sheet->setCellValue('B' . $dataRow, $value["descripcion"]);
             $sheet->setCellValue('C' . $dataRow, $value["id_tipoDoc"]);
             $sheet->setCellValue('D' . $dataRow, $value['nombre_tipoDoc']);
+            
             $sheet->getStyle('A' . $dataRow . ':D' . $dataRow)->applyFromArray($contentStyle);
             $dataRow++;
         }
 
-        // 6. Ajustar el ancho de las columnas
-        foreach (range('A', 'D') as $col) {
-            $sheet->getColumnDimension($col)->setAutoSize(true);
-        }
+        // Ajustar columnas
+        $excel->setColumnWidths([
+            'A' => 'auto',
+            'B' => 45, // Descripción de grupo larga
+            'C' => 'auto',
+            'D' => 45  // Tipo de documento largo
+        ]);
 
-        // 7. Usar el método de salida de la plantilla
-        $excel->output('Grupo_Dependencias_' . date('Y_m_d_H_i_s'));
+        $excel->output('Grupo_Dependencias_' . date('Y_m_d_His'));
     }
 
     public function usuario_muestra()
     {
-
         date_default_timezone_set('America/Asuncion');
-        //$usuario = $this->model->selectUsuarios();
-        // $muestra_usuario = 'muestra_usuario';
         $ruta = base_url() . 'Assets/files/usuarios.csv';
 
         header('Content-Type: application/csv');

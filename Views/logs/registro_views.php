@@ -1,41 +1,83 @@
 <?php encabezado() ?>
 <div id="layoutSidenav_content">
-    <main>
-        <div class="container-fluid">           
-            <div class="row">
-                <div class="col-lg-12">
-                <h5 class="text-center">Registros de visualizaciones de archivos</h5>
-                    <a target="_blank" href="<?php echo base_url(); ?>logs/registro_viewsPdf" class="btn btn-sm btn-danger"><i
-                            class="fas fa-file-pdf"></i></a>
-                    <a target="_blank" href="<?php echo base_url(); ?>logs/registro_viewExcel" class="btn btn-sm btn-success"><i
-                            class="fas fa-file-excel"></i></a>               
-                    <div class="table-responsive">
-                        <table class="table table-hover table-bordered mx-auto" id="table">
-                            <thead class="thead-dark">
-                                <tr class="small">
-                                    <th class="small">Usuario</th>
-                                    <th class="small">Archivo</th>
-                                    <th class="small">Nombre HOST</th>
-                                    <th class="small">Direccion IP</th>
-                                    <th class="small">Fecha y Hora</th>                          
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($data['registro_views'] as $registro_views) {
-                                ?>
-                                <tr class="small">
-                                    <td class="small"><?php echo $registro_views['usuario']; ?></td>
-                                    <td class="small"><?php echo $registro_views['nombre_expediente']; ?></td>
-                                    <td class="small"><?php echo $registro_views['nombre_pc']; ?></td>                                    
-                                    <td class="small"><?php echo $registro_views['direccion_ip']; ?></td>
-                                    <td class="small"><?php echo $registro_views['fecha']; ?></td>
-                                </tr>
-                                <?php } ?>
-                            </tbody>
-                        </table>
-                    </div>
+    <main class="bg-gray-50/50 min-h-screen">
+        <div class="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white shadow-sm border border-gray-100 flex items-center justify-center text-blue-500">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        Registro de Visualizaciones
+                    </h2>
+                    <p class="text-sm text-gray-500 mt-1">Auditoría de acceso y lectura de archivos o documentos del sistema.</p>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <a target="_blank" href="<?php echo base_url(); ?>logs/registro_viewsPdf" title="Exportar a PDF" 
+                       class="w-9 h-9 flex items-center justify-center bg-white border border-gray-200 text-red-500 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors shadow-sm">
+                        <i class="fas fa-file-pdf text-lg"></i>
+                    </a>
+                    
+                    <a target="_blank" href="<?php echo base_url(); ?>logs/registro_viewExcel" title="Exportar a Excel" 
+                       class="w-9 h-9 flex items-center justify-center bg-white border border-gray-200 text-green-500 rounded-lg hover:bg-green-50 hover:text-green-600 hover:border-green-200 transition-colors shadow-sm">
+                        <i class="fas fa-file-excel text-lg"></i>
+                    </a>
                 </div>
             </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse" id="table">
+                        <thead>
+                            <tr class="bg-slate-800 border-b border-slate-900">
+                                <th class="px-6 py-4 text-xs font-bold text-slate-200 uppercase tracking-wider whitespace-nowrap">Usuario</th>
+                                <th class="px-6 py-4 text-xs font-bold text-slate-200 uppercase tracking-wider whitespace-nowrap w-1/3">Archivo Visualizado</th>
+                                <th class="px-6 py-4 text-xs font-bold text-slate-200 uppercase tracking-wider whitespace-nowrap">Nombre de HOST</th>
+                                <th class="px-6 py-4 text-xs font-bold text-slate-200 uppercase tracking-wider whitespace-nowrap">Dirección IP</th>
+                                <th class="px-6 py-4 text-xs font-bold text-slate-200 uppercase tracking-wider whitespace-nowrap">Fecha y Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <?php 
+                            if (!empty($data['registro_views'])) {
+                                foreach ($data['registro_views'] as $vista) { 
+                            ?>
+                                <tr class="hover:bg-blue-50/30 transition-colors group">
+                                    <td class="px-6 py-4 text-xs font-bold text-gray-800 whitespace-nowrap">
+                                        <i class="fas fa-user text-gray-400 mr-1.5"></i> <?php echo $vista['usuario']; ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-xs text-blue-600 font-medium whitespace-nowrap max-w-sm truncate" title="<?php echo htmlspecialchars($vista['nombre_expediente']); ?>">
+                                        <i class="fas fa-file-alt mr-1.5 opacity-70"></i> <?php echo $vista['nombre_expediente']; ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
+                                        <i class="fas fa-desktop mr-1 opacity-50"></i> <?php echo $vista['nombre_pc']; ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-xs font-mono text-gray-500 whitespace-nowrap">
+                                        <?php echo $vista['direccion_ip']; ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
+                                        <i class="far fa-clock mr-1 opacity-50"></i> <?php echo $vista['fecha']; ?>
+                                    </td>
+                                </tr>
+                            <?php 
+                                } 
+                            } else {
+                            ?>
+                                <tr>
+                                    <td colspan="5" class="px-6 py-12 text-center text-gray-400 font-medium">
+                                        <i class="fas fa-folder-open text-4xl mb-3 block opacity-30 text-blue-400"></i>
+                                        Aún no hay registros de visualizaciones de archivos.
+                                    </td>
+                                </tr>
+                            <?php } ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </main>
     <?php pie() ?>
+</div>

@@ -112,19 +112,24 @@ class UsuariosModel extends Mysql
 
     public function insertarUsuarios(string $nombre, string $usuario, string $clave, string $id_rol, string $grupo, string $fuente_registro, string $email)
     {
-        $return = "";
-        $this->nombre = $nombre;
-        $this->usuario = $usuario;
-        $this->clave = $clave;
-        $this->id_rol = $id_rol;
-        $this->grupo = $grupo;
-        $this->fuente_registro = $fuente_registro;
-        $this->email = $email;
-        $query = "INSERT INTO usuarios(nombre, usuario, clave, id_rol, estado_usuario, id_grupo, fuente_registro, email) VALUES (?,?,?,?,'ACTIVO',?,?,?);";
-        $data = array($this->nombre, $this->usuario, $this->clave, $this->id_rol, $this->grupo, $this->fuente_registro, $this->email);
-        $resul = $this->insert($query, $data);
-        $return = $resul;
-        return $return;
+        try {
+            $this->nombre = $nombre;
+            $this->usuario = $usuario;
+            $this->clave = $clave;
+            $this->id_rol = $id_rol;
+            $this->grupo = $grupo;
+            $this->fuente_registro = $fuente_registro;
+            $this->email = $email;
+
+            $query = "INSERT INTO usuarios(nombre, usuario, clave, id_rol, estado_usuario, id_grupo, fuente_registro, email) VALUES (?,?,?,?,'ACTIVO',?,?,?);";
+            $data = array($this->nombre, $this->usuario, $this->clave, $this->id_rol, $this->grupo, $this->fuente_registro, $this->email);
+
+            $resul = $this->insert($query, $data);
+            return $resul;
+
+        } catch (\PDOException $e) {
+            return false;
+        }
     }
     public function editarUsuarios(int $id)
     {
@@ -252,97 +257,6 @@ class UsuariosModel extends Mysql
         return $request;
     }
 
-    /* function fechaInicioYFinDeMes()
-{
-    $inicio = date("Y-m-01");
-    $fin = date("Y-m-t");
-    return [$inicio, $fin];
-}
-function fechaHoy()
-{
-    return date("Y-m-d");
-}
-
-function obtenerPaginasVisitadasEnFecha(String $fecha)
-{
-    $this->fecha = $fecha;
-    $query = "SELECT COUNT(*) AS conteo_visitas, count(distinct ip) as conteo_visitantes
-    from visitas where fecha = '$fecha'
-    group by conteo_visitantes
-    ORDER BY conteo_visitas DESC
-    LIMIT 10;";
-    $res = $this->select_all($query);
-    return $res;
-}
-
-function obtenerConteoVisitasYVisitantesDePaginaEnRango($fechaInicio, $fechaFin)
-{
-    return (object)[
-        "visitantes" => obtenerConteoVisitantesDePaginaEnRango($fechaInicio, $fechaFin),
-        "visitas" => obtenerConteoVisitasDePaginaEnRango($fechaInicio, $fechaFin),
-    ];
-}
-function obtenerConteoVisitantesDePaginaEnRango($fechaInicio, $fechaFin)
-{
-    $sentencia = $query->select_all("SELECT COUNT(DISTINCT ip) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ? AND url = ?");
-    $sentencia->execute([$fechaInicio, $fechaFin]);
-    return $sentencia->fetchObject()->conteo;
-}
-
-function obtenerConteoVisitasDePaginaEnRango($fechaInicio, $fechaFin)
-{
-    $sentencia = $bd->prepare("SELECT COUNT(*) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ? AND url = ?");
-    $sentencia->execute([$fechaInicio, $fechaFin]);
-    return $sentencia->fetchObject()->conteo;
-}
-function obtenerVisitantesDePaginaEnRango($fechaInicio, $fechaFin, $url)
-{
-    $sentencia = $bd->prepare("SELECT fecha, COUNT(DISTINCT ip) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ? AND url = ? GROUP BY fecha");
-    $sentencia->execute([$fechaInicio, $fechaFin, $url]);
-    return $sentencia->fetchAll();
-}
-function obtenerVisitasDePaginaEnRango($fechaInicio, $fechaFin, $url)
-{
-    $sentencia = $bd->prepare("SELECT fecha, COUNT(*) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ? AND url = ? GROUP BY fecha");
-    $sentencia->execute([$fechaInicio, $fechaFin, $url]);
-    return $sentencia->fetchAll();
-}
-
-function obtenerConteoVisitasYVisitantesEnRango($fechaInicio, $fechaFin)
-{
-    return (object)[
-        "visitantes" => obtenerConteoVisitantesEnRango($fechaInicio, $fechaFin),
-        "visitas" => obtenerConteoVisitasEnRango($fechaInicio, $fechaFin),
-    ];
-}
-
-function obtenerConteoVisitantesEnRango($fechaInicio, $fechaFin)
-{
-    $sentencia = $bd->prepare("SELECT COUNT(DISTINCT ip) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ?");
-    $sentencia->execute([$fechaInicio, $fechaFin]);
-    return $sentencia->fetchObject()->conteo;
-}
-
-function obtenerConteoVisitasEnRango($fechaInicio, $fechaFin)
-{
-    $sentencia = $bd->prepare("SELECT COUNT(*) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ?");
-    $sentencia->execute([$fechaInicio, $fechaFin]);
-    return $sentencia->fetchObject()->conteo;
-}
-
-function obtenerVisitantesEnRango($fechaInicio, $fechaFin)
-{
-    $sentencia = $bd->prepare("SELECT fecha, COUNT(DISTINCT ip) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ? GROUP BY fecha");
-    $sentencia->execute([$fechaInicio, $fechaFin]);
-    return $sentencia->fetchAll();
-}
-function obtenerVisitasEnRango($fechaInicio, $fechaFin)
-{
-    $sentencia = $bd->prepare("SELECT fecha, COUNT(*) AS conteo FROM visitas WHERE fecha >= ? AND fecha <= ? GROUP BY fecha");
-    $sentencia->execute([$fechaInicio, $fechaFin]);
-    return $sentencia->fetchAll();
-} */
-
     public function reingresarUsuarios(int $id)
     {
         $return = "";
@@ -377,15 +291,15 @@ function obtenerVisitasEnRango($fechaInicio, $fechaFin)
         $sql = "SELECT * FROM configuracion LIMIT 1";
         $res = $this->select($sql);
         if (isset($res[0])) {
-            return $res[0]; 
+            return $res[0];
         }
         if (empty($res)) {
             return [
-                'nombre'    => 'SIN DATOS DE EMPRESA', // Mensaje informativo
-                'telefono'  => '',
+                'nombre' => 'SIN DATOS DE EMPRESA', // Mensaje informativo
+                'telefono' => '',
                 'direccion' => '',
-                'correo'    => '',
-                'mensaje'   => ''
+                'correo' => '',
+                'mensaje' => ''
             ];
         }
         return $res;
@@ -490,4 +404,38 @@ function obtenerVisitasEnRango($fechaInicio, $fechaFin)
         $request = $this->update($query, $data);
         return $request;
     }
+
+    // Obtener config
+    public function getLdapConfigById($id)
+    {
+        $sql = "SELECT * FROM ldap_datos WHERE id = $id AND estado = 'activo';";
+        return $this->select($sql);
+    }
+
+    // Función inteligente Insertar/Actualizar
+    public function sincronizarUsuarioLDAP($usuario, $nombre, $email, $password, $id_rol)
+    {
+        // 1. Buscar si existe por username
+        $sql = "SELECT id FROM usuarios WHERE usuario = '$usuario'";
+        $existe = $this->select($sql);
+
+        if (!empty($existe)) {
+            // ACTUALIZAR: Si el usuario ya existe, actualizamos su nombre y correo (por si cambiaron en el AD)
+            // NO actualizamos la contraseña ni el rol para no pisar configuraciones locales
+            $id_user = $existe['id'];
+            $sql_update = "UPDATE usuarios SET nombre=?, email=?, clave_actualizacion=NOW() WHERE id=?";
+            $arrData = array($nombre, $email, $id_user);
+            $this->update($sql_update, $arrData);
+            return 'update';
+        } else {
+            // INSERTAR: Nuevo usuario
+            // Nota el campo 'fuente_registro' con valor 'LDAP'
+            $sql_insert = "INSERT INTO usuarios (usuario, nombre, email, clave, id_rol, estado_usuario, fuente_registro, fecha_registro, clave_actualizacion) 
+                           VALUES (?, ?, ?, ?, 'ACTIVO', 1, 'LDAP', NOW(), NOW())";
+            $arrData = array($usuario, $nombre, $email, $password, $id_rol);
+            $this->insert($sql_insert, $arrData);
+            return 'insert';
+        }
+    }
+
 }

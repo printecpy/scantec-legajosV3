@@ -131,14 +131,14 @@ if (isset($_SESSION['alert'])) {
                     <a href="<?php echo base_url(); ?>usuarios/listar" class="block py-2 text-xs text-white/60 hover:text-white">Gestión Usuarios</a>
                     <a href="<?php echo base_url(); ?>usuarios/grupo" class="block py-2 text-xs text-white/60 hover:text-white">Grupos</a>
                     <a href="<?php echo base_url(); ?>usuarios/activos" class="block py-2 text-xs text-white/60 hover:text-white">Conexiones</a>
-                    
-                    <button onclick="toggleMenu('menu-alertas')" class="w-full text-left py-2 text-[11px] text-white/60 hover:text-white flex justify-between pr-4 items-center">
+                    <a href="<?php echo base_url(); ?>alerta/listar" class="block py-2 text-xs text-white/60 hover:text-white">Alertas Programadas</a>
+                    <!-- <button onclick="toggleMenu('menu-alertas')" class="w-full text-left py-2 text-[11px] text-white/60 hover:text-white flex justify-between pr-4 items-center">
                         Alertas Programadas <i class="fas fa-caret-down text-[9px]"></i>
                     </button>
                     <div id="menu-alertas" class="hidden pl-3 border-l border-white/10 space-y-1">
                         <a href="<?php echo base_url(); ?>alerta/listar" class="block py-2 text-[10px]">• Tareas</a>
-                        <a href="<?php echo base_url(); ?>alerta/historial" class="block py-2 text-[10px]">• Historial</a>
-                    </div>
+                         <a href="<?php echo base_url(); ?>alerta/historial" class="block py-2 text-[10px]">• Historial</a> 
+                    </div>-->
                 </div>
             </div>
 
