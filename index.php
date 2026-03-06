@@ -1,9 +1,8 @@
 <?php
 ob_start();
-//ini_set('display_errors', 1);
-//ini_set('display_startup_errors', 1);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-// 1. Configurar zona horaria antes de nada
 date_default_timezone_set('America/Asuncion');
 require_once("Config/Config.php");
 require_once("Helpers/Helpers.php");

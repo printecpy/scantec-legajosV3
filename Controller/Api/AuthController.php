@@ -11,10 +11,11 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\ExpiredException;
 
-class AuthController extends Controllers
+class AuthController extends ApiController
 {
-    private const JWT_SECRET_KEY = 'vbWYSAMa1Tb0u&eMiKtopgGkS$9GjoJrmTr970Geh5sEZbY(PJ2q)$wn1^cXsANnj%I)UMY(U9td&l7K2g%Rd*nfB$jm&sA9rb@15(X4IbxwZv(%b9(fEJKaaXOw^lJQ4^rMye%l04J7ioi$#1J(BL';
-
+    public function __construct() {
+        parent::__construct(); // Llama al constructor de ApiController
+    }
     public function login()
     {
         $data = json_decode(file_get_contents('php://input'), true);
@@ -23,23 +24,12 @@ class AuthController extends Controllers
             $this->sendErrorResponse(400, 'Se requieren los campos "usuario" y "clave".');
         }
 
-        // 1. Carga MANUAL y directa del modelo de Usuarios
-        $userModel = null;
-        $modelName = 'UsuariosModel';
-        $modelFile = "Models/{$modelName}.php"; // Ajusta la ruta si es necesario
-
-        if (file_exists($modelFile)) {
-            require_once($modelFile);
-            $userModel = new $modelName();
-        } else {
-            $this->sendErrorResponse(500, 'Error interno: Modelo de usuarios no disponible.');
-        }
-
+        // El modelo UsuariosModel ya está cargado en $this->UsuariosModel por el constructor de ApiController
         // $usuarioDb contiene los datos del usuario (id, id_rol, id_grupo, etc.) o false.
-        $usuarioDb = $userModel->verificarCredenciales($data['usuario'], $data['clave']);
+        $usuarioDb = $this->UsuariosModel->verificarCredenciales($data['usuario'], $data['clave']);
 
         if (!$usuarioDb) {
-            $userModel->bloquarPC_IP('INTENTO_API', 'Login fallido para usuario: ' . $data['usuario']);
+            $this->UsuariosModel->bloquarPC_IP('INTENTO_API', 'Login fallido para usuario: ' . $data['usuario']);
             $this->sendErrorResponse(401, 'Credenciales de acceso inválidas.');
         }
 
@@ -61,31 +51,13 @@ class AuthController extends Controllers
             ]
         ];
 
-        $jwt = JWT::encode($payload, self::JWT_SECRET_KEY, 'HS256');
+        $jwt = JWT::encode($payload, $this->secretKey, 'HS256');
 
-        header('Content-Type: application/json');
-        http_response_code(200);
-
-        // *** CRÍTICO: USAMOS $expirationTime ***
-        echo json_encode([
+        // Estandarizar la respuesta usando el formato de ApiController
+        $this->sendSuccessResponse(200, [
             'token' => $jwt,
-            'expiracion' => date(DATE_ISO8601, $expirationTime)
-        ]);
-        exit();
-    }
-
-    /**
-     * Este método debe estar definido, ya sea aquí o en la clase base Controllers.
-     */
-    protected function sendErrorResponse(int $code, string $message)
-    {
-        if (ob_get_level() > 0) {
-            ob_clean();
-        }
-
-        header('Content-Type: application/json');
-        http_response_code($code);
-        echo json_encode(['status' => 'error', 'message' => $message]);
-        exit();
+            'expires_at' => date(DATE_ISO8601, $expirationTime)
+        ], 'Login exitoso.');
+        // La función sendSuccessResponse ya incluye exit(), por lo que el código siguiente no se ejecutará.
     }
 }

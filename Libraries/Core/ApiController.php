@@ -20,16 +20,22 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
     // Datos del usuario JWT extraídos
     protected $api_user_id;
     protected $api_user_roles;
-    protected $api_user_group_id; // <-- Nuevo: Para el filtrado de expedientes
+    protected $api_user_group_id; 
     protected $UsuariosModel;
 
-    // Usamos el mismo patrón para la clave, pero lo ponemos como propiedad para facilitar el uso en JWT::decode/encode
-    private const JWT_SECRET_KEY = 'vbWYSAMa1Tb0u&eMiKtopgGkS$9GjoJrmTr970Geh5sEZbY(PJ2q)$wn1^cXsANnj%I)UMY(U9td&l7K2g%Rd*nfB$jm&sA9rb@15(X4IbxwZv(%b9(fEJKaaXOw^lJQ4^rMye%l04J7ioi$#1J(BL';
-    protected $secretKey = self::JWT_SECRET_KEY;
+    protected $secretKey;
 
 
     public function __construct()
     {
+        $env_path = dirname(__DIR__, 2) . '/.env'; 
+        if (file_exists($env_path)) {
+            $env_vars = parse_ini_file($env_path);
+            $this->secretKey = $env_vars['JWT_SECRET'] ?? 'CLAVE_RESPALDO';
+        } else {
+            // Si por algún motivo no existe el archivo, usamos un respaldo o tiramos error
+            $this->secretKey = 'vbWYSAMa1Tb0u&eMiKtopgGkS$9GjoJrmTr970Geh5sEZbY(PJ2q)$wn1^cXsANnj%I)UMY(U9td&l7K2g%Rd*nfB$jm&sA9rb@15(X4IbxwZv(%b9(fEJKaaXOw^lJQ4^rMye%l04J7ioi$#1J(BL'; 
+        }
         $this->apiLogModel = new ApiLogModel();
         // 1. Carga del modelo de usuario
         $modelName = 'UsuariosModel';
@@ -114,7 +120,7 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
     // MÉTODOS DE RESPUESTA
     // ==========================================================
 
-    protected function sendErrorResponse(int $code, string $message)
+    protected function sendErrorResponse(int $code, string $message, ?array $data = null)
     {
         // 1. Logear la Transacción (Error)
         // Usamos 'Error: ' en el mensaje para identificarlo fácilmente en los logs de BD
@@ -124,7 +130,7 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
             $_SERVER['REQUEST_METHOD'] ?? 'N/A',
             $code,
             "Error: " . $message, // Mensaje para log
-            ['error_message' => $message] // Datos de error
+            ['error_message' => $message, 'details' => $data] // Datos de error
         );
 
         // 2. Enviar Respuesta
@@ -134,7 +140,11 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
 
         header('Content-Type: application/json');
         http_response_code($code);
-        echo json_encode(['status' => 'error', 'message' => $message]);
+        $response = ['status' => 'error', 'message' => $message];
+        if ($data !== null) {
+            $response['data'] = $data;
+        }
+        echo json_encode($response);
         exit();
     }
 

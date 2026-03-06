@@ -179,15 +179,17 @@ class UsuariosModel extends Mysql
     }
     public function selectUsuario(string $usuario)
     {
-        $sql = "SELECT a.id, a.nombre, a.usuario, a.clave, a.id_rol, b.descripcion as roles, a.estado_usuario, c.id_grupo,
-        c.descripcion as grupo, a.email FROM usuarios a, roles b, usu_grupo c WHERE a.id_rol=b.id_rol AND a.id_grupo=c.id_grupo
-        and a.usuario = ? AND a.estado_usuario = 'ACTIVO';";
+        $sql = "SELECT a.id, a.nombre, a.usuario, a.clave, a.id_rol, b.descripcion as roles, 
+                       a.estado_usuario, c.id_grupo, c.descripcion as grupo, a.email 
+                FROM usuarios a
+                LEFT JOIN roles b ON a.id_rol = b.id_rol
+                LEFT JOIN usu_grupo c ON a.id_grupo = c.id_grupo
+                WHERE TRIM(a.usuario) = TRIM(?)";
+                
         $data = [$usuario];
         $res = $this->select($sql, $data);
-        if (!empty($res) && is_array($res) && isset($res[0])) {
-            return $res[0];
-        }
-        return false;
+        
+        return (!empty($res) && isset($res[0])) ? $res[0] : [];
     }
 
     public function contarUsuariosActivos()
@@ -314,7 +316,7 @@ class UsuariosModel extends Mysql
         $return = $resul;
         return $return;
     }
-    public function bloquarPC_IP(string $usuario, string $motivo)
+    public function bloquearPC_IP(string $usuario, string $motivo)
     {
         date_default_timezone_set('America/Asuncion');
         $this->usuario = $usuario;

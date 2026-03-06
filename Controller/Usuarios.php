@@ -354,97 +354,225 @@ class Usuarios extends Controllers
         die();
     }
 
+    // public function login()
+    // {
+    //     // Aseguramos que la sesión esté activa para manejar los intentos y las alertas
+    //     if (session_status() === PHP_SESSION_NONE) {
+    //         session_start();
+    //     }
+
+    //     if (!isset($_SESSION['login_attempts'])) {
+    //         $_SESSION['login_attempts'] = 0;
+    //     }
+
+    //     if (!empty($_POST['usuario']) && !empty($_POST['clave'])) {
+    //         $usuario = htmlspecialchars($_POST['usuario'], ENT_QUOTES, 'UTF-8');
+    //         $claveIngresada = $_POST['clave'];
+
+    //         // Consulta al modelo
+    //         $data = $this->model->selectUsuario($usuario);
+
+    //         /**
+    //          * VALIDACIÓN UNIFICADA
+    //          * Se comprueba en un solo bloque si el usuario existe, está activo y la clave es correcta.
+    //          * Si cualquiera de estas falla, el flujo va al 'else' genérico.
+    //          */
+    //         if (!empty($data) && $data['estado_usuario'] == 'ACTIVO' && password_verify($claveIngresada, $data['clave'])) {
+
+    //             // --- CASO 1: LOGIN EXITOSO ---
+    //             $_SESSION['id'] = $data['id'];
+    //             $_SESSION['nombre'] = $data['nombre'];
+    //             $_SESSION['usuario'] = $data['usuario'];
+    //             $_SESSION['id_rol'] = $data['id_rol'];
+    //             $_SESSION['ACTIVO'] = true;
+
+    //             // Tokens de seguridad
+    //             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    //             $_SESSION['csrf_expiration'] = time() + (30 * 60);
+
+    //             $_SESSION['id_grupo'] = $data['id_grupo'];
+    //             $_SESSION['grupo'] = $data['grupo'];
+    //             $_SESSION['PERMISOS'] = $this->model->getPermisosByRol($data['id_rol']);
+
+    //             // Reiniciamos intentos al entrar con éxito
+    //             $_SESSION['login_attempts'] = 0;
+
+    //             // Auditoría
+    //             $this->model->registrarVisita($_SESSION['id']);
+    //             $this->model->conteoInicioSesion($_SESSION['id']);
+
+    //             // Redirección según rol
+    //             if ($data['id_rol'] == 3 || $data['id_rol'] == 4) {
+    //                 header('location: ' . base_url() . 'expedientes/indice_busqueda');
+    //             } else {
+    //                 header('location: ' . base_url() . 'dashboard/listar');
+    //             }
+    //             exit();
+
+    //         } else {
+    //             // --- CASO 2: LOGIN FALLIDO (Genérico por seguridad) ---
+    //             $_SESSION['login_attempts']++;
+
+    //             if ($_SESSION['login_attempts'] >= 3) {
+    //                 // Bloqueo de seguridad
+    //                 $motivo = 'Excedió el número de intentos de inicio de sesión (Credenciales inválidas)';
+
+    //                 // Solo intentamos bloquear en la DB si el usuario realmente existe
+    //                 if (!empty($data)) {
+    //                     $this->model->bloquearUsuarios($usuario);
+    //                 }
+
+    //                 // Bloqueo por IP (Siempre se ejecuta para frenar ataques de fuerza bruta)
+    //                 $this->model->bloquarPC_IP($usuario, $motivo);
+
+    //                 setAlert('error', "ACCESO RESTRINGIDO: Demasiados intentos fallidos. Su acceso ha sido bloqueado por seguridad.");
+    //                 header('location: ' . base_url());
+    //                 exit();
+
+    //             } else {
+    //                 // Mensaje genérico para no revelar si el usuario existe o no
+    //                 $restantes = 3 - $_SESSION['login_attempts'];
+    //                 setAlert('error', "Usuario o contraseña incorrecta. Le quedan $restantes intentos.");
+
+    //                 header('location: ' . base_url());
+    //                 exit();
+    //             }
+    //         }
+    //     } else {
+    //         // CASO 3: CAMPOS VACÍOS
+    //         setAlert('warning', "Debe completar todos los campos del formulario.");
+    //         header('location: ' . base_url());
+    //         exit();
+    //     }
+    // }
     public function login()
     {
-        // Aseguramos que la sesión esté activa para manejar los intentos y las alertas
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (!isset($_SESSION['login_attempts'])) $_SESSION['login_attempts'] = 0;
+
+        // --- 1. LIMPIEZA INTELIGENTE DE USUARIO ---
+        $usuario_raw = trim($_POST['usuario'] ?? '');
+        
+        // Si el usuario escribe por costumbre "DOMINIO\usuario", le quitamos el dominio
+        if (strpos($usuario_raw, '\\') !== false) {
+            $usuario_raw = explode('\\', $usuario_raw)[1]; 
+        }        
+        if (strpos($usuario_raw, '@') !== false) {
+            $usuario_raw = explode('@', $usuario_raw)[0]; 
         }
 
-        if (!isset($_SESSION['login_attempts'])) {
-            $_SESSION['login_attempts'] = 0;
+        $usuario = htmlspecialchars($usuario_raw, ENT_QUOTES, 'UTF-8');
+        $claveIngresada = $_POST['clave'] ?? '';
+        $fuente_registro = $_POST['fuente_registro'] ?? 'scantec';
+
+        if (empty($usuario) || empty($claveIngresada)) {
+            setAlert('warning', "Debe completar todos los campos."); 
+            header('location: ' . base_url()); 
+            exit();
         }
 
-        if (!empty($_POST['usuario']) && !empty($_POST['clave'])) {
-            $usuario = htmlspecialchars($_POST['usuario'], ENT_QUOTES, 'UTF-8');
-            $claveIngresada = $_POST['clave'];
+        $data = $this->model->selectUsuario($usuario);
+        if (empty($data)) {
+            setAlert('error', "El usuario no existe en la base de datos.");
+            header('location: ' . base_url()); 
+            exit();
+        }
 
-            // Consulta al modelo
-            $data = $this->model->selectUsuario($usuario);
+        if ($data['estado_usuario'] !== 'ACTIVO') {
+            setAlert('error', "Tu usuario está inactivo o bloqueado.");
+            header('location: ' . base_url()); 
+            exit();
+        }
 
-            /**
-             * VALIDACIÓN UNIFICADA
-             * Se comprueba en un solo bloque si el usuario existe, está activo y la clave es correcta.
-             * Si cualquiera de estas falla, el flujo va al 'else' genérico.
-             */
-            if (!empty($data) && $data['estado_usuario'] == 'ACTIVO' && password_verify($claveIngresada, $data['clave'])) {
+        $auth_success = false;
 
-                // --- CASO 1: LOGIN EXITOSO ---
-                $_SESSION['id'] = $data['id'];
-                $_SESSION['nombre'] = $data['nombre'];
-                $_SESSION['usuario'] = $data['usuario'];
-                $_SESSION['id_rol'] = $data['id_rol'];
-                $_SESSION['ACTIVO'] = true;
+        // =========================================================
+        // 1. MODO DIRECTORIO ACTIVO (Si seleccionó LDAP)
+        // =========================================================
+        if ($fuente_registro === 'LDAP') {
+            require_once 'Models/ConfiguracionModel.php';
+            $configModel = new ConfiguracionModel();
+            $configLdapArray = $configModel->selectLDAP_datos();
+            $configLdap = !empty($configLdapArray) ? $configLdapArray[0] : null;
 
-                // Tokens de seguridad
-                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                $_SESSION['csrf_expiration'] = time() + (30 * 60);
+            if ($configLdap && !empty($configLdap['ldapHost'])) {
+                $ldap_host = $configLdap['ldapHost'];
+                $ldap_port = !empty($configLdap['ldapPort']) ? $configLdap['ldapPort'] : 389;
+                $ldap_host = str_replace(['ldap://', 'ldaps://'], '', $ldap_host);
 
-                $_SESSION['id_grupo'] = $data['id_grupo'];
-                $_SESSION['grupo'] = $data['grupo'];
-                $_SESSION['PERMISOS'] = $this->model->getPermisosByRol($data['id_rol']);
+                $ldap_conn = @ldap_connect($ldap_host, $ldap_port);
+                
+                if ($ldap_conn) {
+                    ldap_set_option($ldap_conn, LDAP_OPT_PROTOCOL_VERSION, 3);
+                    ldap_set_option($ldap_conn, LDAP_OPT_REFERRALS, 0);
 
-                // Reiniciamos intentos al entrar con éxito
-                $_SESSION['login_attempts'] = 0;
-
-                // Auditoría
-                $this->model->registrarVisita($_SESSION['id']);
-                $this->model->conteoInicioSesion($_SESSION['id']);
-
-                // Redirección según rol
-                if ($data['id_rol'] == 3 || $data['id_rol'] == 4) {
-                    header('location: ' . base_url() . 'expedientes/indice_busqueda');
-                } else {
-                    header('location: ' . base_url() . 'dashboard/listar');
-                }
-                exit();
-
-            } else {
-                // --- CASO 2: LOGIN FALLIDO (Genérico por seguridad) ---
-                $_SESSION['login_attempts']++;
-
-                if ($_SESSION['login_attempts'] >= 3) {
-                    // Bloqueo de seguridad
-                    $motivo = 'Excedió el número de intentos de inicio de sesión (Credenciales inválidas)';
-
-                    // Solo intentamos bloquear en la DB si el usuario realmente existe
-                    if (!empty($data)) {
-                        $this->model->bloquearUsuarios($usuario);
+                    // --- GENERADOR DINÁMICO DE DOMINIO NETBIOS ---
+                    // Extrae la empresa desde "OU=printec,DC=printec,DC=local" -> "PRINTEC"
+                    $dominio_netbios = 'DOMINIO'; // Valor por defecto
+                    if (preg_match('/DC=([^,]+)/i', $configLdap['ldapBaseDn'], $matches)) {
+                        $dominio_netbios = strtoupper($matches[1]);
                     }
 
-                    // Bloqueo por IP (Siempre se ejecuta para frenar ataques de fuerza bruta)
-                    $this->model->bloquarPC_IP($usuario, $motivo);
+                    // Arma el formato correcto automáticamente (Ej: PRINTEC\aldo.silva)
+                    $usuario_ad = $dominio_netbios . "\\" . $usuario; 
 
-                    setAlert('error', "ACCESO RESTRINGIDO: Demasiados intentos fallidos. Su acceso ha sido bloqueado por seguridad.");
-                    header('location: ' . base_url());
-                    exit();
-
-                } else {
-                    // Mensaje genérico para no revelar si el usuario existe o no
-                    $restantes = 3 - $_SESSION['login_attempts'];
-                    setAlert('error', "Usuario o contraseña incorrecta. Le quedan $restantes intentos.");
-
-                    header('location: ' . base_url());
-                    exit();
+                    if (@ldap_bind($ldap_conn, $usuario_ad, $claveIngresada)) {
+                        $auth_success = true; // ¡El AD aceptó la clave!
+                    }
                 }
             }
+        } 
+        // =========================================================
+        // 2. MODO USUARIO LOCAL
+        // =========================================================
+        else {
+            if (password_verify($claveIngresada, $data['clave'])) {
+                $auth_success = true;
+            }
+        }
+
+        // =========================================================
+        // 3. RESOLUCIÓN DE ACCESO
+        // =========================================================
+        if ($auth_success) {
+            $_SESSION['id'] = $data['id'];
+            $_SESSION['nombre'] = $data['nombre'];
+            $_SESSION['usuario'] = $data['usuario'];
+            $_SESSION['id_rol'] = $data['id_rol'];
+            $_SESSION['ACTIVO'] = true;
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            $_SESSION['csrf_expiration'] = time() + (30 * 60);
+            
+            $_SESSION['id_grupo'] = $data['id_grupo'] ?? 0;
+            $_SESSION['grupo'] = $data['grupo'] ?? '';
+            $_SESSION['PERMISOS'] = $this->model->getPermisosByRol($data['id_rol']);
+            
+            $_SESSION['login_attempts'] = 0; // Reiniciar intentos
+            //auditoria de sesiones
+            $this->model->registrarVisita($_SESSION['id']);
+            $this->model->conteoInicioSesion($_SESSION['id']);
+
+            if ($data['id_rol'] == 3 || $data['id_rol'] == 4) {
+                header('location: ' . base_url() . 'expedientes/indice_busqueda');
+            } else {
+                header('location: ' . base_url() . 'dashboard/listar');
+            }
+            exit();
         } else {
-            // CASO 3: CAMPOS VACÍOS
-            setAlert('warning', "Debe completar todos los campos del formulario.");
+            $_SESSION['login_attempts']++;
+            
+            if ($_SESSION['login_attempts'] >= 3) {
+                $this->model->bloquearUsuarios($usuario);
+                $this->model->bloquearPC_IP($usuario, 'Excedió intentos');
+            }
+            
+            $restantes = 3 - $_SESSION['login_attempts'];
+            setAlert('error', "Usuario o contraseña incorrecta. Le quedan $restantes intentos.");
             header('location: ' . base_url());
             exit();
         }
     }
+
     // =========================================================
     // Muestra el formulario (Tu archivo cambiar_pass.php)
     // =========================================================
@@ -719,7 +847,7 @@ class Usuarios extends Controllers
                     $id_rol = (int) ($row[3] ?? 0);
                     $id_grupo = (int) ($row[4] ?? 0);
                     $email = filter_var(trim($row[5] ?? ''), FILTER_SANITIZE_EMAIL);
-                    $fuente_registro = 'scantec-import';
+                    $fuente_registro = 'scantec';
 
                     if (empty($usuario) || empty($email)) {
                         $errores[] = "Fila {$fila_actual}: El usuario y el correo son obligatorios.";
@@ -760,7 +888,7 @@ class Usuarios extends Controllers
                     $id_rol = (int) ($row['D'] ?? 0);
                     $id_grupo = (int) ($row['E'] ?? 0);
                     $email = filter_var(trim($row['F'] ?? ''), FILTER_SANITIZE_EMAIL);
-                    $fuente_registro = 'scantec-import';
+                    $fuente_registro = 'scantec';
 
                     if (empty($usuario) || empty($email)) {
                         $errores[] = "Fila {$fila_actual}: El usuario y el correo son obligatorios.";
@@ -1027,7 +1155,8 @@ class Usuarios extends Controllers
 
     public function pdf()
     {
-        if (ob_get_length()) ob_end_clean();
+        if (ob_get_length())
+            ob_end_clean();
 
         // 1. Obtener datos
         $usuarios = $this->model->selectUsuarios();
@@ -1092,7 +1221,8 @@ class Usuarios extends Controllers
 
     public function pdf_filtro()
     {
-        if (ob_get_length()) ob_end_clean();
+        if (ob_get_length())
+            ob_end_clean();
 
         // 1. Obtener datos
         $desde = $_POST['desde'];
@@ -1150,7 +1280,8 @@ class Usuarios extends Controllers
 
     public function grupo_pdf()
     {
-        if (ob_get_length()) ob_end_clean();
+        if (ob_get_length())
+            ob_end_clean();
 
         // 1. Obtener datos
         $permisos = $this->model->selectPerDoc();
@@ -1224,7 +1355,7 @@ class Usuarios extends Controllers
 
         // Datos desde fila 5
         $contentStyle = ['font' => ['size' => 9], 'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
-        $dataRow = $headerRow + 1; 
+        $dataRow = $headerRow + 1;
 
         foreach ($usuario as $value) {
             $nombreGrupo = '';
@@ -1304,7 +1435,7 @@ class Usuarios extends Controllers
             $sheet->setCellValue('B' . $dataRow, $value["descripcion"]);
             $sheet->setCellValue('C' . $dataRow, $value["id_tipoDoc"]);
             $sheet->setCellValue('D' . $dataRow, $value['nombre_tipoDoc']);
-            
+
             $sheet->getStyle('A' . $dataRow . ':D' . $dataRow)->applyFromArray($contentStyle);
             $dataRow++;
         }

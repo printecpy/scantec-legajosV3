@@ -50,8 +50,9 @@ class ExpedientesController extends ApiController
 
             // 3. Llamar al modelo (Usando $this->ExpedientesModel)
             $registros = $this->ExpedientesModel->selectRegistrosApi($id_grupo_a_filtrar, $indice_01, $nombre_tipoDoc, $termino);
+            // Práctica RESTful recomendada: Devolver 200 OK con un array vacío si no hay resultados.
             if (empty($registros)) {
-                $this->sendErrorResponse(404, 'No se encontraron registros que coincidan con los filtros.');
+                $registros = [];
             }
             // 4. Devolver los datos como JSON (Ahora usando sendSuccessResponse)
             $this->sendSuccessResponse(200, $registros, 'Listado de expedientes obtenido correctamente.');
@@ -69,10 +70,20 @@ class ExpedientesController extends ApiController
             // ROL REQUERIDO: [1] Admin, [2] Ejecutor (Escritura)
             $userData = $this->checkApiAccess([1, 2]);
 
-            $data = json_decode(file_get_contents('php://input'), true);
+            $input = json_decode(file_get_contents('php://input'), true);
 
-            if (!$data || !isset($data['indice_02'])) {
-                $this->sendErrorResponse(400, "Datos de actualización incompletos o JSON inválido.");
+            // --- CAPA DE VALIDACIÓN ---
+            // Se crea un helper para centralizar la validación de datos de entrada.
+            require_once 'Helpers/RequestValidator.php';
+            $validator = new RequestValidator($input ?? []);
+            $validator->validate([
+                'indice_01' => 'required', // Ejemplo: Aseguramos que campos críticos vengan
+                'indice_02' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                $this->sendErrorResponse(400, "Datos de actualización inválidos.", ['errors' => $validator->getErrors()]);
+                return;
             }
 
             // Lógica de validación de propiedad (Autorización Fina)
@@ -81,6 +92,7 @@ class ExpedientesController extends ApiController
 
             if (!$registro) {
                 $this->sendErrorResponse(404, "Expediente no encontrado.");
+                return;
             }
 
             // Verificar si el usuario NO es Admin Y el documento NO pertenece a su grupo
@@ -89,7 +101,7 @@ class ExpedientesController extends ApiController
             }
 
             // Actualizar (asume que esta función existe en ExpedientesModel)
-            $resultado = $this->ExpedientesModel->updateExpediente($idExpediente, $data);
+            $resultado = $this->ExpedientesModel->updateExpediente($idExpediente, $input);
 
             if ($resultado) {
                 // Usar sendSuccessResponse para registrar la acción
@@ -115,6 +127,7 @@ class ExpedientesController extends ApiController
             $registro = $this->ExpedientesModel->getExpedienteById($idExpediente);
             if (!$registro) {
                 $this->sendErrorResponse(404, "Expediente no encontrado.");
+                return;
             }
 
             // 2. Lógica de Eliminación Lógica

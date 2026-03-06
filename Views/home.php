@@ -17,7 +17,6 @@
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 Swal.fire({
-                    // Los datos ya vienen limpios gracias a htmlspecialchars en setAlert
                     icon: '<?php echo $_SESSION['alert']['type']; ?>',
                     title: 'Atención',
                     text: '<?php echo $_SESSION['alert']['message']; ?>',
@@ -30,7 +29,7 @@
     <?php endif; ?>
 
     <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div class="p-8">
+        <div class="p-7">
             <div class="flex justify-center mb-8">
                 <img src="<?php echo base_url(); ?>Assets/img/icoScantec2.png" alt="Scantec Logo"
                     class="h-16 w-auto object-contain">
@@ -38,21 +37,30 @@
 
             <h2 class="text-2xl font-montserrat font-bold text-scantec-blue text-center mb-2 uppercase tracking-wide">
                 Acceso al Sistema</h2>
-            <p class="text-scantec-gray text-center text-sm mb-8">Por favor, ingrese sus credenciales para continuar.
-            </p>
+            <p class="text-scantec-gray text-center text-sm mb-8">Por favor, ingrese sus credenciales para continuar.</p>
 
             <form id="loginForm" action="<?php echo base_url(); ?>Usuarios/login" method="POST" class="space-y-6">
+                
+                <div class="relative">
+                    <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Tipo de Acceso</label>
+                    <select name="fuente_registro" class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50 appearance-none cursor-pointer font-semibold text-gray-700">
+                        <option value="scantec" selected>Usuario Local</option>
+                        <option value="LDAP">Usuario AD</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 pt-6 text-gray-400">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+
                 <div>
-                    <label
-                        class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Usuario</label>
+                    <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Usuario</label>
                     <input type="text" name="usuario" required
                         class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50"
                         placeholder="Ej: admin">
                 </div>
 
                 <div>
-                    <label
-                        class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Contraseña</label>
+                    <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Contraseña</label>
                     <input type="password" name="clave" required
                         class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50"
                         placeholder="••••••••">
@@ -60,12 +68,11 @@
 
                 <div class="flex items-center justify-end">
                     <a href="<?php echo base_url(); ?>home/restablecer_pw"
-                        class="text-scantec-red hover:underline font-bold text-xs uppercase">¿Olvidaste tu
-                        contraseña?</a>
+                        class="text-scantec-red hover:underline font-bold text-xs uppercase">¿Olvidaste tu contraseña?</a>
                 </div>
 
                 <button type="submit"
-                    class="w-full bg-scantec-blue hover:bg-scantec-red text-white font-montserrat font-bold py-4 rounded-xl transition-all shadow-lg tracking-widest">
+                    class="w-full bg-scantec-blue hover:bg-scantec-red text-white font-montserrat font-bold py-4 rounded-xl transition-all shadow-lg tracking-widest mt-2">
                     ACCEDER
                 </button>
             </form>

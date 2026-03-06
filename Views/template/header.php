@@ -65,6 +65,7 @@ if (isset($_SESSION['alert'])) {
                 </button>
                 <div id="menu-archivos" class="hidden pl-11 space-y-1 mt-1">
                     <a href="<?php echo base_url(); ?>expedientes/indice_busqueda" class="block py-2 text-xs text-white/60 hover:text-white transition-colors">• Buscador</a>
+                    <a href="<?php echo base_url(); ?>expedientes/armar_legajo" class="block py-2 text-xs text-white/60 hover:text-white transition-colors">• Armar legajo</a>
                     <?php if ($_SESSION['id_rol'] <= 2): ?>
                         <a href="<?php echo base_url(); ?>expedientes/upload_files" class="block py-2 text-xs text-white/60 hover:text-white transition-colors">• Subir archivos</a>
                     <?php endif; ?>
