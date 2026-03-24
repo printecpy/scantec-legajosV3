@@ -1,2 +1,4 @@
 <?php
-define('IMAGE_PATH', $_SERVER['DOCUMENT_ROOT'] . '/scantec2/Assets/img/');
+$scriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+$projectDir = rtrim(str_replace('/index.php', '', $scriptName), '/') . '/';
+define('IMAGE_PATH', $_SERVER['DOCUMENT_ROOT'] . $projectDir . 'Assets/img/');

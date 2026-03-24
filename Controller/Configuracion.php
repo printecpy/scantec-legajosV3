@@ -14,6 +14,58 @@ class Configuracion extends Controllers
 {
     private $configuracionModel, $db;
 
+    private function obtenerDirectorioBranding(): string
+    {
+        return rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, dirname(__DIR__)), DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR . 'Assets' . DIRECTORY_SEPARATOR . 'img' . DIRECTORY_SEPARATOR . 'branding';
+    }
+
+    private function obtenerLogoBrandingUrl(string $baseNombre): string
+    {
+        $directorio = $this->obtenerDirectorioBranding();
+        if (!is_dir($directorio)) {
+            return '';
+        }
+
+        $coincidencias = glob($directorio . DIRECTORY_SEPARATOR . $baseNombre . '.*') ?: [];
+        if (empty($coincidencias)) {
+            return '';
+        }
+
+        $archivo = basename($coincidencias[0]);
+        return base_url() . 'Assets/img/branding/' . rawurlencode($archivo) . '?v=' . @filemtime($coincidencias[0]);
+    }
+
+    private function guardarLogoBranding(string $inputName, string $baseNombre): bool
+    {
+        if (empty($_FILES[$inputName]) || intval($_FILES[$inputName]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+            return true;
+        }
+
+        $archivo = $_FILES[$inputName];
+        if (intval($archivo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return false;
+        }
+
+        $extension = strtolower(pathinfo($archivo['name'] ?? '', PATHINFO_EXTENSION));
+        $permitidas = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'];
+        if (!in_array($extension, $permitidas, true)) {
+            return false;
+        }
+
+        $directorio = $this->obtenerDirectorioBranding();
+        if (!is_dir($directorio) && !mkdir($directorio, 0777, true) && !is_dir($directorio)) {
+            return false;
+        }
+
+        foreach (glob($directorio . DIRECTORY_SEPARATOR . $baseNombre . '.*') ?: [] as $existente) {
+            @unlink($existente);
+        }
+
+        $destino = $directorio . DIRECTORY_SEPARATOR . $baseNombre . '.' . $extension;
+        return move_uploaded_file($archivo['tmp_name'], $destino);
+    }
+
     public function __construct()
     {
         if (session_status() == PHP_SESSION_NONE) {
@@ -30,13 +82,544 @@ class Configuracion extends Controllers
     public function listar()
     {
         $data = $this->model->selectConfiguracion();
+        if (isset($data[0]) && is_array($data[0])) {
+            $data[0]['logo_empresa_url'] = $this->obtenerLogoBrandingUrl('logo_empresa');
+            $data[0]['logo_empresa_reducido_url'] = $this->obtenerLogoBrandingUrl('logo_empresa_reducido');
+        }
         $this->views->getView($this, "listar", $data);
     }
 
     public function mantenimiento()
     {
         $data = $this->model->selectConfiguracion();
+        if (isset($data[0]) && is_array($data[0])) {
+            $data[0]['logo_empresa_url'] = $this->obtenerLogoBrandingUrl('logo_empresa');
+            $data[0]['logo_empresa_reducido_url'] = $this->obtenerLogoBrandingUrl('logo_empresa_reducido');
+        }
         $this->views->getView($this, "mantenimiento", $data);
+    }
+
+    public function configuracion_legajos()
+    {
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            $_SESSION['csrf_expiration'] = time() + 3600;
+        }
+
+        $catalogo_documentos = $this->model->getCatalogoDocumentosLegajo();
+        $tipos_documento = $this->model->getTiposDocumentoLegajo();
+        $tab_actual = isset($_GET['tab']) ? $_GET['tab'] : 'catalogo';
+        $id_documento_editar = isset($_GET['editar_documento']) ? intval($_GET['editar_documento']) : 0;
+        $id_tipo_legajo_editar = isset($_GET['editar_tipo_legajo']) ? intval($_GET['editar_tipo_legajo']) : 0;
+        $documento_editar = null;
+        $tipo_legajo_editar = null;
+        if ($id_documento_editar > 0) {
+            $documento_editar = $this->model->getCatalogoDocumentoLegajoById($id_documento_editar);
+        }
+        if ($id_tipo_legajo_editar > 0) {
+            $tipo_legajo_editar = $this->model->getTipoLegajoById($id_tipo_legajo_editar);
+        }
+
+        $id_tipoDoc = isset($_GET['id_tipoDoc']) ? intval($_GET['id_tipoDoc']) : 0;
+        if ($id_tipoDoc <= 0 && !empty($tipos_documento)) {
+            $id_tipoDoc = intval($tipos_documento[0]['id_tipoDoc']);
+        }
+
+        $matriz_requisitos = $id_tipoDoc > 0
+            ? $this->model->getMatrizRequisitosLegajo($id_tipoDoc)
+            : [];
+
+        $tipo_documento_actual = null;
+        foreach ($tipos_documento as $tipo_documento) {
+            if (intval($tipo_documento['id_tipoDoc']) === $id_tipoDoc) {
+                $tipo_documento_actual = $tipo_documento;
+                break;
+            }
+        }
+
+        $relaciones = $this->model->getRelacionesActivas();
+        $politicas_actualizacion = $this->model->getPoliticasActualizacionActivas();
+        
+        $todas_relaciones = $this->model->getRelaciones();
+        $todas_politicas = $this->model->getPoliticasActualizacion();
+
+        $data = [
+            'catalogo_documentos' => $catalogo_documentos,
+            'tipos_documento' => $tipos_documento,
+            'matriz_requisitos' => $matriz_requisitos,
+            'id_tipoDoc_actual' => $id_tipoDoc,
+            'tipo_documento_actual' => $tipo_documento_actual,
+            'tab_actual' => $tab_actual,
+            'documento_editar' => $documento_editar,
+            'tipo_legajo_editar' => $tipo_legajo_editar,
+            'relaciones' => $relaciones,
+            'politicas_actualizacion' => $politicas_actualizacion,
+            'todas_relaciones' => $todas_relaciones,
+            'todas_politicas' => $todas_politicas
+        ];
+        $this->views->getView($this, "configuracion_legajos", $data);
+    }
+
+    public function guardar_catalogo_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+            exit();
+        }
+
+        $nombre = trim($_POST['nombre'] ?? '');
+        $codigo_interno = trim($_POST['codigo_interno'] ?? '');
+        $tiene_vencimiento = intval($_POST['tiene_vencimiento'] ?? 0) === 1 ? 1 : 0;
+        $dias_vigencia_base = $tiene_vencimiento ? intval($_POST['dias_vigencia_base'] ?? 0) : null;
+        $dias_alerta_previa = $tiene_vencimiento ? intval($_POST['dias_alerta_previa'] ?? 30) : null;
+        $activo = isset($_POST['activo']) ? 1 : 0;
+
+        if ($nombre === '') {
+            setAlert('warning', "Debe ingresar el nombre del documento.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+            exit();
+        }
+
+        if ($tiene_vencimiento && $dias_vigencia_base !== null && $dias_vigencia_base <= 0) {
+            setAlert('warning', "Los días de vigencia deben ser mayores a cero.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+            exit();
+        }
+
+        $insert = $this->model->insertarCatalogoDocumentoLegajo(
+            $nombre,
+            $codigo_interno,
+            $tiene_vencimiento,
+            $dias_vigencia_base,
+            $tiene_vencimiento ? ($dias_alerta_previa > 0 ? $dias_alerta_previa : 30) : null,
+            $activo
+        );
+
+        if ($insert) {
+            setAlert('success', "Documento maestro registrado correctamente.");
+        } else {
+            setAlert('error', "No se pudo registrar el documento maestro.");
+        }
+
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+        exit();
+    }
+
+    public function actualizar_catalogo_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+            exit();
+        }
+
+        $id_documento_maestro = intval($_POST['id_documento_maestro'] ?? 0);
+        $nombre = trim($_POST['nombre'] ?? '');
+        $codigo_interno = trim($_POST['codigo_interno'] ?? '');
+        $tiene_vencimiento = intval($_POST['tiene_vencimiento'] ?? 0) === 1 ? 1 : 0;
+        $dias_vigencia_base = $tiene_vencimiento ? intval($_POST['dias_vigencia_base'] ?? 0) : null;
+        $dias_alerta_previa = $tiene_vencimiento ? intval($_POST['dias_alerta_previa'] ?? 30) : null;
+        $activo = isset($_POST['activo']) ? 1 : 0;
+
+        if ($id_documento_maestro <= 0 || $nombre === '') {
+            setAlert('warning', "Datos inválidos para actualizar el documento.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+            exit();
+        }
+
+        if ($tiene_vencimiento && $dias_vigencia_base !== null && $dias_vigencia_base <= 0) {
+            setAlert('warning', "Los días de vigencia deben ser mayores a cero.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo&editar_documento=" . $id_documento_maestro);
+            exit();
+        }
+
+        $ok = $this->model->actualizarCatalogoDocumentoLegajo(
+            $id_documento_maestro,
+            $nombre,
+            $codigo_interno,
+            $tiene_vencimiento,
+            $dias_vigencia_base,
+            $tiene_vencimiento ? ($dias_alerta_previa > 0 ? $dias_alerta_previa : 30) : null,
+            $activo
+        );
+
+        setAlert($ok ? 'success' : 'error', $ok ? "Documento actualizado correctamente." : "No se pudo actualizar el documento.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+        exit();
+    }
+
+    public function cambiar_estado_catalogo_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+            exit();
+        }
+
+        $id_documento_maestro = intval($_POST['id_documento_maestro'] ?? 0);
+        $activo = intval($_POST['activo'] ?? 0);
+
+        if ($id_documento_maestro <= 0) {
+            setAlert('warning', "Documento inválido.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+            exit();
+        }
+
+        $ok = $this->model->actualizarEstadoCatalogoDocumentoLegajo($id_documento_maestro, $activo);
+        setAlert($ok ? 'success' : 'error', $ok ? "Estado actualizado." : "No se pudo actualizar el estado.");
+
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
+        exit();
+    }
+
+    public function guardar_matriz_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $id_tipoDoc = intval($_POST['id_tipoDoc'] ?? 0);
+        $id_documento_maestro = intval($_POST['id_documento_maestro'] ?? 0);
+        $rol_vinculado = trim($_POST['rol_vinculado'] ?? 'TITULAR');
+        $es_obligatorio = isset($_POST['es_obligatorio']) ? 1 : 0;
+        $orden_visual = intval($_POST['orden_visual'] ?? 1);
+        $politicaActualizacion = strtoupper(trim($_POST['politica_actualizacion'] ?? 'REEMPLAZAR'));
+        $politicasPermitidas = ['REEMPLAZAR', 'UNIR_AL_INICIO', 'UNIR_AL_FINAL', 'NO_PERMITIR', 'CONSULTAR'];
+        if (!in_array($politicaActualizacion, $politicasPermitidas, true)) {
+            $politicaActualizacion = 'REEMPLAZAR';
+        }
+        $permite_reemplazo = $politicaActualizacion === 'NO_PERMITIR' ? 0 : 1;
+
+        if ($id_tipoDoc <= 0 || $id_documento_maestro <= 0) {
+            setAlert('warning', "Debe seleccionar el tipo de legajo y el documento maestro.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+            exit();
+        }
+
+        if ($this->model->existeMatrizRequisitoLegajo($id_tipoDoc, $id_documento_maestro, $rol_vinculado)) {
+            setAlert('warning', "Ya existe una regla para ese documento y rol en el tipo seleccionado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+            exit();
+        }
+
+        $insert = $this->model->insertarMatrizRequisitoLegajo(
+            $id_tipoDoc,
+            $id_documento_maestro,
+            $rol_vinculado,
+            $es_obligatorio,
+            $orden_visual > 0 ? $orden_visual : 1,
+            $permite_reemplazo,
+            $politicaActualizacion
+        );
+
+        if ($insert) {
+            setAlert('success', "Regla agregada correctamente.");
+        } else {
+            setAlert('error', "No se pudo agregar la regla.");
+        }
+
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+        exit();
+    }
+
+    public function guardar_tipo_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF invÃ¡lido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $nombre = trim($_POST['nombre_tipo_legajo'] ?? '');
+        $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
+        $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
+
+        if ($nombre === '') {
+            setAlert('warning', "Debe ingresar el nombre del tipo de legajo.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        if ($this->model->existeTipoLegajoPorNombre($nombre)) {
+            setAlert('warning', "Ese tipo de legajo ya existe.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
+            exit();
+        }
+
+        $insert = $this->model->insertarTipoLegajo($nombre, $descripcion !== '' ? $descripcion : null, 1, $requiereNroSolicitud);
+        if ($insert) {
+            setAlert('success', "Tipo de legajo registrado correctamente.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        setAlert('error', "No se pudo registrar el tipo de legajo.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+        exit();
+    }
+
+    public function actualizar_tipo_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF invÃ¡lido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $idTipoLegajo = intval($_POST['id_tipo_legajo'] ?? 0);
+        $nombre = trim($_POST['nombre_tipo_legajo'] ?? '');
+        $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
+        $activo = isset($_POST['activo_tipo_legajo']) ? 1 : 0;
+        $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
+
+        if ($idTipoLegajo <= 0 || $nombre === '') {
+            setAlert('warning', "Datos invÃ¡lidos para actualizar el tipo de legajo.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $actual = $this->model->getTipoLegajoById($idTipoLegajo);
+        if (!$actual) {
+            setAlert('error', "El tipo de legajo no existe.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        if (strcasecmp(trim($actual['nombre'] ?? ''), $nombre) !== 0 && $this->model->existeTipoLegajoPorNombre($nombre)) {
+            setAlert('warning', "Ese tipo de legajo ya existe.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=" . $idTipoLegajo);
+            exit();
+        }
+
+        $ok = $this->model->actualizarTipoLegajo($idTipoLegajo, $nombre, $descripcion !== '' ? $descripcion : null, $activo, $requiereNroSolicitud);
+        setAlert($ok ? 'success' : 'error', $ok ? "Tipo de legajo actualizado correctamente." : "No se pudo actualizar el tipo de legajo.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+        exit();
+    }
+
+    public function eliminar_tipo_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF invÃ¡lido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $idTipoLegajo = intval($_POST['id_tipo_legajo'] ?? 0);
+        if ($idTipoLegajo <= 0) {
+            setAlert('warning', "Tipo de legajo invÃ¡lido.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $ok = $this->model->eliminarTipoLegajo($idTipoLegajo);
+        setAlert($ok ? 'success' : 'error', $ok ? "Tipo de legajo eliminado correctamente." : "No se pudo eliminar el tipo de legajo. Verifique si tiene reglas asociadas.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+        exit();
+    }
+
+    public function eliminar_matriz_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
+            exit();
+        }
+
+        $id_requisito = intval($_POST['id_requisito'] ?? 0);
+        $id_tipoDoc = intval($_POST['id_tipoDoc'] ?? 0);
+
+        if ($id_requisito <= 0) {
+            setAlert('warning', "Regla inválida.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+            exit();
+        }
+
+        $ok = $this->model->eliminarMatrizRequisitoLegajo($id_requisito);
+        setAlert($ok ? 'success' : 'error', $ok ? "Regla eliminada correctamente." : "No se pudo eliminar la regla.");
+
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+        exit();
+    }
+
+    public function guardar_cambios_matriz_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
+            exit();
+        }
+
+        $id_tipoDoc = intval($_POST['id_tipoDoc'] ?? 0);
+        $reglas = $_POST['reglas'] ?? [];
+
+        if ($id_tipoDoc <= 0 || empty($reglas) || !is_array($reglas)) {
+            setAlert('warning', "No hay cambios válidos para guardar.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+            exit();
+        }
+
+        $actualizados = 0;
+        foreach ($reglas as $idRequisito => $regla) {
+            $idRequisito = intval($idRequisito);
+            if ($idRequisito <= 0) {
+                continue;
+            }
+
+            $idDocumentoMaestro = intval($regla['id_documento_maestro'] ?? 0);
+            $rolVinculado = trim($regla['rol_vinculado'] ?? 'TITULAR');
+            $esObligatorio = intval($regla['es_obligatorio'] ?? 0) === 1 ? 1 : 0;
+            $ordenVisual = intval($regla['orden_visual'] ?? 1);
+            $politicaActualizacion = strtoupper(trim($regla['politica_actualizacion'] ?? ''));
+            $politicasPermitidas = ['REEMPLAZAR', 'UNIR_AL_INICIO', 'UNIR_AL_FINAL', 'NO_PERMITIR', 'CONSULTAR'];
+            if (!in_array($politicaActualizacion, $politicasPermitidas, true)) {
+                $permiteReemplazoFallback = intval($regla['permite_reemplazo'] ?? 0) === 1;
+                $politicaActualizacion = $permiteReemplazoFallback ? 'REEMPLAZAR' : 'NO_PERMITIR';
+            }
+            $permiteReemplazo = $politicaActualizacion === 'NO_PERMITIR' ? 0 : 1;
+
+            if ($idDocumentoMaestro <= 0) {
+                continue;
+            }
+
+            if ($this->model->existeOtroMatrizRequisitoLegajo($idRequisito, $id_tipoDoc, $idDocumentoMaestro, $rolVinculado)) {
+                setAlert('warning', "Existe una regla duplicada para el documento y rol seleccionados.");
+                header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+                exit();
+            }
+
+            $ok = $this->model->actualizarMatrizRequisitoLegajo(
+                $idRequisito,
+                $idDocumentoMaestro,
+                $rolVinculado,
+                $esObligatorio,
+                $ordenVisual > 0 ? $ordenVisual : 1,
+                $permiteReemplazo,
+                $politicaActualizacion
+            );
+
+            if ($ok) {
+                $actualizados++;
+            }
+        }
+
+        setAlert($actualizados > 0 ? 'success' : 'info', $actualizados > 0 ? "Cambios de matriz guardados." : "No se detectaron cambios para guardar.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+        exit();
+    }
+
+    // ============================================================
+    // SECCIÓN: Legajos Datos Generales (Administración de Relaciones)
+    // ============================================================
+
+    // ELIMINADO: public function datos_generales_legajos()
+
+    public function guardar_relacion()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $nombre = strtoupper(trim($_POST['nombre_relacion'] ?? ''));
+        $orden = intval($_POST['orden_relacion'] ?? 0);
+
+        if ($nombre === '') {
+            setAlert('warning', "Debe ingresar el nombre de la relación.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        if ($this->model->existeRelacionPorNombre($nombre)) {
+            setAlert('warning', "Ya existe una relación con ese nombre.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $insert = $this->model->insertarRelacion($nombre, $orden);
+        setAlert($insert ? 'success' : 'error', $insert ? "Relación registrada correctamente." : "No se pudo registrar la relación.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+        exit();
+    }
+
+    public function cambiar_estado_relacion()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $idRelacion = intval($_POST['id_relacion'] ?? 0);
+        $activo = intval($_POST['activo'] ?? 0);
+
+        if ($idRelacion <= 0) {
+            setAlert('warning', "Relación inválida.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $ok = $this->model->cambiarEstadoRelacion($idRelacion, $activo);
+        setAlert($ok ? 'success' : 'error', $ok ? "Estado actualizado." : "No se pudo actualizar el estado.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+        exit();
+    }
+
+    public function eliminar_relacion()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $idRelacion = intval($_POST['id_relacion'] ?? 0);
+        if ($idRelacion <= 0) {
+            setAlert('warning', "Relación inválida.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $resultado = $this->model->eliminarRelacion($idRelacion);
+
+        if ($resultado === 'EN_USO_MATRIZ') {
+            setAlert('error', "No se puede eliminar: esta relación está asignada en reglas de la Matriz de Requisitos. Puede desactivarla en su lugar.");
+        } elseif ($resultado === 'EN_USO_LEGAJOS') {
+            setAlert('error', "No se puede eliminar: existen legajos armados que usan esta relación. Puede desactivarla en su lugar.");
+        } elseif ($resultado) {
+            setAlert('success', "Relación eliminada correctamente.");
+        } else {
+            setAlert('error', "No se pudo eliminar la relación.");
+        }
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+        exit();
+    }
+
+    public function cambiar_estado_politica()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $idPolitica = intval($_POST['id_politica'] ?? 0);
+        $activo = intval($_POST['activo'] ?? 0);
+
+        if ($idPolitica <= 0) {
+            setAlert('warning', "Política inválida.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        $ok = $this->model->cambiarEstadoPolitica($idPolitica, $activo);
+        setAlert($ok ? 'success' : 'error', $ok ? "Estado actualizado." : "No se pudo actualizar el estado.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+        exit();
     }
 
     public function servidor_AD()
@@ -84,6 +667,14 @@ class Configuracion extends Controllers
             $direccion = htmlspecialchars(trim($_POST['direccion']), ENT_QUOTES, 'UTF-8');
             $correo = filter_var($_POST['correo'], FILTER_SANITIZE_EMAIL);
             $total_pag = intval($_POST['total_pag']);
+
+            $logoPrincipalOk = $this->guardarLogoBranding('logo_empresa', 'logo_empresa');
+            $logoReducidoOk = $this->guardarLogoBranding('logo_empresa_reducido', 'logo_empresa_reducido');
+            if (!$logoPrincipalOk || !$logoReducidoOk) {
+                $_SESSION['alert'] = ['type' => 'error', 'message' => 'No se pudo cargar uno de los logos. Verifique el formato del archivo.'];
+                header("location: " . base_url() . "configuracion/listar");
+                die();
+            }
 
             $actualizar = $this->model->actualizarConfiguracion($nombre, $telefono, $direccion, $correo, $total_pag, $id);
 
@@ -147,10 +738,12 @@ class Configuracion extends Controllers
     {
         try {
             // 1. Verificar Token CSRF (Seguridad)
-            if (!isset($_POST['token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
-                header("Location: " . base_url() . "expedientes?error=csrf");
-                die();
-            }
+            if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            session_write_close();
+            header("Location: " . base_url() . "?error=csrf");
+            exit();
+        }
 
             // 2. Recibir y limpiar la ruta de forma segura
             $ruta_destino = isset($_POST['ruta_destino']) ? trim($_POST['ruta_destino']) : '';
@@ -463,104 +1056,6 @@ class Configuracion extends Controllers
         header("Location: " . base_url() . "configuracion/servidor_smtp");
         die();
     }
-
-    /*       // ==========================================
-      // 4. TEST DE ENVÍO REAL (DIAGNÓSTICO EN VIVO)
-      // ==========================================
-      public function enviarCorreo()
-      {
-          // 1. Validar CSRF
-          if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
-              die("Error de seguridad CSRF.");
-          }
-
-          // 2. Obtener datos
-          $smtpConfig = $this->model->getActiveSMTP();
-          if (isset($smtpConfig[0]['host'])) {
-              $smtpConfig = $smtpConfig[0];
-          }
-
-          if (empty($smtpConfig) || !isset($smtpConfig['host'])) {
-              die("No hay configuración SMTP activa en la base de datos.");
-          }
-
-          $destinatario = trim($_POST['destinatario']);
-          $asunto = trim($_POST['asunto']);
-          $mensaje = trim($_POST['mensaje']);
-
-          if (function_exists('stringDecryption')) {
-              $password_real = stringDecryption($smtpConfig['password']);
-          } else {
-              $password_real = $smtpConfig['password'];
-          }
-
-          // --- PANTALLA NEGRA DE DIAGNÓSTICO EN VIVO ---
-          echo "<div style='background: #1e1e1e; color: #0f0; padding: 20px; font-family: monospace; height: 100vh; overflow-y: scroll;'>";
-          echo "<h2 style='color: white;'>Iniciando comunicación con el servidor SMTP...</h2>";
-          echo "<p>Host: {$smtpConfig['host']} | Puerto: {$smtpConfig['port']} | Seguridad: {$smtpConfig['smtpsecure']}</p><hr>";
-
-          // Le damos permiso a PHP de tardar más sin tirar el Error 500
-          set_time_limit(300);
-
-          try {
-              $mail = new PHPMailer(true);
-
-              // DEBUG DIRECTO: Imprime en pantalla sin ocultar nada
-              $mail->SMTPDebug = SMTP::DEBUG_SERVER;
-              $mail->Debugoutput = 'html'; 
-
-              $mail->isSMTP();
-              $mail->Host = $smtpConfig['host'];
-              $mail->SMTPAuth = true;
-              $mail->Username = $smtpConfig['username'];
-              $mail->Password = $password_real;
-
-              if (strtolower($smtpConfig['smtpsecure']) == 'ssl') {
-                  $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-              } else if (strtolower($smtpConfig['smtpsecure']) == 'tls') {
-                  $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-              } else {
-                  $mail->SMTPSecure = '';
-                  $mail->SMTPAutoTLS = false;
-              }
-
-              $mail->Port = $smtpConfig['port'];
-
-              // Tiempo límite corto para que no espere eternamente
-              $mail->Timeout = 15;
-
-              $mail->SMTPOptions = array(
-                  'ssl' => array(
-                      'verify_peer' => false,
-                      'verify_peer_name' => false,
-                      'allow_self_signed' => true
-                  )
-              );
-
-              // Remitente (Forzado a ser el usuario logueado para evitar bloqueos)
-              $fromEmail = $smtpConfig['username'];
-              $fromName = !empty($smtpConfig['nombre_remitente']) ? $smtpConfig['nombre_remitente'] : 'SCANTEC Notificaciones';
-
-              $mail->setFrom($fromEmail, $fromName);
-              $mail->addAddress($destinatario);
-
-              $mail->isHTML(true);
-              $mail->CharSet = 'UTF-8';
-              $mail->Subject = $asunto;
-              $mail->Body = $mensaje;
-
-              $mail->send();
-
-              echo "<br><hr><h2 style='color: yellow;'>¡ÉXITO! EL CORREO SALIÓ CORRECTAMENTE.</h2>";
-
-          } catch (Exception $e) {
-              echo "<br><hr><h2 style='color: red;'>FALLO AL ENVIAR</h2>";
-              echo "<p style='color: red;'>Error de PHPMailer: " . $mail->ErrorInfo . "</p>";
-          }
-
-          echo "</div>";
-          die(); // Congela la pantalla para que podamos leer el resultado
-      } */
 
     // ==========================================
     // GUARDAR LDAP

@@ -66,7 +66,7 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
         // ----------------------------------------------------
         // 1. LOGGING A ARCHIVO (DEBUGGING y DETALLES COMPLETOS)
         // ----------------------------------------------------
-        $log_dir = RUTA_BASE . 'scantec2/logs/api/';
+        $log_dir = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR;
         if (!is_dir($log_dir)) {
             // Intentar crear el directorio. Usar @ para suprimir errores de permisos/existencia.
             @mkdir($log_dir, 0777, true);
@@ -102,8 +102,12 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
             // o que son errores (>= 400). Evita llenar la BD con logs de GETs masivos.
             if ($code >= 400 || in_array($http_method, ['POST', 'PUT', 'DELETE'])) {
                 $endpoint_raw = $_SERVER['REQUEST_URI'] ?? 'N/A';
-                // Limpiar la base del proyecto, dejando solo el recurso (Ej: /Expedientes/verDocumento)
-                $endpoint = str_replace('/scantec2/api/v1', '', $endpoint_raw);
+                $endpoint_path = parse_url($endpoint_raw, PHP_URL_PATH) ?: '';
+                // Limpiar cualquier prefijo del proyecto y dejar solo el recurso relativo al API.
+                $endpoint = preg_replace('~^.*?/api/v1~', '', str_replace('\\', '/', $endpoint_path));
+                if ($endpoint === null || $endpoint === '') {
+                    $endpoint = $endpoint_path !== '' ? $endpoint_path : $endpoint_raw;
+                }
                 $this->apiLogModel->registrarLogApi(
                     $id_usuario,
                     $endpoint,

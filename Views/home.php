@@ -40,7 +40,10 @@
             <p class="text-scantec-gray text-center text-sm mb-8">Por favor, ingrese sus credenciales para continuar.</p>
 
             <form id="loginForm" action="<?php echo base_url(); ?>Usuarios/login" method="POST" class="space-y-6">
-                
+                <?php
+                $basesDisponibles = isset($data['bases_disponibles']) && is_array($data['bases_disponibles']) ? $data['bases_disponibles'] : [defined('BD') ? BD : 'scantec_basic'];
+                $baseActual = isset($data['base_actual']) && $data['base_actual'] !== '' ? $data['base_actual'] : (defined('BD') ? BD : 'scantec_basic');
+                ?>
                 <div class="relative">
                     <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Tipo de Acceso</label>
                     <select name="fuente_registro" class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50 appearance-none cursor-pointer font-semibold text-gray-700">
@@ -75,6 +78,17 @@
                     class="w-full bg-scantec-blue hover:bg-scantec-red text-white font-montserrat font-bold py-4 rounded-xl transition-all shadow-lg tracking-widest mt-2">
                     ACCEDER
                 </button>
+
+                <div class="pt-1">
+                    <label class="block text-center text-[11px] text-scantec-gray mb-1">Base de datos</label>
+                    <select name="selected_db" onchange="window.location.href='<?php echo base_url(); ?>home/seleccionar_bd?db=' + encodeURIComponent(this.value);" class="mx-auto block w-full max-w-[220px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-center text-[11px] font-semibold text-scantec-blue focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all">
+                        <?php foreach ($basesDisponibles as $base): ?>
+                            <option value="<?php echo htmlspecialchars($base, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $base === $baseActual ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($base, ENT_QUOTES, 'UTF-8'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </form>
         </div>
 

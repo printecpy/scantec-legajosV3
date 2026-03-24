@@ -3,9 +3,29 @@ class Usuarios extends Controllers
 {
     public function __construct()
     {
-        session_start();
-        if (empty($_SESSION['ACTIVO'])) {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $urlActual = strtolower(trim((string) ($_GET['url'] ?? ''), '/'));
+        
+        // Si el usuario YA ESTÁ logueado y trata de acceder a la raíz o a /usuarios/login
+        if (!empty($_SESSION['ACTIVO']) && $_SESSION['ACTIVO'] === true) {
+            if ($urlActual === '' || $urlActual === 'usuarios/login' || $urlActual === 'usuarios' || $urlActual === 'home') {
+                if ($_SESSION['id_rol'] == 3 || $_SESSION['id_rol'] == 4) {
+                    header('location: ' . base_url() . 'expedientes/indice_busqueda');
+                } else {
+                    header('location: ' . base_url() . 'dashboard/listar');
+                }
+                exit();
+            }
+        }
+
+        $accionesPublicas = ['usuarios/login', '', 'home', 'usuarios/sesion_duplicada', 'usuarios/confirmar_sesion'];
+
+        if (!in_array($urlActual, $accionesPublicas, true) && empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit();
         }
         parent::__construct();
     }
@@ -288,12 +308,13 @@ class Usuarios extends Controllers
         }
         // El token CSRF es válido y no ha caducado, proceder con la actualización de usuario
         // Realizar cualquier sanitización adicional de los datos si es necesario
-        $id = htmlspecialchars($_POST['id']);
-        $nombre = htmlspecialchars($_POST['nombre']);
-        $usuario = htmlspecialchars($_POST['usuario']);
-        $rol = htmlspecialchars($_POST['id_rol']);
-        $grupo = htmlspecialchars($_POST['id_grupo']);
-        $email = htmlspecialchars($_POST['email']);
+        $this->checkAccessSafetyUpdate([1, 2], 'usuarios/actualizar');
+        $id = intval($_POST['id'] ?? 0);
+        $nombre = htmlspecialchars(trim((string)($_POST['nombre'] ?? '')));
+        $usuario = htmlspecialchars(trim((string)($_POST['usuario'] ?? '')));
+        $rol = intval($_POST['id_rol'] ?? 0);
+        $grupo = intval($_POST['id_grupo'] ?? 0);
+        $email = htmlspecialchars(trim((string)($_POST['email'] ?? '')));
         // Actualizar el usuario en la base de datos
         $actualizar = $this->model->actualizarUsuarios($nombre, $usuario, $rol, $grupo, $email, $id);
         // Verificar si la actualización fue exitosa
@@ -302,13 +323,8 @@ class Usuarios extends Controllers
         } else {
             $alert = 'error';
         }
-        if (!Validador::puedeVer($_SESSION, [1, 2])) {
-            header('Location: ' . base_url() . 'usuarios/listar');
-            exit();
-        } else {
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit();
-        }
+        header('Location: ' . base_url() . 'usuarios/listar');
+        exit();
     }
 
     public function eliminar()
@@ -319,6 +335,7 @@ class Usuarios extends Controllers
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
+        $this->checkAccessSafetyUpdate([1, 2], 'usuarios/eliminar');
         $id = htmlspecialchars($_POST['id']);
         $this->model->eliminarUsuarios($id);
         header("location: " . base_url() . "usuarios/listar");
@@ -334,6 +351,7 @@ class Usuarios extends Controllers
             exit();
         }
         $id = htmlspecialchars($_POST['id']);
+        $this->checkAccessSafetyUpdate([1, 2], 'usuarios/bloquear');
         $this->model->bloquearUsuarios($id);
         header("location: " . base_url() . "usuarios/listar");
         die();
@@ -348,6 +366,7 @@ class Usuarios extends Controllers
             exit();
         }
         $id = htmlspecialchars($_POST['id']);
+        $this->checkAccessSafetyUpdate([1, 2], 'usuarios/reingresar');
         $this->model->reingresarUsuarios($id);
         $this->model->selectUsuarios();
         header('location: ' . base_url() . 'usuarios/Listar');
@@ -464,6 +483,11 @@ class Usuarios extends Controllers
         $usuario = htmlspecialchars($usuario_raw, ENT_QUOTES, 'UTF-8');
         $claveIngresada = $_POST['clave'] ?? '';
         $fuente_registro = $_POST['fuente_registro'] ?? 'scantec';
+        $selectedDb = preg_replace('/[^A-Za-z0-9_]/', '', (string) ($_POST['selected_db'] ?? ''));
+        if ($selectedDb !== '') {
+            $_SESSION['selected_db'] = $selectedDb;
+            setcookie('selected_db', $selectedDb, time() + (365 * 24 * 60 * 60), '/');
+        }
 
         if (empty($usuario) || empty($claveIngresada)) {
             setAlert('warning', "Debe completar todos los campos."); 
@@ -471,7 +495,13 @@ class Usuarios extends Controllers
             exit();
         }
 
-        $data = $this->model->selectUsuario($usuario);
+        try {
+            $data = $this->model->selectUsuario($usuario);
+        } catch (Throwable $e) {
+            setAlert('error', "No se pudo conectar a la base de datos seleccionada. Verifique la base elegida y las credenciales configuradas.");
+            header('location: ' . base_url());
+            exit();
+        }
         if (empty($data)) {
             setAlert('error', "El usuario no existe en la base de datos.");
             header('location: ' . base_url()); 
@@ -535,39 +565,127 @@ class Usuarios extends Controllers
         // 3. RESOLUCIÓN DE ACCESO
         // =========================================================
         if ($auth_success) {
-            $_SESSION['id'] = $data['id'];
-            $_SESSION['nombre'] = $data['nombre'];
-            $_SESSION['usuario'] = $data['usuario'];
-            $_SESSION['id_rol'] = $data['id_rol'];
-            $_SESSION['ACTIVO'] = true;
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-            $_SESSION['csrf_expiration'] = time() + (30 * 60);
-            
-            $_SESSION['id_grupo'] = $data['id_grupo'] ?? 0;
-            $_SESSION['grupo'] = $data['grupo'] ?? '';
-            $_SESSION['PERMISOS'] = $this->model->getPermisosByRol($data['id_rol']);
-            
-            $_SESSION['login_attempts'] = 0; // Reiniciar intentos
-            //auditoria de sesiones
-            $this->model->registrarVisita($_SESSION['id']);
-            $this->model->conteoInicioSesion($_SESSION['id']);
 
-            if ($data['id_rol'] == 3 || $data['id_rol'] == 4) {
-                header('location: ' . base_url() . 'expedientes/indice_busqueda');
-            } else {
-                header('location: ' . base_url() . 'dashboard/listar');
+            // --- DETECCIÓN DE SESIÓN DUPLICADA ---
+            if ($this->model->verificarSesionActivaDeUsuario($data['id'])) {
+                $_SESSION['pending_login'] = [
+                    'id'       => $data['id'],
+                    'nombre'   => $data['nombre'],
+                    'usuario'  => $data['usuario'],
+                    'id_rol'   => $data['id_rol'],
+                    'id_grupo' => $data['id_grupo'] ?? 0,
+                    'grupo'    => $data['grupo'] ?? '',
+                ];
+                // Generar token CSRF para el formulario de confirmación
+                $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
+                $_SESSION['csrf_expiration'] = time() + (5 * 60); // 5 minutos para decidir
+                header('location: ' . base_url() . 'usuarios/sesion_duplicada');
+                exit();
             }
-            exit();
+
+            // --- LOGIN NORMAL (sin sesión duplicada) ---
+            $this->completarLogin($data);
+
         } else {
             $_SESSION['login_attempts']++;
-            
+
             if ($_SESSION['login_attempts'] >= 3) {
                 $this->model->bloquearUsuarios($usuario);
                 $this->model->bloquearPC_IP($usuario, 'Excedió intentos');
             }
-            
+
             $restantes = 3 - $_SESSION['login_attempts'];
             setAlert('error', "Usuario o contraseña incorrecta. Le quedan $restantes intentos.");
+            header('location: ' . base_url());
+            exit();
+        }
+    }
+
+    // =========================================================
+    // MÉTODO PRIVADO: Finaliza el inicio de sesión (reutilizable)
+    // =========================================================
+    private function completarLogin(array $data): void
+    {
+        $_SESSION['id']              = $data['id'];
+        $_SESSION['nombre']          = $data['nombre'];
+        $_SESSION['usuario']         = $data['usuario'];
+        $_SESSION['id_rol']          = $data['id_rol'];
+        $_SESSION['ACTIVO']          = true;
+        $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
+        $_SESSION['csrf_expiration'] = time() + (30 * 60);
+        $_SESSION['id_grupo']        = $data['id_grupo'] ?? 0;
+        $_SESSION['grupo']           = $data['grupo'] ?? '';
+        $_SESSION['PERMISOS']        = $this->model->getPermisosByRol($data['id_rol']);
+        $_SESSION['login_attempts']  = 0;
+
+        $this->model->registrarVisita($_SESSION['id']);
+        $this->model->conteoInicioSesion($_SESSION['id']);
+
+        if ($data['id_rol'] == 3 || $data['id_rol'] == 4) {
+            header('location: ' . base_url() . 'expedientes/indice_busqueda');
+        } else {
+            header('location: ' . base_url() . 'dashboard/listar');
+        }
+        exit();
+    }
+
+    // =========================================================
+    // Muestra la pantalla de confirmación de sesión duplicada
+    // =========================================================
+    public function sesion_duplicada()
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+
+        // Si no hay un login pendiente, volver al inicio (acceso directo no permitido)
+        if (empty($_SESSION['pending_login'])) {
+            header('location: ' . base_url());
+            exit();
+        }
+
+        $data = [
+            'nombre_usuario' => htmlspecialchars($_SESSION['pending_login']['nombre'] ?? 'Usuario'),
+        ];
+        $this->views->getView($this, 'sesion_duplicada', $data);
+    }
+
+    // =========================================================
+    // Procesa la elección del usuario ante sesión duplicada
+    // =========================================================
+    public function confirmar_sesion()
+    {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+
+        // Validar CSRF
+        if (!Validador::csrfValido()) {
+            setAlert('error', 'Token CSRF inválido.');
+            header('location: ' . base_url());
+            exit();
+        }
+
+        // Validar que exista un login pendiente
+        if (empty($_SESSION['pending_login'])) {
+            setAlert('warning', 'No hay un inicio de sesión pendiente.');
+            header('location: ' . base_url());
+            exit();
+        }
+
+        $accion = trim($_POST['accion'] ?? '');
+        $pendingData = $_SESSION['pending_login'];
+        unset($_SESSION['pending_login']); // Limpiar siempre
+
+        if ($accion === 'cerrar_anterior') {
+            // Cerrar todas las sesiones activas del usuario y completar el login
+            $this->model->cerrarSesionesActivasDeUsuario($pendingData['id']);
+            $this->model->restarInicioSesion($pendingData['id']);
+            $this->completarLogin($pendingData);
+
+        } elseif ($accion === 'cancelar') {
+            setAlert('info', 'Inicio de sesión cancelado.');
+            header('location: ' . base_url());
+            exit();
+
+        } else {
+            setAlert('error', 'Acción no reconocida.');
             header('location: ' . base_url());
             exit();
         }
@@ -665,8 +783,7 @@ class Usuarios extends Controllers
 
     public function fin_session()
     {
-        // Validamos que sea un Admin quien ejecuta esto (Opcional pero recomendado)
-        // if($_SESSION['rol'] != 1) { header("Location: ".base_url()); exit(); }
+        $this->checkAccessSafetyUpdate([1, 2], 'usuarios/fin_session');
         if (isset($_GET['id_visita']) && isset($_GET['id'])) {
             // Limpieza de datos
             $id_visita = intval($_GET['id_visita']); // Forzamos a entero por seguridad

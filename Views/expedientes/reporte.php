@@ -104,7 +104,7 @@
 
             </div>
 
-            <div class="space-y-8">
+            <!-- <div class="space-y-8">
                 
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     <div class="px-6 py-4 border-b border-gray-100 bg-indigo-50 flex items-center justify-between">
@@ -188,9 +188,8 @@
                             </button>
                         </form>
                     </div>
-                </div> -->
-
-            </div>
+                </div>
+            </div> -->
         </div>
     </div>
 </main>

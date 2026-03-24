@@ -69,15 +69,15 @@
                                         class="w-full pl-3 pr-8 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white font-bold text-gray-700 appearance-none cursor-pointer shadow-sm transition-all">
                                         <?php if (!empty($data['tipos_documento'])): ?>
                                             <?php foreach ($data['tipos_documento'] as $tipo): ?>
-                                                <option value="<?php echo $tipo['id_tipoDoc']; ?>"
-                                                    data-nombre="<?php echo $tipo['nombre_tipoDoc']; ?>"
-                                                    data-ind1="<?php echo $tipo['indice_01']; ?>"
-                                                    data-ind2="<?php echo $tipo['indice_02']; ?>"
-                                                    data-ind3="<?php echo $tipo['indice_03']; ?>"
-                                                    data-ind4="<?php echo $tipo['indice_04']; ?>"
-                                                    data-ind5="<?php echo $tipo['indice_05']; ?>"
-                                                    data-ind6="<?php echo $tipo['indice_06']; ?>">
-                                                    <?php echo $tipo['nombre_tipoDoc']; ?>
+                                                <option value="<?php echo $tipo['id_tipoDoc'] ?? ''; ?>"
+                                                    data-nombre="<?php echo $tipo['nombre_tipoDoc'] ?? ''; ?>"
+                                                    data-ind1="<?php echo $tipo['indice_01'] ?? ''; ?>"
+                                                    data-ind2="<?php echo $tipo['indice_02'] ?? ''; ?>"
+                                                    data-ind3="<?php echo $tipo['indice_03'] ?? ''; ?>"
+                                                    data-ind4="<?php echo $tipo['indice_04'] ?? ''; ?>"
+                                                    data-ind5="<?php echo $tipo['indice_05'] ?? ''; ?>"
+                                                    data-ind6="<?php echo $tipo['indice_06'] ?? ''; ?>">
+                                                    <?php echo $tipo['nombre_tipoDoc'] ?? 'Sin Nombre'; ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         <?php else: ?>
@@ -145,10 +145,12 @@
 
     // --- 1. LÓGICA DE FILAS (Archivos) ---
     let contadorFiles = 0;
+
     function agregarFilasMasivas() {
         const cant = document.getElementById('cantidad_filas').value;
         for (let i = 0; i < cant; i++) agregarFila();
     }
+
     function agregarFila() {
         contadorFiles++;
         document.getElementById('mensaje-vacio').classList.add('hidden');
@@ -162,6 +164,7 @@
         `;
         document.getElementById('lista-adjuntos').appendChild(div);
     }
+
     function eliminarFila(id) {
         document.getElementById(`fila-${id}`).remove();
         if (document.getElementById('lista-adjuntos').children.length === 0)
@@ -176,7 +179,7 @@
 
         const opcion = select.options[select.selectedIndex];
         const nombreDoc = opcion.getAttribute('data-nombre');
-        if(inputNombre) {
+        if (inputNombre) {
             inputNombre.value = nombreDoc;
         }
         // Obtenemos los valores de los data-attributes
@@ -193,8 +196,8 @@
         for (let i = 0; i < 6; i++) {
             const num = i + 1;
             const bloque = document.getElementById('bloque_indice_0' + num); // El DIV contenedor
-            const label = document.getElementById('lbl_indice_0' + num);     // El Label texto
-            const input = document.getElementById('indice_0' + num);         // El Input
+            const label = document.getElementById('lbl_indice_0' + num); // El Label texto
+            const input = document.getElementById('indice_0' + num); // El Input
 
             if (bloque && label && input) {
 
@@ -214,16 +217,15 @@
                     input.placeholder = "Ingrese nombre del archivo";
                     bloque.classList.remove('hidden');
                     input.setAttribute('required', 'required');
-                }
-                else {
+                } else {
                     // Lógica normal para los otros índices
                     if (debeOcultar) {
-                        bloque.classList.add('hidden');       // Ocultar visualmente
-                        input.removeAttribute('required');    // Quitar requerido
-                        input.value = '';                     // Limpiar valor
+                        bloque.classList.add('hidden'); // Ocultar visualmente
+                        input.removeAttribute('required'); // Quitar requerido
+                        input.value = ''; // Limpiar valor
                     } else {
-                        bloque.classList.remove('hidden');    // Mostrar
-                        label.textContent = textoLabel;       // Actualizar texto
+                        bloque.classList.remove('hidden'); // Mostrar
+                        label.textContent = textoLabel; // Actualizar texto
                         input.placeholder = "Ingrese " + textoLabel;
                         // Opcional: input.setAttribute('required', 'required');
                     }

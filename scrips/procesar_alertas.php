@@ -228,7 +228,7 @@ foreach ($tareasPendientes as $tarea) {
                 $mail->AltBody = "Se adjunta el informe de archivos por vencer en {$dias} días.\nGenerado automáticamente por SCANTEC.";
                 $mail->send();
 
-                registrarLog("✅ Correo enviado a: {$correo}");
+                registrarLog("Correo enviado a: {$correo}");
 
                 // Guardar en el historial
                 $sqlHist = "INSERT INTO alerta_historial (documento_id, correo_destino, fecha_envio, estado, detalle)
@@ -236,7 +236,7 @@ foreach ($tareasPendientes as $tarea) {
                 $pdo->prepare($sqlHist)->execute(['id_tarea' => $id_tarea, 'correo' => $correo]);
                 
             } catch (Exception $e) {
-                registrarLog("❌ Error SMTP para {$correo}: {$mail->ErrorInfo}");
+                registrarLog("Error SMTP para {$correo}: {$mail->ErrorInfo}");
                 $sqlHist = "INSERT INTO alerta_historial (documento_id, correo_destino, fecha_envio, estado, detalle)
                             VALUES (:id_tarea, :correo, NOW(), 'Error', :detalle)";
                 $pdo->prepare($sqlHist)->execute([
@@ -272,8 +272,8 @@ foreach ($tareasPendientes as $tarea) {
         'id' => $id_tarea
     ]);
     
-    registrarLog("🔄 Tarea ID {$id_tarea} recalendarizada. Próxima ejecución: {$fecha_proxima}");
+    registrarLog("Tarea ID {$id_tarea} recalendarizada. Próxima ejecución: {$fecha_proxima}");
 }
 
-registrarLog("🏁 Proceso de Script finalizado en su totalidad.");
+registrarLog("Proceso de Script finalizado en su totalidad.");
 ?>

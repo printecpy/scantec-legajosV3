@@ -158,15 +158,17 @@ class UsuariosModel extends Mysql
         $res = $this->select($sql, $data);
         return $res;
     }
-    public function actualizarUsuarios(string $nombre, string $usuario, int $id_rol, int $id)
+    public function actualizarUsuarios(string $nombre, string $usuario, int $id_rol, int $id_grupo, string $email, int $id)
     {
         $return = "";
         $this->nombre = $nombre;
         $this->usuario = $usuario;
         $this->id_rol = $id_rol;
+        $this->id_grupo = $id_grupo;
+        $this->email = $email;
         $this->id = $id;
-        $query = "UPDATE usuarios SET nombre=?, usuario=?, id_rol=? WHERE id=?";
-        $data = array($this->nombre, $this->usuario, $this->id_rol, $this->id);
+        $query = "UPDATE usuarios SET nombre=?, usuario=?, id_rol=?, id_grupo=?, email=? WHERE id=?";
+        $data = array($this->nombre, $this->usuario, $this->id_rol, $this->id_grupo, $this->email, $this->id);
         $resul = $this->update($query, $data);
         $return = $resul;
         return $return;
@@ -330,6 +332,10 @@ class UsuariosModel extends Mysql
         $resul = $this->update($query, $data);
         return $resul;
     }
+    public function bloquarPC_IP(string $usuario, string $motivo)
+    {
+        return $this->bloquearPC_IP($usuario, $motivo);
+    }
     //REGISTRAR VISITA (Login)
     public function registrarVisita(int $id_usuario)
     {
@@ -388,12 +394,22 @@ class UsuariosModel extends Mysql
 
     public function verificarEstadoSesion(string $session_id)
     {
-        // Optimizamos usando LIMIT 1 para respuesta rápida
+        // CORRECCIÓN: usar prepared statement en lugar de concatenación directa
         $sql = "SELECT id FROM visitas 
-                WHERE session_id = '$session_id' AND estado = 'ACTIVO' 
+                WHERE session_id = ? AND estado = 'ACTIVO' 
                 LIMIT 1";
-        $request = $this->select($sql);
+        $request = $this->select($sql, [$session_id]);
         return !empty($request); // TRUE si está activo, FALSE si te patearon
+    }
+
+    /**
+     * Obtiene la visita activa de un session_id dado.
+     * Usada por Controllers::validarSesionActivaEnBD() para verificar si el Admin cerró la sesión.
+     */
+    public function obtenerVisitaActivaPorSession(string $session_id)
+    {
+        $sql = "SELECT id_visita FROM visitas WHERE session_id = ? AND estado = 'ACTIVO' LIMIT 1";
+        return $this->select($sql, [$session_id]);
     }
 
     public function actualizarVisitas(int $id_visita)
@@ -438,6 +454,31 @@ class UsuariosModel extends Mysql
             $this->insert($sql_insert, $arrData);
             return 'insert';
         }
+    }
+
+    /**
+     * Verifica si un usuario ya tiene una sesión activa en la tabla visitas.
+     * Excluye la sesión actual para no contar el intento en curso.
+     */
+    public function verificarSesionActivaDeUsuario(int $id_usuario): bool
+    {
+        $session_actual = session_id();
+        $sql = "SELECT COUNT(*) AS total FROM visitas 
+                WHERE id = ? AND estado = 'ACTIVO' AND session_id <> ?";
+        $resultado = $this->select($sql, [$id_usuario, $session_actual]);
+        return !empty($resultado) && intval($resultado['total'] ?? 0) > 0;
+    }
+
+    /**
+     * Cierra todas las sesiones activas de un usuario (marca INACTIVO en visitas).
+     * Se llama cuando el usuario decide desplazar la sesión anterior.
+     */
+    public function cerrarSesionesActivasDeUsuario(int $id_usuario): bool
+    {
+        $session_actual = session_id();
+        $sql = "UPDATE visitas SET estado = 'INACTIVO', fecha_cierre = NOW()
+                WHERE id = ? AND estado = 'ACTIVO' AND session_id <> ?";
+        return $this->update($sql, [$id_usuario, $session_actual]);
     }
 
 }

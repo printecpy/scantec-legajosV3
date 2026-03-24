@@ -6,6 +6,14 @@ class AlertaModel extends Mysql {
         parent::__construct();
     }
 
+    public function getTareasActivas() {
+        $query = "SELECT id, nombre_tarea, tipo_informe, frecuencia, 
+                         fecha_proxima_ejecucion, fecha_ultima_ejecucion, estado
+                  FROM tarea_programada 
+                  WHERE estado = 'activo' order by id desc;";                  
+        return $this->select_all($query);
+    }
+
     public function getTareasPendientes() {
         $query = "SELECT id, nombre_tarea, tipo_informe, frecuencia, 
                          fecha_proxima_ejecucion, fecha_ultima_ejecucion, estado
@@ -97,5 +105,15 @@ class AlertaModel extends Mysql {
         }
         return []; 
     }
+
+    public function insertarTarea(string $nombre_tarea, string $tipo_informe, string $frecuencia, int $dias_alerta, string $fecha_proxima) 
+    {
+        $query = "INSERT INTO tarea_programada (nombre_tarea, tipo_informe, frecuencia, dias_alerta, fecha_proxima_ejecucion) 
+                  VALUES (?, ?, ?, ?, ?)";
+        
+        $arrData = array($nombre_tarea, $tipo_informe, $frecuencia, $dias_alerta, $fecha_proxima);
+        
+        $request_insert = $this->insert($query, $arrData);
+        return $request_insert;
+    }
 }
-?>

@@ -18,6 +18,7 @@ class Alerta extends Controllers
         $this->mailController = new Configuracion(); 
     }
 
+    
     public function listar()
     {
         if (!isset($_SESSION['id_rol']) || !in_array($_SESSION['id_rol'], [1, 2]))  {
@@ -26,7 +27,7 @@ class Alerta extends Controllers
             exit();
         }
         
-        $alerts = $this->model->getTareasPendientes();
+        $alerts = $this->model->getTareasActivas();
         $data = ['alerts' => $alerts];
         $this->views->getView($this, "listar", $data);
     }
@@ -161,6 +162,65 @@ class Alerta extends Controllers
         $_SESSION['alert'] = ['type' => 'success', 'message' => 'Alerta reactivada correctamente.'];
         header("Location: " . base_url() . "alerta/listar");
         die();
+    }
+
+    public function insertar()
+    {
+        // 1. Validación de Seguridad CSRF
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            session_write_close();
+            header("Location: " . base_url() . "alerta?error=csrf");
+            exit();
+        }
+
+        if ($_POST) {
+            // 2. Limpieza de datos recibidos del formulario
+            $nombre_tarea = htmlspecialchars($_POST['nombre_tarea']);
+            $tipo_informe = htmlspecialchars($_POST['tipo_informe']);
+            $frecuencia   = htmlspecialchars($_POST['frecuencia']);
+
+            // 3. Traducción Lógica: Convertir el 'tipo_informe' en 'dias_alerta' numéricos
+            $dias_alerta = null;
+            switch ($tipo_informe) {
+                case 'VENC_5_DIAS':  $dias_alerta = 5; break;
+                case 'VENC_15_DIAS': $dias_alerta = 15; break;
+                case 'VENC_1_MES':   $dias_alerta = 30; break;
+                case 'VENC_3_MESES': $dias_alerta = 90; break;
+            }
+
+            // 4. Traducción Lógica: Calcular la próxima ejecución basada en la frecuencia
+            // Por defecto, lo programamos para que arranque a las 08:00 AM del próximo ciclo
+            $fecha_proxima = null;
+            $hoy_a_las_8 = date('Y-m-d 08:00:00'); 
+            
+            switch ($frecuencia) {
+                case 'DIARIA':  
+                    $fecha_proxima = date('Y-m-d H:i:s', strtotime($hoy_a_las_8 . ' + 1 day')); 
+                    break;
+                case 'SEMANAL': 
+                    $fecha_proxima = date('Y-m-d H:i:s', strtotime($hoy_a_las_8 . ' + 1 week')); 
+                    break;
+                case 'MENSUAL': 
+                    $fecha_proxima = date('Y-m-d H:i:s', strtotime($hoy_a_las_8 . ' + 1 month')); 
+                    break;
+            }
+
+            // 5. Enviar al Modelo
+            $insert = $this->model->insertarTarea($nombre_tarea, $tipo_informe, $frecuencia, $dias_alerta, $fecha_proxima);
+
+            // 6. Manejo de respuesta
+            if ($insert > 0) {
+                // Guardamos una alerta de éxito en sesión (asumiendo tu función setAlert)
+                setAlert('success', "Tarea programada creada con éxito.");
+                header("location: " . base_url() . "alerta/listar");
+                die();
+            } else {
+                setAlert('error', "Error al crear la tarea programada.");
+                header("location: " . base_url() . "alerta/listar");
+                die();
+            }
+        }
     }
 
     public function ejecutarPendientes() {

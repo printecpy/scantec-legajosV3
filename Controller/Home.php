@@ -1,17 +1,59 @@
 <?php
 class Home extends Controllers
 {
+    private function obtenerBasesDisponibles(): array
+    {
+        $basesConfiguradas = function_exists('obtenerConfiguracionesBases')
+            ? array_keys(obtenerConfiguracionesBases())
+            : [defined('BD') ? BD : 'scantec_basic'];
+
+        if (empty($basesConfiguradas)) {
+            return [defined('BD') ? BD : 'scantec_basic'];
+        }
+
+        return array_values($basesConfiguradas);
+    }
+
     public function __construct()
     {
-        session_start();
-        if (!empty($_SESSION['activo'])) {
-            header("location: " . base_url() . "Admin/Listar");
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
         }
+
+        if (!empty($_SESSION['ACTIVO']) && $_SESSION['ACTIVO'] === true) {
+            if (isset($_SESSION['id_rol']) && ($_SESSION['id_rol'] == 3 || $_SESSION['id_rol'] == 4)) {
+                header('location: ' . base_url() . 'expedientes/indice_busqueda');
+            } else {
+                header('location: ' . base_url() . 'dashboard/listar');
+            }
+            exit();
+        }
+
+        $urlActual = strtolower(trim((string) ($_GET['url'] ?? ''), '/'));
+        $rutasSinConexion = ['', 'home', 'home/home', 'home/restablecer_pw', 'home/seleccionar_bd'];
+
+        if (in_array($urlActual, $rutasSinConexion, true)) {
+            $this->views = new Views();
+            return;
+        }
+
         parent::__construct();
     }
     public function home($params)
     {
-        $this->views->getView($this, "home");
+        $basesDisponibles = $this->obtenerBasesDisponibles();
+        $baseActual = $_SESSION['selected_db'] ?? ($_COOKIE['selected_db'] ?? (defined('BD') ? BD : 'scantec_basic'));
+        if (!in_array($baseActual, $basesDisponibles, true) && !empty($basesDisponibles)) {
+            $baseActual = $basesDisponibles[0];
+            $_SESSION['selected_db'] = $baseActual;
+            setcookie('selected_db', $baseActual, time() + (365 * 24 * 60 * 60), '/');
+        }
+
+        $data = [
+            'bases_disponibles' => $basesDisponibles,
+            'base_actual' => $baseActual
+        ];
+        $this->views->getView($this, "home", $data);
     }
     public function restablecer_pw()
     {
@@ -28,6 +70,24 @@ class Home extends Controllers
         $data['csrf_expiration'] = $expirationTime;
         // Carga la vista
         $this->views->getView($this, "restablecer_pw", $data);
+    }
+
+    public function seleccionar_bd()
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $db = preg_replace('/[^A-Za-z0-9_]/', '', (string) ($_POST['selected_db'] ?? $_GET['db'] ?? ''));
+        $basesDisponibles = $this->obtenerBasesDisponibles();
+
+        if ($db !== '' && in_array($db, $basesDisponibles, true)) {
+            $_SESSION['selected_db'] = $db;
+            setcookie('selected_db', $db, time() + (365 * 24 * 60 * 60), '/');
+        }
+
+        header("Location: " . base_url());
+        exit();
     }
 
     public function restaurarPass()

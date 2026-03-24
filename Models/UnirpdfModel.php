@@ -49,8 +49,8 @@ class UnirpdfModel extends Mysql{
         return $this->insert($sql, $datos);
     }
 
-    // Función para la tabla nueva (Igual a la de ExpedientesModel)
-        public function registrarExpediente(
+    // Función para la tabla nueva
+    public function registrarExpediente(
         string $id_proceso,
         string $id_tipoDoc,
         string $indice_01,

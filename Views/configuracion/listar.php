@@ -48,7 +48,7 @@
                     </div>
 
                     <div class="p-6">
-                        <form action="<?php echo base_url(); ?>configuracion/actualizar" method="post">
+                        <form action="<?php echo base_url(); ?>configuracion/actualizar" method="post" enctype="multipart/form-data">
                             <input type="hidden" name="id" value="<?php echo $config['id'] ?? ''; ?>">
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -102,6 +102,28 @@
                                             class="pl-10 w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all text-gray-700"
                                             placeholder="Calle Principal 123">
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Logo</label>
+                                    <input type="file" name="logo_empresa" accept="image/*"
+                                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all text-gray-700 bg-white">
+                                    <?php if (!empty($config['logo_empresa_url'])): ?>
+                                    <div class="mt-3 p-3 rounded-xl border border-gray-200 bg-gray-50">
+                                        <img src="<?php echo htmlspecialchars($config['logo_empresa_url']); ?>" alt="Logo empresa" class="h-16 w-auto object-contain">
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Logo Reducido</label>
+                                    <input type="file" name="logo_empresa_reducido" accept="image/*"
+                                        class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all text-gray-700 bg-white">
+                                    <?php if (!empty($config['logo_empresa_reducido_url'])): ?>
+                                    <div class="mt-3 p-3 rounded-xl border border-gray-200 bg-gray-50">
+                                        <img src="<?php echo htmlspecialchars($config['logo_empresa_reducido_url']); ?>" alt="Logo reducido" class="h-16 w-auto object-contain">
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
 
                                 <!-- <div>

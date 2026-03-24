@@ -5,13 +5,23 @@ class Mysql extends Conexion
     private $strquery;
     private $arrvalues;
     private $id;
+    private $connectionError = '';
     function __construct()
     {
-        $this->conexion = new Conexion();
-        $this->conexion = $this->conexion->conect();
+        $conexionBase = new Conexion();
+        $this->conexion = $conexionBase->conect();
+        $this->connectionError = $conexionBase->getErrorMessage();
+    }
+    private function ensureConnection(): void
+    {
+        if (!($this->conexion instanceof PDO)) {
+            $message = $this->connectionError !== '' ? $this->connectionError : 'No se pudo establecer la conexion con la base de datos.';
+            throw new RuntimeException($message);
+        }
     }
     public function insert(string $query, array $arrvalues)
     {
+        $this->ensureConnection();
         $this->strquery = $query;
         $this->arrvalues = $arrvalues;
         $insert = $this->conexion->prepare($this->strquery);
@@ -32,6 +42,7 @@ class Mysql extends Conexion
     } */
     public function select(string $query, array $arr_params = [])
     {
+        $this->ensureConnection();
         $this->strquery = $query;
         $result = $this->conexion->prepare($this->strquery);
         if (!empty($arr_params)) {
@@ -47,16 +58,22 @@ class Mysql extends Conexion
 
         return $data;
     }
-    public function select_all(string $query)
+    public function select_all(string $query, array $arr_params = [])
     {
+        $this->ensureConnection();
         $this->strquery = $query;
         $result = $this->conexion->prepare($this->strquery);
-        $result->execute();
+        if (!empty($arr_params)) {
+            $result->execute($arr_params);
+        } else {
+            $result->execute();
+        }
         $data = $result->fetchall(PDO::FETCH_ASSOC);
         return $data;
     }
     public function update(string $query, array $arrvalues)
     {
+        $this->ensureConnection();
         $this->strquery = $query;
         $this->arrvalues = $arrvalues;
         $update = $this->conexion->prepare($this->strquery);
@@ -65,6 +82,7 @@ class Mysql extends Conexion
     }
     public function delete(string $query)
     {
+        $this->ensureConnection();
         $this->strquery = $query;
         $result = $this->conexion->prepare($this->strquery);
         $result->execute();

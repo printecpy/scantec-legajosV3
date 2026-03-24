@@ -1,0 +1,233 @@
+<?php encabezado($data); ?>
+
+<main class="app-content bg-gray-50 min-h-screen py-8 font-sans">
+    <div class="container mx-auto px-4">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-scantec-blue uppercase tracking-wide flex items-center">
+                    <i class="fas fa-puzzle-piece mr-3"></i> Funcionalidades del Sistema
+                </h1>
+                <p class="text-sm text-gray-500 mt-1 ml-1">
+                    Activa o desactiva secciones completas. Si una seccion queda desactivada, tambien se bloquea el acceso directo por URL.
+                </p>
+            </div>
+        </div>
+
+        <div class="bg-blue-50 border-l-4 border-scantec-blue p-4 mb-6 rounded-r-lg">
+            <div class="flex gap-3">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-shield-halved text-scantec-blue text-xl"></i>
+                </div>
+                <div>
+                    <h4 class="text-scantec-blue font-bold mb-1">Control centralizado</h4>
+                    <p class="text-gray-700 text-sm">
+                        Esta configuracion afecta tanto al menu como al acceso escribiendo la direccion en el navegador.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <form action="<?php echo base_url(); ?>funcionalidades/guardar" method="POST" id="frmFuncionalidades">
+            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token']; ?>">
+
+            <?php
+            $modulosItems = $data['modulos_items'] ?? [];
+            $itemsAgrupacion = $data['items_agrupacion'] ?? [];
+            $itemsModuloActual = $data['items_modulo_actual'] ?? [];
+            $secciones = $data['secciones'] ?? [];
+            $estados = $data['estados'] ?? [];
+            $grupos = [];
+            foreach ($secciones as $clave => $info) {
+                $grupo = $info['grupo'] ?? 'General';
+                if (!isset($grupos[$grupo])) {
+                    $grupos[$grupo] = [];
+                }
+                $grupos[$grupo][$clave] = $info;
+            }
+            ?>
+
+            <?php if (!empty($grupos['Modulos'])): ?>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                    <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
+                        <h5 class="font-bold text-white flex items-center">
+                            <i class="fas fa-layer-group mr-2 text-white"></i> Modulos
+                        </h5>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Seccion</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Descripcion</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-48">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($grupos['Modulos'] as $clave => $info): ?>
+                                    <?php $habilitado = strval(intval($estados[$clave] ?? 1)); ?>
+                                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-blue-50 text-scantec-blue flex items-center justify-center border border-blue-100">
+                                                    <i class="<?php echo htmlspecialchars($info['icono'] ?? 'fas fa-puzzle-piece'); ?>"></i>
+                                                </div>
+                                                <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($info['etiqueta'] ?? $clave); ?></div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-600">
+                                            <?php echo htmlspecialchars($info['descripcion'] ?? ''); ?>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <select
+                                                name="funcionalidades[<?php echo htmlspecialchars($clave); ?>]"
+                                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none">
+                                                <option value="1" <?php echo $habilitado === '1' ? 'selected' : ''; ?>>Activa</option>
+                                                <option value="0" <?php echo $habilitado === '0' ? 'selected' : ''; ?>>Desactivada</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
+                    <h5 class="font-bold text-white flex items-center">
+                        <i class="fas fa-sitemap mr-2 text-white"></i> Agrupacion de Vistas y Sub-vistas por Modulo
+                    </h5>
+                    <p class="text-xs text-white/80 mt-1">
+                        Organiza cada vista y sub-vista dentro del modulo correspondiente: Archivos, Legajos o Sistema.
+                    </p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Vista o Sub-vista</th>
+                                <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Ruta</th>
+                                <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-56">Modulo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($itemsAgrupacion as $claveItem => $itemInfo): ?>
+                                <?php $moduloActual = $itemsModuloActual[$claveItem] ?? ($itemInfo['modulo'] ?? 'sistema'); ?>
+                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 font-semibold text-gray-800">
+                                        <?php echo htmlspecialchars($itemInfo['etiqueta'] ?? $claveItem); ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-500 font-mono text-xs">
+                                        <?php echo htmlspecialchars($itemInfo['ruta'] ?? ''); ?>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <select
+                                            name="modulos_items[<?php echo htmlspecialchars($claveItem); ?>]"
+                                            class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none">
+                                            <?php foreach ($modulosItems as $claveModulo => $etiquetaModulo): ?>
+                                                <option value="<?php echo htmlspecialchars($claveModulo); ?>" <?php echo $moduloActual === $claveModulo ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($etiquetaModulo); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <?php foreach ($grupos as $grupo => $items): ?>
+                <?php if ($grupo === 'Modulos' || $grupo === 'Sistema') { continue; } ?>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                    <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
+                        <h5 class="font-bold text-white flex items-center">
+                            <i class="fas fa-layer-group mr-2 text-white"></i> <?php echo htmlspecialchars($grupo); ?>
+                        </h5>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Seccion</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Descripcion</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-48">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($items as $clave => $info): ?>
+                                    <?php $habilitado = strval(intval($estados[$clave] ?? 1)); ?>
+                                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-blue-50 text-scantec-blue flex items-center justify-center border border-blue-100">
+                                                    <i class="<?php echo htmlspecialchars($info['icono'] ?? 'fas fa-puzzle-piece'); ?>"></i>
+                                                </div>
+                                                <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($info['etiqueta'] ?? $clave); ?></div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-600">
+                                            <?php echo htmlspecialchars($info['descripcion'] ?? ''); ?>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <select
+                                                name="funcionalidades[<?php echo htmlspecialchars($clave); ?>]"
+                                                class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none">
+                                                <option value="1" <?php echo $habilitado === '1' ? 'selected' : ''; ?>>Activa</option>
+                                                <option value="0" <?php echo $habilitado === '0' ? 'selected' : ''; ?>>Desactivada</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+
+            <div class="flex justify-end gap-3">
+                <a href="<?php echo base_url(); ?>dashboard/dashboard_legajos"
+                    class="px-6 py-2.5 border border-gray-300 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                <button type="button" id="btnGuardarFuncionalidades"
+                    class="bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center">
+                    <i class="fas fa-save mr-2"></i> Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</main>
+
+<?php pie(); ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btnGuardar = document.getElementById('btnGuardarFuncionalidades');
+    if (!btnGuardar) {
+        return;
+    }
+
+    btnGuardar.addEventListener('click', function () {
+        Swal.fire({
+            title: 'Guardar funcionalidades',
+            text: 'Se aplicaran los cambios en el menu, en el acceso directo por URL y en la agrupacion por modulo.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#182541',
+            cancelButtonColor: '#d33',
+            confirmButtonText: '<i class="fas fa-save"></i> Si, guardar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('frmFuncionalidades').submit();
+            }
+        });
+    });
+});
+</script>

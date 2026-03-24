@@ -32,28 +32,20 @@
                     <?php echo number_format($data['cant_expedient']['cant_expediente'], 0, ',', '.'); ?>
                 </h3>
                 <p class="text-sm text-scantec-gray font-medium mb-4">Expedientes totales</p>
-                <!-- <a href="<?php echo base_url(); ?>expedientes/indice_busqueda"
-                        class="text-xs font-bold text-scantec-red hover:underline uppercase tracking-tighter">
-                        Ver listado <i class="fas fa-arrow-right ml-1"></i>
-                    </a> -->
             </div>
 
             <div
                 class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-red">
                 <div class="flex items-center justify-between mb-4">
                     <div class="p-3 bg-scantec-red/5 rounded-xl">
-                        <i class="fas fa-sync-alt text-scantec-red fa-2x"></i>
+                        <i class="fas fa-folder-open text-scantec-red fa-2x"></i>
                     </div>
                     <span class="text-[10px] font-bold text-scantec-gray uppercase tracking-widest">Activo</span>
                 </div>
                 <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
-                    <?php echo number_format($data['lote_proceso']['lote_procesos'], 0, ',', '.'); ?>
+                    <?php echo number_format($data['exp_consultados']['exp_consultados'], 0, ',', '.'); ?>
                 </h3>
-                <p class="text-sm text-scantec-gray font-medium mb-4">Lotes en proceso</p>
-                <!-- <a href="<?php echo base_url(); ?>lotes"
-                        class="text-xs font-bold text-scantec-blue hover:underline uppercase tracking-tighter">
-                        Gestionar lotes <i class="fas fa-arrow-right ml-1"></i>
-                    </a> -->
+                <p class="text-sm text-scantec-gray font-medium mb-4">Expedientes consultados hoy</p>
             </div>
 
             <div

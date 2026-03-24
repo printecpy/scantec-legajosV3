@@ -14,33 +14,33 @@
             </div>
 
             <div class="flex flex-wrap gap-2 justify-end">
-                <a href="<?php echo base_url(); ?>expedientes/pdf" target="_blank" 
-                   class="group w-10 h-10 rounded-xl bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:shadow-md flex items-center justify-center transition-all" 
-                   title="Exportar a PDF">
+                <a href="<?php echo base_url(); ?>expedientes/pdf" target="_blank"
+                    class="group w-10 h-10 rounded-xl bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:shadow-md flex items-center justify-center transition-all"
+                    title="Exportar a PDF">
                     <i class="fas fa-file-pdf"></i>
                 </a>
-                
-                <a href="<?php echo base_url(); ?>expedientes/excel" target="_blank" 
-                   class="group w-10 h-10 rounded-xl bg-white border border-green-200 text-green-600 hover:bg-green-50 hover:shadow-md flex items-center justify-center transition-all" 
-                   title="Exportar a Excel">
+
+                <a href="<?php echo base_url(); ?>expedientes/excel" target="_blank"
+                    class="group w-10 h-10 rounded-xl bg-white border border-green-200 text-green-600 hover:bg-green-50 hover:shadow-md flex items-center justify-center transition-all"
+                    title="Exportar a Excel">
                     <i class="fas fa-file-excel"></i>
                 </a>
 
-                <a href="<?php echo base_url(); ?>expedientes/pdf_email" target="_blank" 
-                   class="group w-10 h-10 rounded-xl bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 hover:shadow-md flex items-center justify-center transition-all" 
-                   title="Enviar por Correo">
+                <a href="<?php echo base_url(); ?>expedientes/pdf_email" target="_blank"
+                    class="group w-10 h-10 rounded-xl bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 hover:shadow-md flex items-center justify-center transition-all"
+                    title="Enviar por Correo">
                     <i class="fas fa-envelope"></i>
                 </a>
 
-                <a href="<?php echo base_url(); ?>expedientes/reporte" 
-                   class="group w-10 h-10 rounded-xl bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:shadow-md flex items-center justify-center transition-all" 
-                   title="Ver Gráficos/Reporte">
+                <a href="<?php echo base_url(); ?>expedientes/reporte"
+                    class="group w-10 h-10 rounded-xl bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:shadow-md flex items-center justify-center transition-all"
+                    title="Ver Gráficos/Reporte">
                     <i class="fas fa-chart-bar"></i>
                 </a>
 
-                <a href="#" onclick="window.history.back(); return false;" 
-                   class="group px-4 h-10 rounded-xl bg-scantec-blue text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm" 
-                   title="Volver atrás">
+                <a href="#" onclick="window.history.back(); return false;"
+                    class="group px-4 h-10 rounded-xl bg-scantec-blue text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm"
+                    title="Volver atrás">
                     <i class="fas fa-arrow-left mr-2"></i> Volver
                 </a>
             </div>
@@ -70,38 +70,44 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <?php 
+                        <?php
                         $termino = $data['termino'];
-                        foreach ($data['busqueda'] as $busqueda) { 
-                        ?>
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="font-bold text-gray-800">
-                                <div class="flex items-center">
-                                    <i class="far fa-file-alt mr-2 text-gray-400"></i>
-                                    <?php echo $busqueda['nombre_tipoDoc']; ?>
-                                </div>
-                            </td>
-                            <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_01']; ?></td>
-                            <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_02']; ?></td>
-                            <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_03']; ?></td>
-                            <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_04']; ?></td>
-                            <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_05']; ?></td>
-                            <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_06']; ?></td>
-                            
-                            <td class="text-center">
-                                <span class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-bold border border-gray-200">
-                                    <?php echo $busqueda['cant_documentos']; ?>
-                                </span>
-                            </td>
+                        foreach ($data['busqueda'] as $busqueda) {
+                            ?>
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="font-bold text-gray-800">
+                                    <div class="flex items-center">
+                                        <i class="far fa-file-alt mr-2 text-gray-400"></i>
+                                        <?php echo $busqueda['nombre_tipoDoc']; ?>
+                                    </div>
+                                </td>
+                                <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_01']; ?></td>
+                                <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_02']; ?></td>
+                                <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_03']; ?></td>
+                                <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_04']; ?></td>
+                                <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_05']; ?></td>
+                                <td class="text-gray-600 text-xs"><?php echo $busqueda['indice_06']; ?></td>
 
-                            <td class="text-right">
-                                <a href="<?php echo base_url(); ?>expedientes/mostrar_registros?indice_01=<?php echo $busqueda['indice_01']; ?>&nombre_tipoDoc=<?php echo $busqueda['nombre_tipoDoc']; ?>&termino=<?php echo $termino; ?>" 
-                                   class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-50 text-yellow-600 border border-yellow-200 hover:bg-yellow-100 hover:shadow-sm transition-all"
-                                   title="Abrir Carpeta">
-                                    <i class="fas fa-folder-open text-xs"></i>
-                                </a>
-                            </td>
-                        </tr>
+                                <td class="text-center">
+                                    <span
+                                        class="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-bold border border-gray-200">
+                                        <?php echo $busqueda['cant_documentos']; ?>
+                                    </span>
+                                </td>
+
+                                <td class="text-right">
+                                    <a href="<?php echo base_url(); ?>expedientes/mostrar_registros?indice_01=<?php echo $busqueda['indice_01']; ?>&nombre_tipoDoc=<?php echo $busqueda['nombre_tipoDoc']; ?>&termino=<?php echo $termino; ?>"
+                                        class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-50 text-yellow-600 border border-yellow-200 hover:bg-yellow-100 hover:shadow-sm transition-all"
+                                        title="Abrir Carpeta">
+                                        <i class="fas fa-folder-open text-xs"></i>
+                                    </a>
+                                    <a href="<?php echo base_url(); ?>legajos/estado_legajo/<?php echo urlencode($busqueda['indice_01']); ?>"
+                                        class="inline-flex items-center px-3 py-1.5 rounded-lg bg-scantec-blue text-white hover:bg-blue-800 shadow-sm hover:shadow-md transition-all text-xs font-bold transform hover:scale-105"
+                                        title="Verificar Legajo">
+                                        <i class="fas fa-shield-check mr-1.5"></i> Verificar Legajo
+                                    </a>
+                                </td>
+                            </tr>
                         <?php } ?>
                     </tbody>
                 </table>

@@ -9,9 +9,13 @@ class Expedientes extends Controllers
 {
     public function __construct()
     {
-        session_start();
+        // CORRECCIÓN: verificar antes de iniciar para evitar "session already started"
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit(); // CORRECCIÓN: agregar exit() para detener la ejecución tras redirigir
         }
         parent::__construct();
     }
@@ -39,38 +43,12 @@ class Expedientes extends Controllers
         $this->views->getView($this, "upload_files", $data);
     }
 
+    public function estado_legajo()
+    {
+        header("Location: " . base_url() . "legajos/estado_legajo");
+        exit();
+    }
 
-    /*         public function busqueda2()
-        {
-            $indice_04_pattern = $_GET['indice_04_pattern'];
-            $busqueda = $this->model->buscarExpediente2($indice_04_pattern);
-            $data = ['busqueda' => $busqueda];
-            if ($data == 0) {
-                $this->busqueda();
-            } else {
-                $this->views->getView($this, "busqueda", $data);
-            }
-        }
- */
-
-    /* public function busqueda()
-        {
-            // Sanitización de los valores recibidos en los inputs
-            $id_tipoDoc = filter_input(INPUT_GET, 'id_tipoDoc', FILTER_SANITIZE_NUMBER_INT);
-            $indice_01_pattern = filter_input(INPUT_GET, 'indice_01_pattern', FILTER_SANITIZE_STRING);
-            $indice_02_pattern = filter_input(INPUT_GET, 'indice_02_pattern', FILTER_SANITIZE_STRING);
-            $indice_03_pattern = filter_input(INPUT_GET, 'indice_03_pattern', FILTER_SANITIZE_STRING);
-            $indice_04_pattern = filter_input(INPUT_GET, 'indice_04_pattern', FILTER_SANITIZE_STRING);
-
-            $id_tipoDoc = $id_tipoDoc ? (int)$id_tipoDoc : 0;
-            $busqueda = $this->model->buscarExpediente2($id_tipoDoc, $indice_01_pattern, $indice_02_pattern, $indice_03_pattern, $indice_04_pattern);
-            $data = ['busqueda' => $busqueda];
-            if ($data == 0) {
-                $this->busqueda();
-            } else {
-                $this->views->getView($this, "busqueda", $data);
-            }
-        } */
 
     public function busqueda()
     {
@@ -136,7 +114,7 @@ class Expedientes extends Controllers
         // Ahora $expediente es el array limpio: ['id_expediente' => 10273, 'indice_01' => 'AGOSTO'...]
         $data = [
             'page_title' => 'Modificar Expediente',
-            'expediente' => $expediente 
+            'expediente' => $expediente
         ];
 
         $this->views->getView($this, "editar", $data);
@@ -153,7 +131,7 @@ class Expedientes extends Controllers
         }
     }
 
-   public function modificar()
+    public function modificar()
     {
         // 1. Verificar Token CSRF (Seguridad)
         // Si no existe o no coincide, detenemos la ejecución para evitar ataques.
@@ -165,25 +143,25 @@ class Expedientes extends Controllers
         // 2. Recibir datos del formulario (POST)
         // Usamos el operador de fusión null (??) para evitar errores "Undefined index"
         $id_expediente = $_POST['id_expediente'];
-        
+
         // id_proceso puede venir vacío si el input estaba 'disabled' en el HTML.
         // Si es vital, asegúrate de quitar el 'disabled' o usar 'readonly'.
-        $id_proceso    = $_POST['id_proceso'] ?? ''; 
+        $id_proceso = $_POST['id_proceso'] ?? '';
 
         // Limpiamos los datos básicos con htmlspecialchars para evitar XSS
-        $indice_01     = htmlspecialchars($_POST['indice_01'] ?? '');
-        $indice_02     = htmlspecialchars($_POST['indice_02'] ?? '');
-        $indice_03     = htmlspecialchars($_POST['indice_03'] ?? '');
-        $indice_04     = htmlspecialchars($_POST['indice_04'] ?? '');
-        $indice_05     = htmlspecialchars($_POST['indice_05'] ?? '');
-        $indice_06     = htmlspecialchars($_POST['indice_06'] ?? '');
-        $ubicacion     = htmlspecialchars($_POST['ubicacion'] ?? '');
+        $indice_01 = htmlspecialchars($_POST['indice_01'] ?? '');
+        $indice_02 = htmlspecialchars($_POST['indice_02'] ?? '');
+        $indice_03 = htmlspecialchars($_POST['indice_03'] ?? '');
+        $indice_04 = htmlspecialchars($_POST['indice_04'] ?? '');
+        $indice_05 = htmlspecialchars($_POST['indice_05'] ?? '');
+        $indice_06 = htmlspecialchars($_POST['indice_06'] ?? '');
+        $ubicacion = htmlspecialchars($_POST['ubicacion'] ?? '');
         $firma_digital = htmlspecialchars($_POST['firma_digital'] ?? 'no'); // Valor por defecto 'no'
-        $version       = htmlspecialchars($_POST['version'] ?? '1.0');     // Valor por defecto '1.0'
-        
+        $version = htmlspecialchars($_POST['version'] ?? '1.0');     // Valor por defecto '1.0'
+
         // CORRECCIÓN CLAVE DEL ERROR 500:
         // Aseguramos que 'paginas' sea un número entero. Si no viene, ponemos 1.
-        $paginas       = !empty($_POST['paginas']) ? intval($_POST['paginas']) : 1;
+        $paginas = !empty($_POST['paginas']) ? intval($_POST['paginas']) : 1;
 
         // 3. Llamar al Modelo
         // El orden de los argumentos debe coincidir EXACTAMENTE con la definición en tu Modelo.
@@ -209,7 +187,7 @@ class Expedientes extends Controllers
                 'type' => 'success',
                 'message' => 'Expediente modificado correctamente.'
             ];
-            
+
             // Redirigimos a la misma página de edición para ver los cambios reflejados
             header("Location: " . base_url() . "expedientes/editar?id_expediente=" . $id_expediente);
             die();
@@ -231,7 +209,7 @@ class Expedientes extends Controllers
         // Evita que el script se corte por tiempo (Timeout)
         set_time_limit(0);
         // Aumenta memoria temporalmente para este proceso pesado
-        ini_set('memory_limit', '1024M'); 
+        ini_set('memory_limit', '1024M');
 
         // --- 🔐 SEGURIDAD: Validación de CSRF ---
         if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
@@ -246,7 +224,7 @@ class Expedientes extends Controllers
         // --- ⚙️ PREPARACIÓN DE DATOS ---
         date_default_timezone_set('America/Asuncion');
         $id_proceso = date("Ymd-His");
-        
+
         // Saneamiento de entradas
         $id_tipoDoc = filter_input(INPUT_POST, 'id_tipoDoc', FILTER_SANITIZE_STRING);
         $indice_01 = filter_input(INPUT_POST, 'indice_01', FILTER_SANITIZE_STRING);
@@ -285,9 +263,10 @@ class Expedientes extends Controllers
         // 🔄 PROCESAMIENTO: ENDEREZADO (DESKEW)
         // =============================================
         // Nota: Solo procesamos si realmente queremos corregir (Esto es LENTO)
-        
+
         $temp_dir = RUTA_BASE . 'Temp/' . $id_proceso . '/';
-        if (!is_dir($temp_dir)) mkdir($temp_dir, 0777, true);
+        if (!is_dir($temp_dir))
+            mkdir($temp_dir, 0777, true);
 
         $temp_output = RUTA_BASE . 'Temp/oriented_' . $nombre_final;
         $pdf_path_escaped = escapeshellarg($ubicacion_fisica);
@@ -299,11 +278,11 @@ class Expedientes extends Controllers
 
         if ($return_var === 0) {
             $images = glob($temp_dir . "page_*.png");
-            
+
             if (!empty($images)) {
                 foreach ($images as $img) {
                     $img_escaped = escapeshellarg($img);
-                    
+
                     // 2️⃣ Enderezar (Deskew)
                     shell_exec("$magick_escaped mogrify -deskew 40% $img_escaped 2>&1");
 
@@ -325,7 +304,7 @@ class Expedientes extends Controllers
                 // 4️⃣ Reconstruir PDF
                 $temp_output_escaped = escapeshellarg($temp_output);
                 $img_input_path = escapeshellarg($temp_dir . "page_*.png");
-                
+
                 // Reconstruimos el PDF
                 $cmd_rebuild = "$magick_escaped -density 200 $img_input_path $temp_output_escaped 2>&1";
                 shell_exec($cmd_rebuild);
@@ -343,9 +322,9 @@ class Expedientes extends Controllers
         // ========================================================
         // Usamos 'identify' de consola. Es mucho más ligero.
         // -format %n : Devuelve el número de páginas.
-        
+
         $num_paginas = 1; // Valor por defecto
-        
+
         // Ejecutamos el comando
         $cmd_count = "$magick_escaped identify -format %n $pdf_path_escaped";
         $output_count = shell_exec($cmd_count);
@@ -357,15 +336,15 @@ class Expedientes extends Controllers
             // La forma segura para PDF multipágina:
             $output_lines_count = [];
             exec($cmd_count, $output_lines_count);
-            
+
             // Si devuelve muchas líneas, el conteo es el número de líneas
-            if(count($output_lines_count) > 0) {
+            if (count($output_lines_count) > 0) {
                 // Opción A: Contar líneas (típico comportamiento de identify en PDFs)
                 $num_paginas = count($output_lines_count);
-                
+
                 // Opción B: Si devuelve un solo número
                 if ($num_paginas == 1 && is_numeric(trim($output_lines_count[0]))) {
-                     $num_paginas = intval(trim($output_lines_count[0]));
+                    $num_paginas = intval(trim($output_lines_count[0]));
                 }
             }
         }
@@ -384,11 +363,19 @@ class Expedientes extends Controllers
         $fecha_indexado = date("Y-m-d");
 
         $registrar = $this->model->registrarExpediente(
-            $id_proceso, $id_tipoDoc, $indice_01, $indice_02, $indice_03,
-            $indice_04, $indice_05, $indice_06, 
+            $id_proceso,
+            $id_tipoDoc,
+            $indice_01,
+            $indice_02,
+            $indice_03,
+            $indice_04,
+            $indice_05,
+            $indice_06,
             $num_paginas, // Variable obtenida optimizadamente
-            $ruta_relativa, 
-            $ubicacion, $version, $fecha_indexado
+            $ruta_relativa,
+            $ubicacion,
+            $version,
+            $fecha_indexado
         );
 
         if ($registrar) {
@@ -521,17 +508,34 @@ class Expedientes extends Controllers
 
     public function ver_expediente2()
     {
-        $ruta = $_GET['ruta'];
-        $archivo = RUTA_BASE . $ruta;
-
-        if (file_exists($archivo)) {
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: inline; filename="' . basename($archivo) . '"');
-            readfile($archivo);
+        // CORRECCIÓN: validar la ruta para prevenir Path Traversal (igual que ver_expediente())
+        if (!isset($_GET['ruta']) || empty($_GET['ruta'])) {
+            setAlert('warning', 'Se requiere una ruta válida.');
+            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
             exit;
-        } else {
-            echo "Archivo no encontrado";
         }
+
+        $archivo_relativo = urldecode($_GET['ruta']);
+        $ruta_base_real   = realpath(RUTA_BASE);
+        $ruta_archivo_real = realpath(RUTA_BASE . $archivo_relativo);
+
+        if ($ruta_archivo_real === false || strpos($ruta_archivo_real, $ruta_base_real) !== 0) {
+            setAlert('warning', 'Ruta inválida o fuera de la carpeta segura.');
+            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
+            exit;
+        }
+
+        if (!file_exists($ruta_archivo_real)) {
+            setAlert('warning', 'El archivo no existe o ha sido removido.');
+            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
+            exit;
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . basename($ruta_archivo_real) . '"');
+        header('Content-Length: ' . filesize($ruta_archivo_real));
+        readfile($ruta_archivo_real);
+        exit;
     }
 
 
@@ -868,13 +872,13 @@ class Expedientes extends Controllers
 
         // 4. Intentar obtener Metadatos Avanzados con ExifTool
         $meta_avanzada = [];
-        
+
         // Verificar si la constante y el ejecutable existen
         if (defined('RUTA_EXIFTOOL') && file_exists(RUTA_EXIFTOOL)) {
             // USAR escapeshellarg PARA RUTAS CON ESPACIOS
             $cmd_tool = escapeshellarg(RUTA_EXIFTOOL);
             $cmd_file = escapeshellarg($archivo_pdf);
-            
+
             // Ejecutar comando (-j para JSON, -g para agrupar)
             // En Windows a veces se requiere llamar directo al exe sin comillas externas en todo el comando
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
@@ -900,9 +904,12 @@ class Expedientes extends Controllers
             <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <h4 class="font-bold text-scantec-blue mb-2 text-sm uppercase">Información del Archivo</h4>
                 <ul class="text-sm text-gray-700 space-y-1">
-                    <li class="flex justify-between"><span class="font-semibold">Nombre:</span> <span><?php echo $nombre; ?></span></li>
-                    <li class="flex justify-between"><span class="font-semibold">Tamaño:</span> <span><?php echo $peso; ?></span></li>
-                    <li class="flex justify-between"><span class="font-semibold">Modificado:</span> <span><?php echo $fecha; ?></span></li>
+                    <li class="flex justify-between"><span class="font-semibold">Nombre:</span>
+                        <span><?php echo $nombre; ?></span></li>
+                    <li class="flex justify-between"><span class="font-semibold">Tamaño:</span>
+                        <span><?php echo $peso; ?></span></li>
+                    <li class="flex justify-between"><span class="font-semibold">Modificado:</span>
+                        <span><?php echo $fecha; ?></span></li>
                 </ul>
             </div>
 
@@ -910,7 +917,7 @@ class Expedientes extends Controllers
                 <div class="border-t border-gray-100 pt-4">
                     <h4 class="font-bold text-gray-600 mb-3 text-sm uppercase">Metadatos Internos (PDF)</h4>
                     <div class="grid grid-cols-1 gap-2 text-sm">
-                        <?php 
+                        <?php
                         // Campos de interés a mostrar (para no mostrar basura técnica)
                         $campos_interes = [
                             'Title' => 'Título',
@@ -924,16 +931,16 @@ class Expedientes extends Controllers
                             'PDFVersion' => 'Versión PDF'
                         ];
 
-                        foreach ($campos_interes as $key => $label): 
-                            if (isset($meta_avanzada[$key])): 
-                        ?>
-                            <div class="flex flex-col border-b border-gray-50 pb-1">
-                                <span class="text-xs text-gray-400 font-bold uppercase"><?php echo $label; ?></span>
-                                <span class="text-gray-800"><?php echo $meta_avanzada[$key]; ?></span>
-                            </div>
-                        <?php 
-                            endif; 
-                        endforeach; 
+                        foreach ($campos_interes as $key => $label):
+                            if (isset($meta_avanzada[$key])):
+                                ?>
+                                <div class="flex flex-col border-b border-gray-50 pb-1">
+                                    <span class="text-xs text-gray-400 font-bold uppercase"><?php echo $label; ?></span>
+                                    <span class="text-gray-800"><?php echo $meta_avanzada[$key]; ?></span>
+                                </div>
+                            <?php
+                            endif;
+                        endforeach;
                         ?>
                     </div>
                 </div>
@@ -992,10 +999,10 @@ class Expedientes extends Controllers
     {
         $mailController = new Configuracion();
         $expediente = $this->model->selectExpediente();
-        
+
         // Datos del correo (pueden venir de la vista o de la base de datos)
-        $destinatario = 'aldo.silva@printec.com.py';  
-        $nombreDestinatario = 'Aldo Silva'; 
+        $destinatario = 'aldo.silva@printec.com.py';
+        $nombreDestinatario = 'Aldo Silva';
         $asunto = 'Informe de Expedientes';
         $mensaje = 'Adjunto el informe de expedientes generado.';
 
@@ -1022,7 +1029,7 @@ class Expedientes extends Controllers
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
         $pdf->SetAligns(array('L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($expediente as $row) {
             $pdf->Row(array(
                 utf8_decode($row['nombre_tipoDoc']),
@@ -1040,7 +1047,7 @@ class Expedientes extends Controllers
         // Guardar el PDF temporalmente
         $tempDir = sys_get_temp_dir();
         $filePath = $tempDir . "/Expedientes_" . date('Y_m_d_His') . ".pdf";
-        $pdf->Output('F', $filePath);  
+        $pdf->Output('F', $filePath);
 
         // Validar si el archivo se generó correctamente
         if (file_exists($filePath)) {
@@ -1061,7 +1068,7 @@ class Expedientes extends Controllers
         $dias = $_POST['dias'];
         $mailController = new Configuracion();
         $expediente = $this->model->reporteExpedientesFecha($desde, $dias);
-        
+
         // Obtener los destinatarios y nombres del formulario
         $emails = isset($_POST['emails']) ? $_POST['emails'] : '';
         $nombres = isset($_POST['nombres']) ? $_POST['nombres'] : '';
@@ -1103,7 +1110,7 @@ class Expedientes extends Controllers
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
         $pdf->SetAligns(array('L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($expediente as $row) {
             $pdf->Row(array(
                 utf8_decode($row['nombre_tipoDoc']),
@@ -1120,7 +1127,7 @@ class Expedientes extends Controllers
 
         $tempDir = sys_get_temp_dir();
         $filePath = $tempDir . "/Expedientes_" . date('Y_m_d_His') . ".pdf";
-        $pdf->Output('F', $filePath);  
+        $pdf->Output('F', $filePath);
 
         if (file_exists($filePath)) {
             $mailController->sendEmailWithAttachment($filePath, $destinatarios, $asunto, $mensaje);
@@ -1156,7 +1163,7 @@ class Expedientes extends Controllers
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
         $pdf->SetAligns(array('L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($expediente as $row) {
             $pdf->Row(array(
                 utf8_decode($row['nombre_tipoDoc']),
@@ -1201,7 +1208,7 @@ class Expedientes extends Controllers
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
         $pdf->SetAligns(array('L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($expediente as $row) {
             $pdf->Row(array(
                 utf8_decode($row['nombre_tipoDoc']),
@@ -1244,7 +1251,7 @@ class Expedientes extends Controllers
         $pdf->SetWidths(array(15, 35, 35, 35, 35, 168, 15));
         $pdf->SetAligns(array('C', 'C', 'C', 'C', 'C', 'L', 'C'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($expediente as $row) {
             $pdf->Row(array(
                 $row['id_expediente'],
@@ -1288,7 +1295,7 @@ class Expedientes extends Controllers
 
         $contentStyle = ['font' => ['size' => 9], 'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
         $dataRow = $headerRow + 1;
-        
+
         foreach ($expediente as $value) {
             $sheet->setCellValue('A' . $dataRow, $value["nombre_tipoDoc"]);
             $sheet->setCellValue('B' . $dataRow, $value["indice_01"]);
@@ -1306,7 +1313,7 @@ class Expedientes extends Controllers
 
         // Ajustar columnas: Las largas con número fijo (Wrap), las cortas con 'auto'
         $excel->setColumnWidths([
-            'A' => 'auto', 
+            'A' => 'auto',
             'B' => 45, // Indice 01
             'C' => 30, // Indice 02
             'D' => 30, // Indice 03
@@ -1352,7 +1359,7 @@ class Expedientes extends Controllers
 
         $contentStyle = ['font' => ['size' => 9], 'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
         $dataRow = $headerRow + 1;
-        
+
         foreach ($expediente as $value) {
             $sheet->setCellValue('A' . $dataRow, $value["nombre_tipoDoc"]);
             $sheet->setCellValue('B' . $dataRow, $value["indice_01"]);
@@ -1370,12 +1377,12 @@ class Expedientes extends Controllers
 
         // Ajustar columnas
         $excel->setColumnWidths([
-            'A' => 'auto', 
-            'B' => 45, 
-            'C' => 30, 
-            'D' => 30, 
-            'E' => 40, 
-            'F' => 30, 
+            'A' => 'auto',
+            'B' => 45,
+            'C' => 30,
+            'D' => 30,
+            'E' => 40,
+            'F' => 30,
             'G' => 'auto',
             'H' => 'auto',
             'I' => 'auto',
@@ -1414,7 +1421,7 @@ class Expedientes extends Controllers
 
         $contentStyle = ['font' => ['size' => 9], 'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
         $dataRow = $headerRow + 1;
-        
+
         foreach ($expediente as $value) {
             $sheet->setCellValue('A' . $dataRow, $value["indice_01"]);
             $sheet->setCellValue('B' . $dataRow, $value["indice_04"]);

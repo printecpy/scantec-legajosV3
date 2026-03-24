@@ -19,6 +19,8 @@ class Controllers
         // --- VALIDACIÓN DE SEGURIDAD CENTRALIZADA ---
         // Se ejecuta después de cargar todo, para validar si el usuario sigue vivo
         $this->validarSesionActivaEnBD();
+        $this->validarFuncionalidadHabilitada();
+        $this->sincronizarEstadosLegajosDiario();
     }
     
     public function loadModel()
@@ -101,6 +103,10 @@ class Controllers
      */
     protected function checkDynamicAccess(string $accion, string $mensajeAlerta)
     {
+        if (intval($_SESSION['id_rol'] ?? 0) === 1) {
+            return;
+        }
+
         // Obtiene el nombre real del controlador (ej. 'Usuarios' o 'Expedientes')
         $controlador = str_replace('Controller', '', get_class($this));
         // Si usas namespaces, podría ser necesario un trim o explode para obtener solo el nombre de la clase.
@@ -123,27 +129,120 @@ class Controllers
     private function validarSesionActivaEnBD()
     {
         // Solo verificamos si el usuario dice estar logueado
-        if (isset($_SESSION['login']) && $_SESSION['login'] === true) {
-            
-            $mi_session_id = session_id();
-            
-            // Verificamos directamente en la BD
-            // NOTA: Asumo que Controller hereda de una clase que permite usar $this->select
-            // Si no, tendrás que instanciar el modelo de usuarios aquí.
-            $sql = "SELECT id_visita FROM visitas WHERE session_id = '{$mi_session_id}' AND estado = 'ACTIVO'";
-            $request = $this->select($sql); // O usa tu método de conexión preferido
+        // CORRECCIÓN: se usa $_SESSION['ACTIVO'] que es la flag real seteada en el login
+        if (!isset($_SESSION['ACTIVO']) || $_SESSION['ACTIVO'] !== true) {
+            return;
+        }
+
+        $mi_session_id = session_id();
+        if ($mi_session_id === '') {
+            return;
+        }
+
+        // CORRECCIÓN: se usa prepared statement a través del modelo para evitar SQL Injection
+        // y se elimina la llamada al inexistente $this->select()
+        require_once 'Models/UsuariosModel.php';
+        if (!class_exists('UsuariosModel')) {
+            return;
+        }
+
+        try {
+            $usuariosModel = new UsuariosModel();
+            $request = $usuariosModel->obtenerVisitaActivaPorSession($mi_session_id);
 
             if (empty($request)) {
-                // ¡NO EXISTE O ESTÁ INACTIVO! El Admin me cerró la sesión.
-                
-                // Limpiamos sesión local
+                // ¡NO EXISTE O ESTÁ INACTIVO! El Admin cerró la sesión.
                 session_unset();
                 session_destroy();
-                
-                // Lo mandamos al login con aviso
                 header("Location: " . base_url() . "?msg=kicked");
                 exit();
             }
+        } catch (Throwable $e) {
+            // Si falla la conexión, no bloqueamos al usuario
+            return;
+        }
+    }
+
+    private function sincronizarEstadosLegajosDiario()
+    {
+        // CORRECCIÓN: se usa $_SESSION['ACTIVO'] que es la flag real seteada en el login
+        if (!isset($_SESSION['ACTIVO']) || $_SESSION['ACTIVO'] !== true) {
+            return;
+        }
+
+        $hoy = date('Y-m-d');
+        if (($_SESSION['legajos_sync_fecha'] ?? '') === $hoy) {
+            return;
+        }
+
+        $modelPath = "Models/LegajosModel.php";
+        if (!file_exists($modelPath)) {
+            $_SESSION['legajos_sync_fecha'] = $hoy;
+            return;
+        }
+
+        require_once $modelPath;
+        if (!class_exists('LegajosModel')) {
+            $_SESSION['legajos_sync_fecha'] = $hoy;
+            return;
+        }
+
+        try {
+            $legajosModel = new LegajosModel();
+            $legajosModel->sincronizarEstadosDocumentosLegajo(30);
+            $_SESSION['legajos_sync_fecha'] = $hoy;
+        } catch (Throwable $e) {
+            return;
+        }
+    }
+
+    private function validarFuncionalidadHabilitada()
+    {
+        if (defined('IS_API') && IS_API === true) {
+            return;
+        }
+
+        if (!isset($_SESSION['ACTIVO']) || $_SESSION['ACTIVO'] !== true) {
+            return;
+        }
+
+        $rutaActual = strtolower(trim((string)($_GET['url'] ?? ''), '/'));
+        if ($rutaActual === '') {
+            return;
+        }
+
+        $controladorActual = strtolower(get_class($this));
+        if (in_array($controladorActual, ['home', 'errors', 'funcionalidades'], true)) {
+            return;
+        }
+
+        $modelPath = 'Models/FuncionalidadesModel.php';
+        if (!file_exists($modelPath)) {
+            return;
+        }
+
+        require_once $modelPath;
+        if (!class_exists('FuncionalidadesModel')) {
+            return;
+        }
+
+        try {
+            $seccion = FuncionalidadesModel::resolverSeccionPorRuta($rutaActual);
+            if ($seccion === null) {
+                return;
+            }
+
+            $funcionalidadesModel = new FuncionalidadesModel();
+            if ($funcionalidadesModel->estaSeccionHabilitada($seccion)) {
+                return;
+            }
+
+            setAlert('warning', 'La seccion solicitada se encuentra desactivada por el Administrador del sistema.');
+            $rutaDestino = FuncionalidadesModel::obtenerRutaRedireccionSegura(intval($_SESSION['id_rol'] ?? 0));
+            header('Location: ' . base_url() . $rutaDestino);
+            exit();
+        } catch (Throwable $e) {
+            return;
         }
     }
 

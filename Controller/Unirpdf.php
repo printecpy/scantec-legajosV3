@@ -9,7 +9,6 @@ class Unirpdf extends Controllers
             header("location: " . base_url());
         }
         parent::__construct();
-
     }
     public function unir_documentos()
     {
