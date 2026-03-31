@@ -9,12 +9,12 @@
                     <i class="fas fa-shield-check mr-3"></i> Validacion Documental
                 </h1>
                 <p class="text-sm text-gray-500 mt-1 ml-1">
-                    Auditoria de requisitos y vencimientos en tiempo real.
+                    Auditoría de requisitos y vencimientos en tiempo real.
                 </p>
             </div>
             <a href="<?php echo base_url(); ?>expedientes/indice_busqueda"
                 class="group px-4 h-10 rounded-xl bg-gray-600 text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm">
-                <i class="fas fa-arrow-left mr-2"></i> Volver a Busqueda
+                <i class="fas fa-arrow-left mr-2"></i> Volver a Búsqueda
             </a>
         </div>
 

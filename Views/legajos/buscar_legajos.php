@@ -157,7 +157,7 @@ $formatearCi = static function ($valor) {
                                         </span>
                                     </td>
                                     <td class="px-6 py-3 text-right">
-                                        <?php $puedeVerPdfFinal = in_array($estadoTexto, ['Completado', 'Verificado', 'Cerrado'], true); ?>
+                                        <?php $puedeVerPdfFinal = !empty($resultado['pdf_final_disponible']); ?>
                                         <div class="flex justify-end gap-2">
                                             <?php if ($puedeVerPdfFinal): ?>
                                             <a href="<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"

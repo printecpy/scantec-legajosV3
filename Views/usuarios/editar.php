@@ -33,6 +33,7 @@
                 <form method="post" action="<?php echo base_url(); ?>Usuarios/actualizar" autocomplete="off">
                     <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                     <input type="hidden" name="id" value="<?php echo $data['usuario']['id']; ?>">
+                    <input type="hidden" name="id_grupo" value="<?php echo intval($data['usuario']['id_grupo'] ?? 0); ?>">
 
                     <div class="p-8">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -50,6 +51,22 @@
                                     <input type="text" id="nombre" name="nombre" 
                                         value="<?php echo $data['usuario']['nombre']; ?>"
                                         class="pl-10 w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all bg-gray-50/30" required>
+                                </div>
+                            </div>
+
+                            <div class="col-span-1 md:col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Departamento</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><i class="fas fa-building"></i></div>
+                                    <select id="id_departamento" name="id_departamento" class="pl-10 w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white appearance-none cursor-pointer" required>
+                                        <option value="" disabled>Seleccione un departamento</option>
+                                        <?php foreach (($data['departamentos'] ?? []) as $departamento): ?>
+                                            <option value="<?php echo intval($departamento['id_departamento']); ?>" <?php echo intval($departamento['id_departamento']) === intval($data['usuario']['id_departamento'] ?? 0) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars((string)($departamento['nombre'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500"><i class="fas fa-chevron-down text-xs"></i></div>
                                 </div>
                             </div>
 
@@ -73,7 +90,33 @@
                                 </div>
                             </div>
 
-                            <?php if (isset($_SESSION['id_rol']) && ($_SESSION['id_rol'] == 1 || $_SESSION['id_rol'] == 2 )) { ?>
+                            <div class="col-span-1 md:col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Nueva Contraseña</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><i class="fas fa-key"></i></div>
+                                    <input type="password" id="clave" name="clave"
+                                        class="pl-10 w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all bg-gray-50/30"
+                                        placeholder="Dejar en blanco para mantener la actual">
+                                </div>
+                                <p class="mt-2 text-xs text-red-500">Si la completas, se reemplazará la contraseña actual del usuario.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Estado</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><i class="fas fa-toggle-on"></i></div>
+                                    <select name="estado_usuario" id="estado_usuario" class="pl-10 w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white appearance-none cursor-pointer">
+                                        <?php $estadoActual = strtoupper((string)($data['usuario']['estado_usuario'] ?? 'ACTIVO')); ?>
+                                        <option value="ACTIVO" <?php echo $estadoActual === 'ACTIVO' ? 'selected' : ''; ?>>Activo</option>
+                                        <option value="INACTIVO" <?php echo $estadoActual === 'INACTIVO' ? 'selected' : ''; ?>>Inactivo</option>
+                                        <option value="BLOQUEADO" <?php echo $estadoActual === 'BLOQUEADO' ? 'selected' : ''; ?>>Bloqueado</option>
+                                        <option value="PENDIENTE" <?php echo $estadoActual === 'PENDIENTE' ? 'selected' : ''; ?>>Pendiente</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500"><i class="fas fa-chevron-down text-xs"></i></div>
+                                </div>
+                            </div>
+
+                            <?php if (isset($_SESSION['id_rol']) && in_array(intval($_SESSION['id_rol']), [1, 2, 5], true)) { ?>
                                 <div class="col-span-1 md:col-span-2 mt-4 mb-2">
                                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
                                         Permisos y Accesos
@@ -88,21 +131,6 @@
                                             <?php foreach ($data['rol'] as $rol) { ?>
                                                 <option <?php if ($rol['id_rol'] == $data['usuario']['id_rol']) { echo 'selected'; } ?> value="<?php echo $rol['id_rol']; ?>">
                                                     <?php echo $rol['descripcion']; ?>
-                                                </option>
-                                            <?php } ?>
-                                        </select>
-                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500"><i class="fas fa-chevron-down text-xs"></i></div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Grupo</label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400"><i class="fas fa-users"></i></div>
-                                        <select name="id_grupo" id="id_grupo" class="pl-10 w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white appearance-none cursor-pointer">
-                                            <?php foreach ($data['grupos'] as $grupos) { ?>
-                                                <option <?php if ($grupos['id_grupo'] == $data['usuario']['id_grupo']) { echo 'selected'; } ?> value="<?php echo $grupos['id_grupo']; ?>">
-                                                    <?php echo $grupos['descripcion']; ?>
                                                 </option>
                                             <?php } ?>
                                         </select>

@@ -132,6 +132,9 @@ class SeguridadLegajosModel extends Mysql
             'dashboard_card_docs_vigentes' => ['etiqueta' => 'Documentos vigentes', 'icono' => 'fas fa-circle-check'],
             'dashboard_card_docs_por_vencer' => ['etiqueta' => 'Documentos por vencer', 'icono' => 'fas fa-clock'],
             'dashboard_card_docs_vencidos' => ['etiqueta' => 'Documentos vencidos / faltantes', 'icono' => 'fas fa-circle-exclamation'],
+            'dashboard_card_legajos_por_tipo' => ['etiqueta' => 'Legajos por tipo', 'icono' => 'fas fa-table-list'],
+            'dashboard_card_legajos_por_usuario' => ['etiqueta' => 'Legajos por usuario', 'icono' => 'fas fa-users'],
+            'dashboard_card_grafico_productividad' => ['etiqueta' => 'Gráfico de productividad', 'icono' => 'fas fa-chart-line'],
         ];
     }
 
@@ -209,13 +212,57 @@ class SeguridadLegajosModel extends Mysql
      */
     public function selectRoles(): array
     {
+        try {
+            $tablaDepartamentos = $this->select_all("SHOW TABLES LIKE 'departamentos'");
+            $columnaDepartamento = $this->select_all("SHOW COLUMNS FROM roles LIKE 'id_departamento'");
+
+            if (!empty($tablaDepartamentos) && !empty($columnaDepartamento)) {
+                $sql = "SELECT r.*, d.nombre AS departamento_nombre
+                        FROM roles r
+                        LEFT JOIN departamentos d ON d.id_departamento = r.id_departamento
+                        ORDER BY r.id_rol";
+                $res = $this->select_all($sql);
+                return is_array($res) ? $res : [];
+            }
+        } catch (Throwable $e) {
+            // Fallback a consulta simple.
+        }
+
         $sql = "SELECT * FROM roles ORDER BY id_rol";
         $res = $this->select_all($sql);
         return is_array($res) ? $res : [];
     }
 
+    public function selectRolesVisiblesPara(int $idRolActual): array
+    {
+        $roles = $this->selectRoles();
+        if ($idRolActual === 1) {
+            return $roles;
+        }
+
+        return array_values(array_filter($roles, static function ($rol) {
+            return intval($rol['id_rol'] ?? 0) !== 1;
+        }));
+    }
+
     public function selectRolPorId(int $id_rol): array
     {
+        try {
+            $tablaDepartamentos = $this->select_all("SHOW TABLES LIKE 'departamentos'");
+            $columnaDepartamento = $this->select_all("SHOW COLUMNS FROM roles LIKE 'id_departamento'");
+
+            if (!empty($tablaDepartamentos) && !empty($columnaDepartamento)) {
+                $sql = "SELECT r.*, d.nombre AS departamento_nombre
+                        FROM roles r
+                        LEFT JOIN departamentos d ON d.id_departamento = r.id_departamento
+                        WHERE r.id_rol = ? LIMIT 1";
+                $res = $this->select_all($sql, [$id_rol]);
+                return !empty($res[0]) ? $res[0] : [];
+            }
+        } catch (Throwable $e) {
+            // Fallback a consulta simple.
+        }
+
         $sql = "SELECT * FROM roles WHERE id_rol = ? LIMIT 1";
         $res = $this->select_all($sql, [$id_rol]);
         return !empty($res[0]) ? $res[0] : [];
@@ -241,22 +288,33 @@ class SeguridadLegajosModel extends Mysql
      * Inserta un nuevo rol y asigna permisos por defecto.
      * Retorna el ID del rol creado o null en caso de error.
      */
-    public function insertarRolConPermisos(string $descripcion, string $preset = 'basico'): ?int
+    public function insertarRolConPermisos(string $descripcion, string $preset = 'basico', int $idDepartamento = 0): ?int
     {
         try {
             // Insertar el rol
-            $sql = "INSERT INTO roles (descripcion, estado) VALUES (?, 'activo')";
+            $tablaDepartamentos = $this->select_all("SHOW TABLES LIKE 'departamentos'");
+            $columnaDepartamento = $this->select_all("SHOW COLUMNS FROM roles LIKE 'id_departamento'");
+            $usaDepartamento = !empty($tablaDepartamentos) && !empty($columnaDepartamento);
+
+            $sql = $usaDepartamento
+                ? "INSERT INTO roles (descripcion, id_departamento, estado) VALUES (?, ?, 'activo')"
+                : "INSERT INTO roles (descripcion, estado) VALUES (?, 'activo')";
             try {
-                $this->insert($sql, [$descripcion]);
+                $this->insert($sql, $usaDepartamento ? [$descripcion, $idDepartamento > 0 ? $idDepartamento : null] : [$descripcion]);
             } catch (Throwable $e) {
                 // Intento sin estado por si no existe la columna
-                $sql = "INSERT INTO roles (descripcion) VALUES (?)";
-                $this->insert($sql, [$descripcion]);
+                $sql = $usaDepartamento
+                    ? "INSERT INTO roles (descripcion, id_departamento) VALUES (?, ?)"
+                    : "INSERT INTO roles (descripcion) VALUES (?)";
+                $this->insert($sql, $usaDepartamento ? [$descripcion, $idDepartamento > 0 ? $idDepartamento : null] : [$descripcion]);
             }
 
             // Obtener el ID del rol insertado
             $sqlGetId = "SELECT id_rol FROM roles WHERE descripcion = ? ORDER BY id_rol DESC LIMIT 1";
             $resultado = $this->select($sqlGetId, [$descripcion]);
+            if (is_array($resultado) && !isset($resultado['id_rol']) && !empty($resultado[0])) {
+                $resultado = $resultado[0];
+            }
             
             if (empty($resultado)) {
                 return null;
@@ -319,9 +377,15 @@ class SeguridadLegajosModel extends Mysql
         }
     }
 
-    public function actualizarRol(int $id_rol, string $descripcion): bool
+    public function actualizarRol(int $id_rol, string $descripcion, int $idDepartamento = 0): bool
     {
         try {
+            $columnaDepartamento = $this->select_all("SHOW COLUMNS FROM roles LIKE 'id_departamento'");
+            if (!empty($columnaDepartamento)) {
+                $sql = "UPDATE roles SET descripcion = ?, id_departamento = ? WHERE id_rol = ?";
+                return (bool)$this->update($sql, [$descripcion, $idDepartamento > 0 ? $idDepartamento : null, $id_rol]);
+            }
+
             $sql = "UPDATE roles SET descripcion = ? WHERE id_rol = ?";
             return (bool)$this->update($sql, [$descripcion, $id_rol]);
         } catch (Throwable $e) {
@@ -387,6 +451,10 @@ class SeguridadLegajosModel extends Mysql
             if (empty($resultado)) {
                 return false;
             }
+
+            if (is_array($resultado) && isset($resultado[0]) && is_array($resultado[0])) {
+                $resultado = $resultado[0];
+            }
             
             return intval($resultado['permitido'] ?? 0) === 1;
         } catch (Throwable $e) {
@@ -442,7 +510,7 @@ class SeguridadLegajosModel extends Mysql
      */
     public function puedeVerLegajosOtrosUsuarios(int $id_rol): bool
     {
-        if ($id_rol <= 2) {
+        if ($id_rol === 1) {
             return true;
         }
 
@@ -454,6 +522,10 @@ class SeguridadLegajosModel extends Mysql
 
             if (empty($resultado)) {
                 return true;
+            }
+
+            if (is_array($resultado) && isset($resultado[0]) && is_array($resultado[0])) {
+                $resultado = $resultado[0];
             }
 
             return intval($resultado['permitido'] ?? 0) === 1;
@@ -501,7 +573,7 @@ class SeguridadLegajosModel extends Mysql
 
     public function selectDashboardCardsPorRol(int $id_rol): array
     {
-        if ($id_rol <= 2) {
+        if ($id_rol === 1) {
             return array_fill_keys(array_keys(self::getDashboardCardsDisponibles()), 1);
         }
 
@@ -564,7 +636,7 @@ class SeguridadLegajosModel extends Mysql
             return intval($tipo['id_tipo_legajo'] ?? 0);
         }, $tiposLegajo)));
 
-        if ($id_rol <= 2) {
+        if ($id_rol === 1) {
             return $idsDisponibles;
         }
 

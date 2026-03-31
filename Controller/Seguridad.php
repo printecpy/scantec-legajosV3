@@ -2,6 +2,15 @@
 
 class Seguridad extends Controllers
 {
+    private function tokenValidoGetOPost(): bool
+    {
+        $token = $_POST['token'] ?? $_GET['token'] ?? '';
+        return isset($_SESSION['csrf_token'], $_SESSION['csrf_expiration'])
+            && is_string($token)
+            && hash_equals((string) $_SESSION['csrf_token'], $token)
+            && intval($_SESSION['csrf_expiration']) >= time();
+    }
+
     public function __construct()
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -9,12 +18,6 @@ class Seguridad extends Controllers
         }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
-            exit();
-        }
-        // Solo Admin (rol 1) puede acceder a esta sección
-        if (intval($_SESSION['id_rol'] ?? 0) > 1) {
-            setAlert('warning', 'No tienes permiso para acceder a la sección de Seguridad.');
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
             exit();
         }
         parent::__construct();
@@ -26,7 +29,9 @@ class Seguridad extends Controllers
     public function permisos_legajos()
     {
         require_once 'Models/SeguridadLegajosModel.php';
+        require_once 'Models/UsuariosModel.php';
         $seguridadModel = new SeguridadLegajosModel();
+        $usuariosModel = new UsuariosModel();
 
         // Verificar permiso para gestionar permisos
         if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'permisos_legajos')) {
@@ -38,9 +43,7 @@ class Seguridad extends Controllers
         // Asegurar que la tabla exista (primera ejecución)
         $this->asegurarTablaPermisos();
 
-        $roles = array_values(array_filter($seguridadModel->selectRoles(), static function ($rol) {
-            return intval($rol['id_rol'] ?? 0) !== 1;
-        }));
+        $roles = $seguridadModel->selectRolesVisiblesPara(intval($_SESSION['id_rol'] ?? 0));
         $acciones = SeguridadLegajosModel::getAccionesDisponibles();
         $permisos = $seguridadModel->selectTodosPermisosLegajos();
         $visibilidadLegajosOtros = $seguridadModel->selectVisibilidadLegajosOtrosPorRol();
@@ -59,6 +62,7 @@ class Seguridad extends Controllers
             'dashboard_cards_por_rol' => $dashboardCardsPorRol,
             'tipos_legajo' => $tiposLegajo,
             'tipos_legajo_por_rol' => $tiposLegajoPorRol,
+            'selected_role_id' => intval($_GET['id_rol'] ?? 0),
         ];
         $this->views->getView($this, "permisos_legajos", $data);
     }
@@ -91,9 +95,7 @@ class Seguridad extends Controllers
             exit();
         }
 
-        $roles = array_values(array_filter($seguridadModel->selectRoles(), static function ($rol) {
-            return intval($rol['id_rol'] ?? 0) !== 1;
-        }));
+        $roles = $seguridadModel->selectRolesVisiblesPara(intval($_SESSION['id_rol'] ?? 0));
         $acciones = SeguridadLegajosModel::getAccionesDisponibles();
         $visibilidadPost = $_POST['visibilidad_legajos_otros'] ?? [];
         $dashboardCardsPost = $_POST['dashboard_cards'] ?? [];
@@ -142,7 +144,7 @@ class Seguridad extends Controllers
                 exit();
             }
 
-            $permiteVerOtros = ($idRol <= 2) ? true : (($visibilidadPost[$idRol] ?? '1') === '1');
+            $permiteVerOtros = ($idRol === 1) ? true : (($visibilidadPost[$idRol] ?? '1') === '1');
             if (!$seguridadModel->guardarVisibilidadLegajosOtros($idRol, $permiteVerOtros)) {
                 setAlert('error', 'Error al guardar visibilidad de legajos para el rol: ' . htmlspecialchars($rol['descripcion']));
                 session_write_close();
@@ -157,7 +159,7 @@ class Seguridad extends Controllers
                 exit();
             }
 
-            $tiposRol = ($idRol <= 2)
+            $tiposRol = ($idRol === 1)
                 ? array_fill_keys(array_map(static fn($tipo) => intval($tipo['id_tipo_legajo'] ?? 0), $tiposLegajo), 1)
                 : ($tiposLegajoPost[$idRol] ?? []);
             if (!$seguridadModel->guardarTiposLegajoVisiblesPorRol($idRol, $tiposRol, $tiposLegajo)) {
@@ -197,7 +199,9 @@ class Seguridad extends Controllers
     public function roles()
     {
         require_once 'Models/SeguridadLegajosModel.php';
+        require_once 'Models/UsuariosModel.php';
         $seguridadModel = new SeguridadLegajosModel();
+        $usuariosModel = new UsuariosModel();
 
         // Verificar permiso para gestionar roles
         if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'gestionar_roles')) {
@@ -207,9 +211,8 @@ class Seguridad extends Controllers
         }
         
         $data = [
-            'roles' => array_values(array_filter($seguridadModel->selectRoles(), static function ($rol) {
-                return intval($rol['id_rol'] ?? 0) !== 1;
-            }))
+            'roles' => $seguridadModel->selectRolesVisiblesPara(intval($_SESSION['id_rol'] ?? 0)),
+            'departamentos' => $usuariosModel->selectDepartamentos()
         ];
         $this->views->getView($this, "roles", $data);
     }
@@ -238,6 +241,7 @@ class Seguridad extends Controllers
         }
 
         $preset = trim($_POST['preset'] ?? 'basico');
+        $idDepartamento = intval($_POST['id_departamento'] ?? 0);
         // Validar que el preset sea válido
         require_once 'Models/SeguridadLegajosModel.php';
         $presetsValidos = array_keys(SeguridadLegajosModel::getPresetsPermisos());
@@ -254,11 +258,9 @@ class Seguridad extends Controllers
             exit();
         }
         
-        $id_rol = $seguridadModel->insertarRolConPermisos($descripcion, $preset);
+        $id_rol = $seguridadModel->insertarRolConPermisos($descripcion, $preset, $idDepartamento);
         if ($id_rol !== null) {
-            $presets = SeguridadLegajosModel::getPresetsPermisos();
-            $nombrePreset = $presets[$preset]['nombre'] ?? 'Personalizado';
-            setAlert('success', 'Rol "' . htmlspecialchars($descripcion) . '" agregado exitosamente con permisos predeterminados: ' . $nombrePreset . '.');
+            setAlert('success', 'Rol agregado.');
         } else {
             setAlert('error', 'Error al agregar el rol.');
         }
@@ -285,6 +287,7 @@ class Seguridad extends Controllers
 
         $id_rol = intval($_POST['id_rol'] ?? 0);
         $descripcion = trim($_POST['descripcion'] ?? '');
+        $idDepartamento = intval($_POST['id_departamento'] ?? 0);
 
         if ($id_rol <= 0 || $descripcion === '') {
             setAlert('warning', 'Debe indicar un rol válido y un nuevo nombre.');
@@ -314,7 +317,7 @@ class Seguridad extends Controllers
             exit();
         }
 
-        if ($seguridadModel->actualizarRol($id_rol, $descripcion)) {
+        if ($seguridadModel->actualizarRol($id_rol, $descripcion, $idDepartamento)) {
             setAlert('success', 'Rol actualizado correctamente.');
         } else {
             setAlert('error', 'No se pudo actualizar el rol.');
@@ -332,7 +335,7 @@ class Seguridad extends Controllers
         $id_rol = intval($_GET['id_rol'] ?? $_POST['id_rol'] ?? 0);
         $rolUsuarioActual = intval($_SESSION['id_rol'] ?? 0);
 
-        if ($id_rol <= 0 || !Validador::csrfValido()) {
+        if ($id_rol <= 0 || !$this->tokenValidoGetOPost()) {
             setAlert('error', 'Petición inválida o expirada.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();
@@ -380,7 +383,7 @@ class Seguridad extends Controllers
         $estado = $_GET['estado'] ?? $_POST['estado'] ?? '';
         $rolUsuarioActual = intval($_SESSION['id_rol'] ?? 0);
 
-        if ($id_rol <= 0 || !in_array($estado, ['activo', 'inactivo']) || !Validador::csrfValido()) {
+        if ($id_rol <= 0 || !in_array($estado, ['activo', 'inactivo']) || !$this->tokenValidoGetOPost()) {
             setAlert('error', 'Petición inválida o expirada.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();

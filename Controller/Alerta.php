@@ -15,13 +15,30 @@ class Alerta extends Controllers
             exit();
         }
         parent::__construct();
+
+        if (php_sapi_name() !== 'cli') {
+            require_once 'Models/FuncionalidadesModel.php';
+            $idRol = intval($_SESSION['id_rol'] ?? 0);
+            $idDepartamento = intval($_SESSION['id_departamento'] ?? 0);
+            $funcionalidadesModel = new FuncionalidadesModel();
+
+            if (
+                $idRol !== 1 &&
+                !$funcionalidadesModel->puedeAccederItemPorContexto('alertas_programadas', $idRol, $idDepartamento)
+            ) {
+                setAlert('warning', 'No tienes permiso para acceder a esta sección.');
+                header('Location: ' . base_url() . FuncionalidadesModel::obtenerRutaRedireccionSegura($idRol, $idDepartamento));
+                exit();
+            }
+        }
+
         $this->mailController = new Configuracion(); 
     }
 
     
     public function listar()
     {
-        if (!isset($_SESSION['id_rol']) || !in_array($_SESSION['id_rol'], [1, 2]))  {
+        if (!isset($_SESSION['id_rol']) || !in_array($_SESSION['id_rol'], [1, 2, 5]))  {
             $_SESSION['alert'] = ['type' => 'warning', 'message' => 'No tienes permiso para acceder a esta sección.'];
             header("Location: ".base_url()."expedientes/indice_busqueda"); 
             exit();
@@ -34,7 +51,7 @@ class Alerta extends Controllers
 
     public function historial()
     {
-        if (!isset($_SESSION['id_rol']) || !in_array($_SESSION['id_rol'], [1, 2]))  {
+        if (!isset($_SESSION['id_rol']) || !in_array($_SESSION['id_rol'], [1, 2, 5]))  {
             $_SESSION['alert'] = ['type' => 'warning', 'message' => 'No tienes permiso para acceder a esta sección.'];
             header("Location: ".base_url()."expedientes/indice_busqueda"); 
             exit();

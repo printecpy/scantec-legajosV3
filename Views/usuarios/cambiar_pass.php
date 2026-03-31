@@ -24,6 +24,11 @@
                     <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
 
                     <div class="p-8 space-y-6">
+                        <?php if (!empty($_SESSION['force_password_change'])): ?>
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                                Este usuario fue creado con una contraseña temporal. Debe definir una nueva contraseña para poder continuar.
+                            </div>
+                        <?php endif; ?>
                         
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Contraseña Actual</label>
@@ -67,11 +72,14 @@
 
                     <div class="px-8 py-5 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
                         <?php 
+                            $cambioObligatorio = !empty($_SESSION['force_password_change']);
                             $rutaCancelar = ($_SESSION['id_rol'] == 1 || $_SESSION['id_rol'] == 2) 
                                 ? base_url().'usuarios/listar' 
                                 : base_url().'dashboard';
                         ?>
-                        <a href="<?php echo $rutaCancelar; ?>" class="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-bold text-sm hover:bg-white transition-all">Cancelar</a>
+                        <?php if (!$cambioObligatorio): ?>
+                            <a href="<?php echo $rutaCancelar; ?>" class="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-600 font-bold text-sm hover:bg-white transition-all">Cancelar</a>
+                        <?php endif; ?>
                         
                         <button type="submit" class="px-8 py-2.5 rounded-xl bg-scantec-blue text-white font-bold text-sm shadow-md hover:bg-gray-800 transition-all">
                             Cambiar

@@ -1,56 +1,33 @@
-<?php encabezado($data); ?>
+﻿<?php
+encabezado();
+
+$estados = $data['estados'] ?? [];
+$modulosItems = $data['modulos_items'] ?? [];
+$itemsAgrupacion = $data['items_agrupacion'] ?? [];
+$itemsModuloActual = $data['items_modulo_actual'] ?? [];
+$grupos = $data['grupos'] ?? [];
+
+if (empty($grupos) && !empty($data['secciones']) && is_array($data['secciones'])) {
+    foreach ($data['secciones'] as $claveSeccion => $infoSeccion) {
+        $nombreGrupo = $infoSeccion['grupo'] ?? 'General';
+        if (!isset($grupos[$nombreGrupo])) {
+            $grupos[$nombreGrupo] = [];
+        }
+        $grupos[$nombreGrupo][$claveSeccion] = $infoSeccion;
+    }
+}
+?>
 
 <main class="app-content bg-gray-50 min-h-screen py-8 font-sans">
     <div class="container mx-auto px-4">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-scantec-blue uppercase tracking-wide flex items-center">
-                    <i class="fas fa-puzzle-piece mr-3"></i> Funcionalidades del Sistema
-                </h1>
-                <p class="text-sm text-gray-500 mt-1 ml-1">
-                    Activa o desactiva secciones completas. Si una seccion queda desactivada, tambien se bloquea el acceso directo por URL.
-                </p>
-            </div>
-        </div>
+        <form id="frmFuncionalidades" action="<?php echo base_url(); ?>funcionalidades/guardar" method="POST" class="space-y-6">
+            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
 
-        <div class="bg-blue-50 border-l-4 border-scantec-blue p-4 mb-6 rounded-r-lg">
-            <div class="flex gap-3">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-shield-halved text-scantec-blue text-xl"></i>
-                </div>
-                <div>
-                    <h4 class="text-scantec-blue font-bold mb-1">Control centralizado</h4>
-                    <p class="text-gray-700 text-sm">
-                        Esta configuracion afecta tanto al menu como al acceso escribiendo la direccion en el navegador.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <form action="<?php echo base_url(); ?>funcionalidades/guardar" method="POST" id="frmFuncionalidades">
-            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token']; ?>">
-
-            <?php
-            $modulosItems = $data['modulos_items'] ?? [];
-            $itemsAgrupacion = $data['items_agrupacion'] ?? [];
-            $itemsModuloActual = $data['items_modulo_actual'] ?? [];
-            $secciones = $data['secciones'] ?? [];
-            $estados = $data['estados'] ?? [];
-            $grupos = [];
-            foreach ($secciones as $clave => $info) {
-                $grupo = $info['grupo'] ?? 'General';
-                if (!isset($grupos[$grupo])) {
-                    $grupos[$grupo] = [];
-                }
-                $grupos[$grupo][$clave] = $info;
-            }
-            ?>
-
-            <?php if (!empty($grupos['Modulos'])): ?>
+            <?php if (!empty($grupos['M?dulos'])): ?>
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                     <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
                         <h5 class="font-bold text-white flex items-center">
-                            <i class="fas fa-layer-group mr-2 text-white"></i> Modulos
+                            <i class="fas fa-layer-group mr-2 text-white"></i> Módulos
                         </h5>
                     </div>
 
@@ -58,13 +35,13 @@
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Seccion</th>
-                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Descripcion</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Sección</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Descripción</th>
                                     <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-48">Estado</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($grupos['Modulos'] as $clave => $info): ?>
+                                <?php foreach ($grupos['M?dulos'] as $clave => $info): ?>
                                     <?php $habilitado = strval(intval($estados[$clave] ?? 1)); ?>
                                     <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                         <td class="px-6 py-4">
@@ -97,7 +74,7 @@
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                 <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
                     <h5 class="font-bold text-white flex items-center">
-                        <i class="fas fa-sitemap mr-2 text-white"></i> Agrupacion de Vistas y Sub-vistas por Modulo
+                        <i class="fas fa-sitemap mr-2 text-white"></i> Agrupación de Vistas y Sub-vistas por Módulo
                     </h5>
                     <p class="text-xs text-white/80 mt-1">
                         Organiza cada vista y sub-vista dentro del modulo correspondiente: Archivos, Legajos o Sistema.
@@ -110,7 +87,7 @@
                             <tr class="bg-gray-50 border-b border-gray-200">
                                 <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Vista o Sub-vista</th>
                                 <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Ruta</th>
-                                <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-56">Modulo</th>
+                                <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-56">Módulo</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -142,7 +119,7 @@
             </div>
 
             <?php foreach ($grupos as $grupo => $items): ?>
-                <?php if ($grupo === 'Modulos' || $grupo === 'Sistema') { continue; } ?>
+                <?php if ($grupo === 'M?dulos' || $grupo === 'Sistema') { continue; } ?>
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                     <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
                         <h5 class="font-bold text-white flex items-center">
@@ -154,8 +131,8 @@
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-200">
-                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Seccion</th>
-                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Descripcion</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Sección</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Descripción</th>
                                     <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-48">Estado</th>
                                 </tr>
                             </thead>
@@ -207,16 +184,16 @@
 <?php pie(); ?>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function() {
     const btnGuardar = document.getElementById('btnGuardarFuncionalidades');
     if (!btnGuardar) {
         return;
     }
 
-    btnGuardar.addEventListener('click', function () {
+    btnGuardar.addEventListener('click', function() {
         Swal.fire({
             title: 'Guardar funcionalidades',
-            text: 'Se aplicaran los cambios en el menu, en el acceso directo por URL y en la agrupacion por modulo.',
+            text: 'Se aplicaran los cambios en el menu, en el acceso directo por URL y en la agrupación por módulo.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#182541',
@@ -231,3 +208,4 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+

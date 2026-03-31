@@ -2,6 +2,51 @@
 
 class Funcionalidades extends Controllers
 {
+    private function filtrarAccesosPorModulosActivos(array $accesosDisponibles): array
+    {
+        $estados = $this->model->selectEstadosSecciones();
+
+        $mapaAccesoModulo = [
+            'buscador_archivos' => 'archivos',
+            'reporte_expedientes' => 'archivos',
+            'subir_archivos' => 'archivos',
+            'log_documentos' => 'archivos',
+            'visitas_archivos' => 'archivos',
+            'unir_pdf' => 'unir_pdf',
+            'dashboard_legajos' => 'dashboard',
+            'armar_legajo' => 'legajos',
+            'buscar_legajos' => 'legajos',
+            'verificar_legajos' => 'legajos',
+            'administrar_legajos' => 'legajos',
+            'permisos_legajos' => 'legajos',
+            'log_legajos' => 'legajos',
+        ];
+
+        foreach ($accesosDisponibles as $clave => $info) {
+            $modulo = $mapaAccesoModulo[$clave] ?? null;
+            if ($modulo === null) {
+                continue;
+            }
+
+            if (intval($estados[$modulo] ?? 1) !== 1) {
+                unset($accesosDisponibles[$clave]);
+            }
+        }
+
+        return $accesosDisponibles;
+    }
+
+    private function esAdministradorScantec(): bool
+    {
+        return intval($_SESSION['id_rol'] ?? 0) === 1
+            || strtolower(trim((string)($_SESSION['usuario'] ?? ''))) === 'root';
+    }
+
+    private function esAdministradorSistemaOGlobal(): bool
+    {
+        return in_array(intval($_SESSION['id_rol'] ?? 0), [1, 5], true);
+    }
+
     public function __construct()
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -11,22 +56,57 @@ class Funcionalidades extends Controllers
             header('Location: ' . base_url());
             exit();
         }
-        if (intval($_SESSION['id_rol'] ?? 0) !== 1) {
+        if (!$this->esAdministradorSistemaOGlobal()) {
             require_once 'Models/FuncionalidadesModel.php';
-            setAlert('warning', 'Solo el Administrador del sistema puede gestionar funcionalidades.');
-            header('Location: ' . base_url() . FuncionalidadesModel::obtenerRutaRedireccionSegura(intval($_SESSION['id_rol'] ?? 0)));
+            setAlert('warning', 'No tienes permiso para acceder a funcionalidades.');
+            header('Location: ' . base_url() . FuncionalidadesModel::obtenerRutaRedireccionSegura(intval($_SESSION['id_rol'] ?? 0), intval($_SESSION['id_departamento'] ?? 0)));
             exit();
         }
 
         parent::__construct();
         $this->model->asegurarTablaFuncionalidades();
         $this->model->asegurarTablaAgrupacionItems();
+        $this->model->asegurarTablaAccesosRolDepartamento();
+        $this->model->asegurarTablaParametros();
+
+        if (
+            !$this->esAdministradorScantec() &&
+            !$this->model->puedeAccederItemPorContexto(
+                'funcionalidades_accesos',
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            )
+        ) {
+            setAlert('warning', 'No tienes permiso para acceder a funcionalidades.');
+            header('Location: ' . base_url() . FuncionalidadesModel::obtenerRutaRedireccionSegura(
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            ));
+            exit();
+        }
     }
 
     public function listar()
     {
+        if (!$this->esAdministradorScantec()) {
+            setAlert('warning', 'Solo el Administrador Scantec puede gestionar módulos.');
+            header('Location: ' . base_url() . 'funcionalidades/accesos');
+            exit();
+        }
+
+        $secciones = FuncionalidadesModel::getSeccionesDisponibles();
+        $grupos = [];
+        foreach ($secciones as $claveSeccion => $infoSeccion) {
+            $grupo = $infoSeccion['grupo'] ?? 'General';
+            if (!isset($grupos[$grupo])) {
+                $grupos[$grupo] = [];
+            }
+            $grupos[$grupo][$claveSeccion] = $infoSeccion;
+        }
+
         $data = [
-            'secciones' => FuncionalidadesModel::getSeccionesDisponibles(),
+            'secciones' => $secciones,
+            'grupos' => $grupos,
             'estados' => $this->model->selectEstadosSecciones(),
             'modulos_items' => FuncionalidadesModel::getModulosItemsDisponibles(),
             'items_agrupacion' => FuncionalidadesModel::getItemsAgrupacionDisponibles(),
@@ -37,8 +117,49 @@ class Funcionalidades extends Controllers
         $this->views->getView($this, 'listar', $data);
     }
 
+    public function accesos()
+    {
+        require_once 'Models/SeguridadLegajosModel.php';
+
+        $seguridadModel = new SeguridadLegajosModel();
+        $roles = $seguridadModel->selectRoles();
+
+        $idRol = intval($_GET['id_rol'] ?? ($roles[0]['id_rol'] ?? 0));
+        $rolActual = [];
+        foreach ($roles as $rol) {
+            if (intval($rol['id_rol'] ?? 0) === $idRol) {
+                $rolActual = $rol;
+                break;
+            }
+        }
+        if (empty($rolActual) && !empty($roles)) {
+            $rolActual = $roles[0];
+            $idRol = intval($rolActual['id_rol'] ?? 0);
+        }
+
+        $idDepartamento = intval($rolActual['id_departamento'] ?? 0);
+        $accesosDisponibles = $this->filtrarAccesosPorModulosActivos(FuncionalidadesModel::getAccesosDisponibles());
+
+        $data = [
+            'roles' => $roles,
+            'rol_actual' => $rolActual,
+            'id_rol_actual' => $idRol,
+            'id_departamento_actual' => $idDepartamento,
+            'accesos_disponibles' => $accesosDisponibles,
+            'accesos_actuales' => $this->model->selectAccesosPorRolDepartamento($idRol, $idDepartamento),
+        ];
+
+        $this->views->getView($this, 'accesos', $data);
+    }
+
     public function guardar()
     {
+        if (!$this->esAdministradorScantec()) {
+            setAlert('warning', 'Solo el Administrador Scantec puede gestionar módulos.');
+            header('Location: ' . base_url() . 'funcionalidades/accesos');
+            exit();
+        }
+
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header('Location: ' . base_url() . 'funcionalidades/listar');
             exit();
@@ -64,6 +185,46 @@ class Funcionalidades extends Controllers
         }
 
         header('Location: ' . base_url() . 'funcionalidades/listar');
+        exit();
+    }
+
+    public function guardar_accesos()
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . base_url() . 'funcionalidades/accesos');
+            exit();
+        }
+
+        if (!Validador::csrfValido()) {
+            setAlert('error', 'Token CSRF invalido o expirado.');
+            header('Location: ' . base_url() . 'funcionalidades/accesos');
+            exit();
+        }
+
+        require_once 'Models/SeguridadLegajosModel.php';
+        $seguridadModel = new SeguridadLegajosModel();
+
+        $idRol = intval($_POST['id_rol'] ?? 0);
+        $items = $_POST['accesos'] ?? [];
+        $idUsuario = intval($_SESSION['id'] ?? 0);
+        $rolActual = $seguridadModel->selectRolPorId($idRol);
+        $idDepartamento = intval($rolActual['id_departamento'] ?? 0);
+
+        if ($idRol <= 0 || $idDepartamento <= 0) {
+            setAlert('warning', 'El rol seleccionado debe tener un departamento asociado para configurar accesos.');
+            header('Location: ' . base_url() . 'funcionalidades/accesos');
+            exit();
+        }
+
+        $guardado = $this->model->guardarAccesosRolDepartamento($idRol, $idDepartamento, $items, $idUsuario);
+
+        if ($guardado) {
+            setAlert('success', 'Los accesos por rol y departamento se actualizaron correctamente.');
+        } else {
+            setAlert('error', 'No se pudieron guardar los accesos por rol y departamento.');
+        }
+
+        header('Location: ' . base_url() . 'funcionalidades/accesos?id_rol=' . $idRol);
         exit();
     }
 }

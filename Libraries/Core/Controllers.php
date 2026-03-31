@@ -13,6 +13,7 @@ class Controllers
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
         }
+        $this->bootstrapJerarquiaRolesScantec();
         // Cargas normales del framework
         $this->views = new Views();
         $this->loadModel();
@@ -202,10 +203,6 @@ class Controllers
             return;
         }
 
-        if (!isset($_SESSION['ACTIVO']) || $_SESSION['ACTIVO'] !== true) {
-            return;
-        }
-
         $rutaActual = strtolower(trim((string)($_GET['url'] ?? ''), '/'));
         if ($rutaActual === '') {
             return;
@@ -227,20 +224,77 @@ class Controllers
         }
 
         try {
+            $itemAcceso = FuncionalidadesModel::resolverItemAccesoPorRuta($rutaActual);
+            $rutasGestionUsuarios = [
+                'usuarios/listar',
+                'usuarios/detalle',
+                'usuarios/editar',
+                'usuarios/actualizar',
+                'usuarios/insertar',
+                'usuarios/eliminar',
+                'usuarios/bloquear',
+                'usuarios/reingresar',
+                'usuarios/reingresar_masivo',
+                'usuarios/importar',
+                'usuarios/confirmar_importacion',
+                'usuarios/cancelar_importacion',
+                'usuarios/excel',
+                'usuarios/usuario_muestra',
+            ];
+            if ($itemAcceso === 'gestion_usuarios' || in_array($rutaActual, $rutasGestionUsuarios, true)) {
+                return;
+            }
+
+            $funcionalidadesModel = new FuncionalidadesModel();
+            $idRolActual = intval($_SESSION['id_rol'] ?? 0);
+            $idDepartamentoActual = intval($_SESSION['id_departamento'] ?? 0);
+
+            if (
+                $itemAcceso !== null &&
+                !$funcionalidadesModel->puedeAccederItemPorContexto($itemAcceso, $idRolActual, $idDepartamentoActual)
+            ) {
+                setAlert('warning', 'La sección solicitada no está disponible para tu rol y departamento.');
+                $rutaDestino = FuncionalidadesModel::obtenerRutaRedireccionSegura($idRolActual, $idDepartamentoActual);
+                header('Location: ' . base_url() . $rutaDestino);
+                exit();
+            }
+
             $seccion = FuncionalidadesModel::resolverSeccionPorRuta($rutaActual);
             if ($seccion === null) {
                 return;
             }
 
-            $funcionalidadesModel = new FuncionalidadesModel();
             if ($funcionalidadesModel->estaSeccionHabilitada($seccion)) {
                 return;
             }
 
             setAlert('warning', 'La seccion solicitada se encuentra desactivada por el Administrador del sistema.');
-            $rutaDestino = FuncionalidadesModel::obtenerRutaRedireccionSegura(intval($_SESSION['id_rol'] ?? 0));
+            $rutaDestino = FuncionalidadesModel::obtenerRutaRedireccionSegura($idRolActual, $idDepartamentoActual);
             header('Location: ' . base_url() . $rutaDestino);
             exit();
+        } catch (Throwable $e) {
+            return;
+        }
+    }
+
+    private function bootstrapJerarquiaRolesScantec(): void
+    {
+        try {
+            require_once 'Models/UsuariosModel.php';
+            if (!class_exists('UsuariosModel')) {
+                return;
+            }
+
+            $usuariosModel = new UsuariosModel();
+            $usuariosModel->asegurarJerarquiaRolesScantec();
+
+            if (!empty($_SESSION['ACTIVO']) && !empty($_SESSION['id'])) {
+                $idRolActual = $usuariosModel->obtenerRolUsuarioPorId(intval($_SESSION['id']));
+                if ($idRolActual > 0) {
+                    $_SESSION['id_rol'] = $idRolActual;
+                    $_SESSION['PERMISOS'] = $usuariosModel->getPermisosByRol($idRolActual);
+                }
+            }
         } catch (Throwable $e) {
             return;
         }

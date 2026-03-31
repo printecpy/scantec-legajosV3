@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Read-RequiredText {
@@ -571,7 +571,7 @@ USE $(Quote-MysqlIdentifier -Value $databaseName);
 
     $systemAdminHash = Get-PhpBcryptHash -PhpExe $phpExe -PlainPassword $systemAdminPassword
     $databaseIdentifier = Quote-MysqlIdentifier -Value $databaseName
-    $adminRoleDescription = Quote-MysqlString -Value 'Administrador'
+    $adminRoleDescription = Quote-MysqlString -Value 'Administrador Scantec'
     $defaultGroupDescription = Quote-MysqlString -Value 'GENERAL'
     $activeStatus = Quote-MysqlString -Value 'ACTIVO'
     $systemAdminNombreSql = Quote-MysqlString -Value $systemAdminNombre
@@ -589,8 +589,8 @@ INSERT INTO $databaseIdentifier.usu_grupo (id_grupo, descripcion, estado)
 SELECT 1, $defaultGroupDescription, $activeStatus
 WHERE NOT EXISTS (SELECT 1 FROM $databaseIdentifier.usu_grupo WHERE id_grupo = 1);
 
-INSERT INTO $databaseIdentifier.usuarios (nombre, usuario, clave, id_rol, estado_usuario, id_grupo, clave_actualizacion, email, fuente_registro)
-SELECT $systemAdminNombreSql, $systemAdminUsuarioSql, $systemAdminHashSql, 1, $activeStatus, 1, NOW(), $systemAdminEmailSql, $sourceLocalSql
+INSERT INTO $databaseIdentifier.usuarios (nombre, departamento, usuario, clave, id_rol, estado_usuario, id_grupo, clave_actualizacion, email, fuente_registro)
+SELECT $systemAdminNombreSql, 'SISTEMAS', $systemAdminUsuarioSql, $systemAdminHashSql, 1, $activeStatus, 1, NOW(), $systemAdminEmailSql, $sourceLocalSql
 WHERE NOT EXISTS (
     SELECT 1
     FROM $databaseIdentifier.usuarios
@@ -629,7 +629,7 @@ WHERE NOT EXISTS (
     } else {
         Write-Host ("Base creada usando las credenciales actuales: " + $rootUser + "@localhost") -ForegroundColor Yellow
     }
-    Write-Host ("Administrador del sistema creado: " + $systemAdminUsuario) -ForegroundColor Green
+    Write-Host ("Administrador Scantec creado: " + $systemAdminUsuario) -ForegroundColor Green
     Write-Host ("Conexion verificada y registrada en Config/DB_Config.php para la base '" + $databaseName + "'.") -ForegroundColor Green
     Write-Host "Credenciales tomadas desde Config/DB_Config.php." -ForegroundColor Green
     Write-Host ""
@@ -639,3 +639,4 @@ WHERE NOT EXISTS (
     Write-Host ""
     exit 1
 }
+

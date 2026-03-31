@@ -17,9 +17,9 @@
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 Swal.fire({
-                    icon: '<?php echo $_SESSION['alert']['type']; ?>',
+                    icon: <?php echo json_encode((string)($_SESSION['alert']['type'] ?? 'info')); ?>,
                     title: 'Atención',
-                    text: '<?php echo $_SESSION['alert']['message']; ?>',
+                    text: <?php echo json_encode((string)($_SESSION['alert']['message'] ?? '')); ?>,
                     confirmButtonColor: '#182541',
                     confirmButtonText: 'Entendido'
                 });
@@ -44,16 +44,7 @@
                 $basesDisponibles = isset($data['bases_disponibles']) && is_array($data['bases_disponibles']) ? $data['bases_disponibles'] : [defined('BD') ? BD : 'scantec_basic'];
                 $baseActual = isset($data['base_actual']) && $data['base_actual'] !== '' ? $data['base_actual'] : (defined('BD') ? BD : 'scantec_basic');
                 ?>
-                <div class="relative">
-                    <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Tipo de Acceso</label>
-                    <select name="fuente_registro" class="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50 appearance-none cursor-pointer font-semibold text-gray-700">
-                        <option value="scantec" selected>Usuario Local</option>
-                        <option value="LDAP">Usuario AD</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 pt-6 text-gray-400">
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                </div>
+                <input type="hidden" name="fuente_registro" value="scantec">
 
                 <div>
                     <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Usuario</label>
@@ -66,10 +57,14 @@
                     <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Contraseña</label>
                     <input type="password" name="clave" required
                         class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50"
-                        placeholder="••••••••">
+                        placeholder="********">
                 </div>
 
-                <div class="flex items-center justify-end">
+                <div class="flex items-center justify-between gap-4">
+                    <a href="<?php echo base_url(); ?>home/registrarse"
+                        class="text-scantec-blue hover:underline font-bold text-xs uppercase">
+                        Registrarse
+                    </a>
                     <a href="<?php echo base_url(); ?>home/restablecer_pw"
                         class="text-scantec-red hover:underline font-bold text-xs uppercase">¿Olvidaste tu contraseña?</a>
                 </div>
@@ -94,11 +89,11 @@
 
         <div class="bg-scantec-blue/5 py-3 text-center border-t border-gray-100">
             <p class="text-[9px] text-scantec-gray font-bold uppercase tracking-[0.2em]">
-                © 2023 - 2026 PRINTEC SA | SOFTWARE DE GESTIÓN DOCUMENTAL
+                © 2023 - 2026 PRINTEC SA | SOFTWARE DE GESTION DOCUMENTAL
             </p>
         </div>
     </div>
-
 </body>
 
 </html>
+

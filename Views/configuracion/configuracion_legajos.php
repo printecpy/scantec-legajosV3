@@ -9,6 +9,8 @@ $tipo_documento_actual = $data['tipo_documento_actual'] ?? null;
 $tab_actual = $data['tab_actual'] ?? 'catalogo';
 $documento_editar = $data['documento_editar'] ?? null;
 $tipo_legajo_editar = $data['tipo_legajo_editar'] ?? null;
+$requisito_editar = $data['requisito_editar'] ?? null;
+$relacion_editar = $data['relacion_editar'] ?? null;
 $relaciones = $data['relaciones'] ?? [];
 $politicas_actualizacion = $data['politicas_actualizacion'] ?? [];
 $todas_relaciones = $data['todas_relaciones'] ?? [];
@@ -38,7 +40,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                     <i class="fas fa-folder-tree mr-2"></i> 2. Tipos de Legajos
                 </button>
                 <button onclick="cambiarPestana('matriz')" id="tab-matriz" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
-                    <i class="fas fa-project-diagram mr-2"></i> 3. Matriz de Requisitos (Checklists)
+                    <i class="fas fa-project-diagram mr-2"></i> 3. Matriz de Requisitos
                 </button>
                 <button onclick="cambiarPestana('datos')" id="tab-datos" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
                     <i class="fas fa-database mr-2"></i> 4. Datos generales
@@ -96,15 +98,20 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div class="flex flex-col justify-end gap-2">
-                            <button type="submit" class="bg-scantec-blue text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-blue-800">
+                            <button type="submit" class="bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                                 <?php echo !empty($documento_editar) ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
-                        <div class="md:col-span-6 flex gap-6 text-sm">
-                            <label class="inline-flex items-center gap-2">
-                                <input type="checkbox" name="activo" value="1" <?php echo !isset($documento_editar) || !empty($documento_editar['activo']) ? 'checked' : ''; ?>>
-                                Activo
-                            </label>
+                        <div class="md:col-span-6 flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between">
+                            <div class="flex flex-col gap-1">
+                                <label class="inline-flex items-center gap-2 font-medium text-gray-700">
+                                    <input type="checkbox" name="activo" value="1" <?php echo !isset($documento_editar) || !empty($documento_editar['activo']) ? 'checked' : ''; ?>>
+                                    Activo
+                                </label>
+                                <?php if (!empty($documento_editar) && empty($documento_editar['activo'])): ?>
+                                <span class="text-xs font-medium text-amber-700">Al marcar esta opción, el documento vuelve a quedar activo.</span>
+                                <?php endif; ?>
+                            </div>
                             <?php if (!empty($documento_editar)): ?>
                             <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=catalogo" class="text-sm text-gray-600 hover:text-gray-900 font-bold">
                                 Cancelar edición
@@ -133,34 +140,44 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             <?php endif; ?>
 
                             <?php foreach ($catalogo_documentos as $documento): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 text-sm font-bold text-gray-900"><?php echo htmlspecialchars($documento['nombre']); ?></td>
-                                <td class="px-4 py-4 text-sm text-gray-500 font-mono"><?php echo htmlspecialchars($documento['codigo_interno'] ?? '-'); ?></td>
+                            <?php $documentoActivo = !empty($documento['activo']); ?>
+                            <tr class="<?php echo $documentoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                <td class="px-6 py-4 text-sm font-bold <?php echo $documentoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                    <div class="flex items-center gap-2">
+                                        <span><?php echo htmlspecialchars($documento['nombre']); ?></span>
+                                        <?php if (!$documentoActivo): ?>
+                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-4 text-sm font-mono <?php echo $documentoActivo ? 'text-gray-500' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($documento['codigo_interno'] ?? '-'); ?></td>
                                 <td class="px-4 py-4 text-center">
                                     <?php if (!empty($documento['tiene_vencimiento'])): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">SÍ</span>
+                                    <span class="px-2 py-1 text-xs font-bold rounded <?php echo $documentoActivo ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'; ?>">SÍ</span>
                                     <?php else: ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">NO</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-4 py-4 text-center text-sm text-gray-700">
+                                <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
                                     <?php echo !empty($documento['dias_vigencia_base']) ? intval($documento['dias_vigencia_base']) . ' días' : '-'; ?>
                                 </td>
-                                <td class="px-4 py-4 text-center text-sm text-gray-700">
+                                <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
                                     <?php echo !empty($documento['dias_alerta_previa']) ? intval($documento['dias_alerta_previa']) . ' días' : '-'; ?>
                                 </td>
                                 <td class="px-6 py-4 text-right">
-                                    <a class="text-blue-600 hover:text-blue-900 mx-2" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=catalogo&editar_documento=<?php echo intval($documento['id_documento_maestro']); ?>">
-                                        <i class="fas fa-edit"></i>
+                                    <div class="flex justify-end gap-2">
+                                    <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=catalogo&editar_documento=<?php echo intval($documento['id_documento_maestro']); ?>" title="Editar">
+                                        <i class="fas fa-pen"></i>
                                     </a>
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/cambiar_estado_catalogo_legajo" class="inline">
+                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_documento_legajo" class="inline-flex" onsubmit="return confirmarAccionDocumentoCatalogo(this);">
                                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                                         <input type="hidden" name="id_documento_maestro" value="<?php echo intval($documento['id_documento_maestro']); ?>">
-                                        <input type="hidden" name="activo" value="<?php echo !empty($documento['activo']) ? 0 : 1; ?>">
-                                        <button class="text-red-500 hover:text-red-700 mx-2" type="submit">
+                                        <input type="hidden" name="accion_catalogo" value="desactivar">
+                                        <button class="btn-action btn-action-danger" type="submit" title="Eliminar">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -208,7 +225,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             </label>
                         </div>
                         <div>
-                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-blue-800">
+                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                                 <?php echo !empty($tipo_legajo_editar) ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
@@ -245,34 +262,45 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             <?php endif; ?>
 
                             <?php foreach ($tipos_documento as $tipo_documento): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 text-sm font-bold text-gray-900"><?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?></td>
-                                <td class="px-6 py-4 text-sm text-gray-700"><?php echo htmlspecialchars($tipo_documento['descripcion'] ?? '-'); ?></td>
+                            <?php $tipoActivo = !isset($tipo_documento['activo']) || !empty($tipo_documento['activo']); ?>
+                            <tr class="<?php echo $tipoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                <td class="px-6 py-4 text-sm font-bold <?php echo $tipoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                    <div class="flex items-center gap-2">
+                                        <span><?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?></span>
+                                        <?php if (!$tipoActivo): ?>
+                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm <?php echo $tipoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($tipo_documento['descripcion'] ?? '-'); ?></td>
                                 <td class="px-4 py-4 text-center">
                                     <?php if (!empty($tipo_documento['requiere_nro_solicitud'])): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-blue-100 text-blue-800">SI</span>
+                                    <span class="px-2 py-1 text-xs font-bold rounded <?php echo $tipoActivo ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-500'; ?>">SI</span>
                                     <?php else: ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">NO</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-4 text-center">
-                                    <?php if (!isset($tipo_documento['activo']) || !empty($tipo_documento['activo'])): ?>
+                                    <?php if ($tipoActivo): ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
                                     <?php else: ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 text-right">
-                                    <a class="text-blue-600 hover:text-blue-900 mx-2" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=<?php echo intval($tipo_documento['id_tipoDoc']); ?>">
-                                        <i class="fas fa-edit"></i>
+                                    <div class="flex justify-end gap-2 <?php echo $tipoActivo ? '' : 'opacity-75'; ?>">
+                                    <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=<?php echo intval($tipo_documento['id_tipoDoc']); ?>" title="Editar">
+                                        <i class="fas fa-pen"></i>
                                     </a>
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_tipo_legajo" class="inline">
+                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_tipo_legajo" class="inline-flex" onsubmit="return confirmarAccionTipoLegajo(this);">
                                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                                         <input type="hidden" name="id_tipo_legajo" value="<?php echo intval($tipo_documento['id_tipoDoc']); ?>">
-                                        <button class="text-red-500 hover:text-red-700 mx-2" type="submit">
+                                        <input type="hidden" name="accion_tipo_legajo" value="desactivar">
+                                        <button class="btn-action btn-action-danger" type="submit" title="Eliminar o desactivar">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -298,12 +326,12 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button class="px-6 py-2.5 bg-gray-800 text-white rounded-lg font-bold shadow-sm hover:bg-black transition-all" type="submit">
+                    <button class="px-6 py-2.5 bg-gray-800 text-white rounded-xl font-bold shadow-md hover:bg-black transition-all flex items-center justify-center" type="submit">
                         Cargar Matriz
                     </button>
                 </form>
-                <button type="button" onclick="togglePanel('panel-nuevo-tipo-legajo')"
-                    class="hidden px-3 py-2.5 bg-scantec-blue text-white rounded-lg font-bold shadow-sm hover:bg-blue-800 transition-all">
+                    <button type="button" onclick="togglePanel('panel-nuevo-tipo-legajo')"
+                    class="hidden px-3 py-2.5 bg-scantec-blue text-white rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
@@ -317,12 +345,12 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">DescripciÃ³n</label>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
                         <input type="text" name="descripcion_tipo_legajo"
                             class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                     </div>
                     <div>
-                        <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-blue-800">
+                        <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                             Guardar
                         </button>
                     </div>
@@ -335,72 +363,92 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                         <i class="fas fa-list-check mr-2 text-yellow-500"></i> Reglas para: <?php echo htmlspecialchars($tipo_documento_actual['nombre_tipoDoc'] ?? 'Sin selección'); ?>
                     </h5>
                     <button type="button" onclick="togglePanel('panel-nueva-regla')"
-                        class="bg-scantec-blue text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-blue-600">
+                        class="bg-scantec-blue text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-800 transition-all">
                         <i class="fas fa-plus mr-1"></i> Agregar Regla
                     </button>
                 </div>
 
-                <div id="panel-nueva-regla" class="hidden p-6 border-b border-gray-100 bg-gray-50">
-                    <form method="POST" action="<?php echo base_url(); ?>configuracion/guardar_matriz_legajo" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                <?php
+                $requisitoEditarValido = is_array($requisito_editar) && !empty($requisito_editar);
+                $requisitoEditarId = intval($requisito_editar['id_requisito'] ?? 0);
+                $requisitoEditarDocumento = intval($requisito_editar['id_documento_maestro'] ?? 0);
+                $requisitoEditarRol = $requisito_editar['rol_vinculado'] ?? 'TITULAR';
+                $requisitoEditarOrden = intval($requisito_editar['orden_visual'] ?? (count($matriz_requisitos) + 1));
+                $requisitoEditarObligatorio = $requisitoEditarValido ? !empty($requisito_editar['es_obligatorio']) : true;
+                $requisitoEditarActivo = $requisitoEditarValido ? !empty($requisito_editar['activo']) : true;
+                $politicaReglaEditar = strtoupper(trim((string)($requisito_editar['politica_actualizacion'] ?? 'REEMPLAZAR')));
+                ?>
+
+                <div id="panel-nueva-regla" class="<?php echo $requisitoEditarValido ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
+                    <form method="POST" action="<?php echo $requisitoEditarValido ? base_url() . 'configuracion/actualizar_matriz_legajo' : base_url() . 'configuracion/guardar_matriz_legajo'; ?>" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                         <input type="hidden" name="id_tipoDoc" value="<?php echo intval($id_tipoDoc_actual); ?>">
+                        <?php if ($requisitoEditarValido): ?>
+                        <input type="hidden" name="id_requisito" value="<?php echo $requisitoEditarId; ?>">
+                        <?php endif; ?>
                         <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Orden</label>
+                            <input type="number" name="orden_visual" min="1" value="<?php echo $requisitoEditarOrden; ?>"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                        </div>
+                        <div class="md:col-span-5">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Documento Maestro</label>
                             <select name="id_documento_maestro" required class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                                 <option value="">Seleccione...</option>
                                 <?php foreach ($catalogo_documentos as $documento): ?>
-                                    <?php if (!empty($documento['activo'])): ?>
-                                    <option value="<?php echo intval($documento['id_documento_maestro']); ?>">
+                                    <?php if (!empty($documento['activo']) || intval($documento['id_documento_maestro']) === $requisitoEditarDocumento): ?>
+                                    <option value="<?php echo intval($documento['id_documento_maestro']); ?>" <?php echo intval($documento['id_documento_maestro']) === $requisitoEditarDocumento ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($documento['nombre']); ?>
                                     </option>
                                     <?php endif; ?>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div>
+                        <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Rol</label>
                             <select name="rol_vinculado" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                                 <?php foreach ($relaciones as $rel): ?>
-                                <option value="<?php echo htmlspecialchars($rel['nombre']); ?>"><?php echo htmlspecialchars($rel['nombre']); ?></option>
+                                <option value="<?php echo htmlspecialchars($rel['nombre']); ?>" <?php echo $requisitoEditarRol === $rel['nombre'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($rel['nombre']); ?></option>
                                 <?php endforeach; ?>
                                 <?php if (empty($relaciones)): ?>
                                 <option value="TITULAR">TITULAR</option>
                                 <?php endif; ?>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Orden</label>
-                            <input type="number" name="orden_visual" min="1" value="<?php echo count($matriz_requisitos) + 1; ?>"
-                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
-                        </div>
-                        <div class="text-sm space-y-2">
-                            <label class="flex items-center gap-2">
-                                <input type="checkbox" name="es_obligatorio" value="1" checked>
-                                Obligatorio
-                            </label>
-                        </div>
-                        <div>
+                        <div class="md:col-span-3">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Al cargar otro archivo</label>
                             <select name="politica_actualizacion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                                 <?php foreach ($politicas_actualizacion as $pol): ?>
-                                <option value="<?php echo htmlspecialchars($pol['clave']); ?>"><?php echo htmlspecialchars($pol['etiqueta']); ?></option>
+                                <option value="<?php echo htmlspecialchars($pol['clave']); ?>" <?php echo $politicaReglaEditar === $pol['clave'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($pol['etiqueta']); ?></option>
                                 <?php endforeach; ?>
                                 <?php if (empty($politicas_actualizacion)): ?>
                                 <option value="REEMPLAZAR" selected>Solo reemplazar</option>
                                 <?php endif; ?>
                             </select>
                         </div>
-                        <div>
-                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-blue-800">
-                                Guardar
+                        <div class="md:col-span-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm pt-1">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="checkbox" name="es_obligatorio" value="1" <?php echo $requisitoEditarObligatorio ? 'checked' : ''; ?>>
+                                Obligatorio
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-gray-700">
+                                <input type="checkbox" name="activo" value="1" <?php echo $requisitoEditarActivo ? 'checked' : ''; ?>>
+                                Activo
+                            </label>
+                        </div>
+                        <div class="md:col-span-2">
+                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
+                                <?php echo $requisitoEditarValido ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
+                        <?php if ($requisitoEditarValido): ?>
+                        <div class="md:col-span-6 text-right">
+                            <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=<?php echo intval($id_tipoDoc_actual); ?>" class="text-sm text-gray-600 hover:text-gray-900 font-bold">Cancelar edición</a>
+                        </div>
+                        <?php endif; ?>
                     </form>
                 </div>
 
-                <form method="POST" action="<?php echo base_url(); ?>configuracion/guardar_cambios_matriz_legajo">
-                    <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                    <input type="hidden" name="id_tipoDoc" value="<?php echo intval($id_tipoDoc_actual); ?>">
                 <div class="p-0 overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
@@ -410,7 +458,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Relación</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Obligatorio</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Actualización</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -421,68 +469,60 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             <?php endif; ?>
 
                             <?php foreach ($matriz_requisitos as $requisito): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-4 text-center">
-                                    <input type="number" name="reglas[<?php echo intval($requisito['id_requisito']); ?>][orden_visual]" value="<?php echo intval($requisito['orden_visual']); ?>" class="w-16 px-2 py-1 text-center border rounded text-sm font-bold">
-                                </td>
-                                <td class="px-6 py-4">
-                                    <select name="reglas[<?php echo intval($requisito['id_requisito']); ?>][id_documento_maestro]" class="w-full px-2 py-1.5 border rounded text-sm text-gray-700 font-bold">
-                                        <?php foreach ($catalogo_documentos as $documento): ?>
-                                        <option value="<?php echo intval($documento['id_documento_maestro']); ?>" <?php echo intval($documento['id_documento_maestro']) === intval($requisito['id_documento_maestro']) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($documento['nombre']); ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </td>
-                                <td class="px-4 py-4">
-                                    <select name="reglas[<?php echo intval($requisito['id_requisito']); ?>][rol_vinculado]" class="w-full px-2 py-1.5 border rounded text-sm text-gray-700">
-                                        <?php foreach ($relaciones as $rel): ?>
-                                        <option value="<?php echo htmlspecialchars($rel['nombre']); ?>" <?php echo $requisito['rol_vinculado'] === $rel['nombre'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($rel['nombre']); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </td>
-                                <td class="px-4 py-4 text-center">
-                                    <input type="hidden" name="reglas[<?php echo intval($requisito['id_requisito']); ?>][es_obligatorio]" value="0">
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="reglas[<?php echo intval($requisito['id_requisito']); ?>][es_obligatorio]" value="1" <?php echo !empty($requisito['es_obligatorio']) ? 'checked' : ''; ?> class="sr-only peer">
-                                        <div class="w-9 h-5 bg-gray-200 rounded-full transition-colors peer-checked:bg-green-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-transform peer-checked:after:translate-x-full"></div>
-                                    </label>
-                                </td>
-                                <td class="px-4 py-4 text-center">
-                                    <?php
-                                    $politicaActualizacion = strtoupper(trim((string)($requisito['politica_actualizacion'] ?? '')));
-                                    if ($politicaActualizacion === '') {
-                                        $politicaActualizacion = !empty($requisito['permite_reemplazo']) ? 'REEMPLAZAR' : 'NO_PERMITIR';
+                            <?php $requisitoActivo = !isset($requisito['activo']) || !empty($requisito['activo']); ?>
+                            <?php
+                                $politicaActualizacion = strtoupper(trim((string)($requisito['politica_actualizacion'] ?? '')));
+                                if ($politicaActualizacion === '') {
+                                    $politicaActualizacion = !empty($requisito['permite_reemplazo']) ? 'REEMPLAZAR' : 'NO_PERMITIR';
+                                }
+                                $etiquetaPolitica = $politicaActualizacion;
+                                foreach ($politicas_actualizacion as $pol) {
+                                    if (($pol['clave'] ?? '') === $politicaActualizacion) {
+                                        $etiquetaPolitica = $pol['etiqueta'];
+                                        break;
                                     }
-                                    ?>
-                                    <select name="reglas[<?php echo intval($requisito['id_requisito']); ?>][politica_actualizacion]" class="w-full px-2 py-1.5 border rounded text-sm text-gray-700">
-                                        <?php foreach ($politicas_actualizacion as $pol): ?>
-                                        <option value="<?php echo htmlspecialchars($pol['clave']); ?>" <?php echo $politicaActualizacion === $pol['clave'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($pol['etiqueta']); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
+                                }
+                            ?>
+                            <tr class="<?php echo $requisitoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                <td class="px-4 py-4 text-center text-sm font-bold <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo intval($requisito['orden_visual']); ?></td>
+                                <td class="px-6 py-4 text-sm font-bold <?php echo $requisitoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                    <div class="flex items-center gap-2">
+                                        <span><?php echo htmlspecialchars($requisito['documento_nombre'] ?? ''); ?></span>
+                                        <?php if (!$requisitoActivo): ?>
+                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
+                                <td class="px-4 py-4 text-sm <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($requisito['rol_vinculado'] ?? 'TITULAR'); ?></td>
+                                <td class="px-4 py-4 text-center">
+                                    <?php if (!empty($requisito['es_obligatorio'])): ?>
+                                    <span class="px-2 py-1 text-xs font-bold rounded <?php echo $requisitoActivo ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'; ?>">Sí</span>
+                                    <?php else: ?>
+                                    <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">No</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-4 py-4 text-center text-sm <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($etiquetaPolitica); ?></td>
                                 <td class="px-6 py-4 text-right">
-                                    <button class="text-red-500 hover:text-red-700 font-bold text-xs" type="submit"
-                                        formaction="<?php echo base_url(); ?>configuracion/eliminar_matriz_legajo"
-                                        formmethod="POST"
-                                        name="id_requisito"
-                                        value="<?php echo intval($requisito['id_requisito']); ?>">
-                                        <i class="fas fa-times-circle mr-1"></i> Quitar
-                                    </button>
+                                    <div class="flex justify-end gap-2 <?php echo $requisitoActivo ? '' : 'opacity-75'; ?>">
+                                        <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=<?php echo intval($id_tipoDoc_actual); ?>&editar_requisito=<?php echo intval($requisito['id_requisito']); ?>" title="Editar">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                        <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_matriz_legajo" class="inline-flex" onsubmit="return confirmarAccionMatrizLegajo(this);">
+                                            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                            <input type="hidden" name="id_tipoDoc" value="<?php echo intval($id_tipoDoc_actual); ?>">
+                                            <input type="hidden" name="id_requisito" value="<?php echo intval($requisito['id_requisito']); ?>">
+                                            <input type="hidden" name="accion_matriz" value="desactivar">
+                                            <button class="btn-action btn-action-danger" type="submit" title="Eliminar o desactivar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                    
-                    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 text-right">
-                        <button class="bg-scantec-blue text-white px-6 py-2.5 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition-colors" type="submit">
-                            <i class="fas fa-save mr-2"></i> Guardar Cambios de Matriz
-                        </button>
-                    </div>
-
                 </div>
-                </form>
             </div>
         </div>
 
@@ -501,25 +541,47 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                     </button>
                 </div>
 
-                <div id="panel-nueva-relacion" class="hidden p-6 border-b border-gray-100 bg-gray-50">
-                    <form method="POST" action="<?php echo base_url(); ?>configuracion/guardar_relacion"
-                        class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <?php
+                $relacionEditarValida = is_array($relacion_editar) && !empty($relacion_editar);
+                $relacionEditarId = intval($relacion_editar['id_relacion'] ?? 0);
+                $relacionEditarNombre = $relacion_editar['nombre'] ?? '';
+                $relacionEditarOrden = intval($relacion_editar['orden'] ?? (count($todas_relaciones) + 1));
+                $relacionEditarActiva = $relacionEditarValida ? !empty($relacion_editar['activo']) : true;
+                ?>
+
+                <div id="panel-nueva-relacion" class="<?php echo $relacionEditarValida ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
+                    <form method="POST" action="<?php echo $relacionEditarValida ? base_url() . 'configuracion/actualizar_relacion' : base_url() . 'configuracion/guardar_relacion'; ?>"
+                        class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                        <div class="md:col-span-2">
+                        <?php if ($relacionEditarValida): ?>
+                        <input type="hidden" name="id_relacion" value="<?php echo $relacionEditarId; ?>">
+                        <?php endif; ?>
+                        <div class="md:col-span-3">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre de la relación</label>
-                            <input type="text" name="nombre_relacion" required placeholder="Ej: GARANTE, AVAL, FIADOR..."
+                            <input type="text" name="nombre_relacion" required placeholder="Ej: GARANTE, AVAL, FIADOR..." value="<?php echo htmlspecialchars($relacionEditarNombre); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none uppercase">
                         </div>
-                        <div>
+                        <div class="md:col-span-1">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Orden</label>
-                            <input type="number" name="orden_relacion" min="1" value="<?php echo count($todas_relaciones) + 1; ?>"
+                            <input type="number" name="orden_relacion" min="1" value="<?php echo $relacionEditarOrden; ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
-                        <div>
-                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-blue-800 transition-colors">
-                                <i class="fas fa-save mr-1"></i> Guardar
+                        <div class="md:col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm pt-1">
+                            <label class="inline-flex items-center gap-2 text-gray-700">
+                                <input type="checkbox" name="activo_relacion" value="1" <?php echo $relacionEditarActiva ? 'checked' : ''; ?>>
+                                Activo
+                            </label>
+                        </div>
+                        <div class="md:col-span-1">
+                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
+                                <?php echo $relacionEditarValida ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
+                        <?php if ($relacionEditarValida): ?>
+                        <div class="md:col-span-6 text-right">
+                            <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=datos" class="text-sm text-gray-600 hover:text-gray-900 font-bold">Cancelar edición</a>
+                        </div>
+                        <?php endif; ?>
                     </form>
                 </div>
 
@@ -527,50 +589,54 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-20">Orden</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-28">Estado</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase w-32">Acciones</th>
+                                <th class="px-4 py-2.5 text-center text-xs font-bold text-gray-500 uppercase w-20">Orden</th>
+                                <th class="px-6 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
+                                <th class="px-4 py-2.5 text-center text-xs font-bold text-gray-500 uppercase w-28">Estado</th>
+                                <th class="px-6 py-2.5 text-right text-xs font-bold text-gray-500 uppercase w-32">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             <?php if (empty($todas_relaciones)): ?>
                             <tr class="hover:bg-gray-50">
-                                <td colspan="4" class="px-6 py-4 text-sm text-gray-500 text-center">No hay relaciones configuradas.</td>
+                                <td colspan="4" class="px-6 py-3 text-sm text-gray-500 text-center">No hay relaciones configuradas.</td>
                             </tr>
                             <?php endif; ?>
 
                             <?php foreach ($todas_relaciones as $relacion): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-4 text-center text-sm font-bold text-gray-700">
+                            <?php $relacionActiva = !empty($relacion['activo']); ?>
+                            <tr class="<?php echo $relacionActiva ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                <td class="px-4 py-2.5 text-center text-sm font-bold <?php echo $relacionActiva ? 'text-gray-700' : 'text-gray-400'; ?>">
                                     <?php echo intval($relacion['orden']); ?>
                                 </td>
-                                <td class="px-6 py-4 text-sm font-bold text-gray-900">
-                                    <?php echo htmlspecialchars($relacion['nombre']); ?>
+                                <td class="px-6 py-2.5 text-sm font-bold <?php echo $relacionActiva ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                    <div class="flex items-center gap-2">
+                                        <span><?php echo htmlspecialchars($relacion['nombre']); ?></span>
+                                        <?php if (!$relacionActiva): ?>
+                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-4 text-center">
-                                    <?php if (!empty($relacion['activo'])): ?>
+                                <td class="px-4 py-2.5 text-center">
+                                    <?php if ($relacionActiva): ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
                                     <?php else: ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-6 py-4 text-right">
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/cambiar_estado_relacion" class="inline">
+                                <td class="px-6 py-2.5 text-right">
+                                    <div class="flex justify-end gap-2 <?php echo $relacionActiva ? '' : 'opacity-75'; ?>">
+                                    <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=datos&editar_relacion=<?php echo intval($relacion['id_relacion']); ?>" title="Editar">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_relacion" class="inline-flex" onsubmit="return confirmarAccionRelacion(this);">
                                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                                         <input type="hidden" name="id_relacion" value="<?php echo intval($relacion['id_relacion']); ?>">
-                                        <input type="hidden" name="activo" value="<?php echo !empty($relacion['activo']) ? 0 : 1; ?>">
-                                        <button class="<?php echo !empty($relacion['activo']) ? 'text-green-600 hover:text-green-800' : 'text-red-500 hover:text-red-700'; ?> mx-1" type="submit" title="<?php echo !empty($relacion['activo']) ? 'Desactivar' : 'Activar'; ?>">
-                                            <i class="fas <?php echo !empty($relacion['activo']) ? 'fa-toggle-on' : 'fa-toggle-off'; ?> fa-lg"></i>
+                                        <input type="hidden" name="accion_relacion" value="desactivar">
+                                        <button class="btn-action btn-action-danger" type="submit" title="Eliminar o desactivar">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_relacion" class="inline">
-                                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                                        <input type="hidden" name="id_relacion" value="<?php echo intval($relacion['id_relacion']); ?>">
-                                        <button class="text-red-500 hover:text-red-700 mx-1" type="submit" title="Eliminar">
-                                            <i class="fas fa-trash fa-lg"></i>
-                                        </button>
-                                    </form>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -627,12 +693,12 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-4 text-center">
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/cambiar_estado_politica" class="inline">
+                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/cambiar_estado_politica" class="inline-flex">
                                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                                         <input type="hidden" name="id_politica" value="<?php echo intval($politica['id_politica']); ?>">
                                         <input type="hidden" name="activo" value="<?php echo !empty($politica['activo']) ? 0 : 1; ?>">
-                                        <button class="<?php echo !empty($politica['activo']) ? 'text-green-600 hover:text-green-800' : 'text-red-500 hover:text-red-700'; ?>" type="submit" title="<?php echo !empty($politica['activo']) ? 'Desactivar' : 'Activar'; ?>">
-                                            <i class="fas <?php echo !empty($politica['activo']) ? 'fa-toggle-on' : 'fa-toggle-off'; ?> fa-lg"></i>
+                                        <button class="<?php echo !empty($politica['activo']) ? 'btn-action btn-action-warning' : 'btn-action btn-action-success'; ?>" type="submit" title="<?php echo !empty($politica['activo']) ? 'Desactivar' : 'Activar'; ?>">
+                                            <i class="fas <?php echo !empty($politica['activo']) ? 'fa-toggle-on' : 'fa-toggle-off'; ?>"></i>
                                         </button>
                                     </form>
                                 </td>
@@ -643,11 +709,6 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                 </div>
             </div>
             
-            <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800">
-                <i class="fas fa-info-circle mr-1"></i>
-                Estos catálogos alimentan los selectores de la matriz de requisitos. Solo las opciones <strong>activas</strong> aparecerán disponibles al crear o editar reglas.
-            </div>
-
         </div>
 
     </div>
@@ -699,6 +760,106 @@ $todas_politicas = $data['todas_politicas'] ?? [];
         }
     }
 
+    function confirmarAccionDocumentoCatalogo(formElement) {
+        Swal.fire({
+            title: 'Documento universal',
+            text: 'Puedes desactivarlo para conservar la integridad del sistema o eliminarlo definitivamente si ya no se usa.',
+            icon: 'warning',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#b91c1c',
+            denyButtonColor: '#b45309',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Eliminar definitivamente',
+            denyButtonText: 'Desactivar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed || result.isDenied) {
+                const inputAccion = formElement.querySelector('input[name=\"accion_catalogo\"]');
+                if (inputAccion) {
+                    inputAccion.value = result.isConfirmed ? 'eliminar' : 'desactivar';
+                }
+                formElement.submit();
+            }
+        });
+        return false;
+    }
+
+    function confirmarAccionTipoLegajo(formElement) {
+        Swal.fire({
+            title: 'Tipo de legajo',
+            text: 'Puedes desactivarlo para conservar la integridad del sistema o eliminarlo definitivamente si ya no se usa.',
+            icon: 'warning',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#b91c1c',
+            denyButtonColor: '#b45309',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Eliminar definitivamente',
+            denyButtonText: 'Desactivar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed || result.isDenied) {
+                const inputAccion = formElement.querySelector('input[name=\"accion_tipo_legajo\"]');
+                if (inputAccion) {
+                    inputAccion.value = result.isConfirmed ? 'eliminar' : 'desactivar';
+                }
+                formElement.submit();
+            }
+        });
+        return false;
+    }
+
+    function confirmarAccionMatrizLegajo(formElement) {
+        Swal.fire({
+            title: 'Regla de matriz',
+            text: 'Puedes desactivarla para conservar la integridad del sistema o eliminarla definitivamente si ya no se usa.',
+            icon: 'warning',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#b91c1c',
+            denyButtonColor: '#b45309',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Eliminar definitivamente',
+            denyButtonText: 'Desactivar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed || result.isDenied) {
+                const inputAccion = formElement.querySelector('input[name=\"accion_matriz\"]');
+                if (inputAccion) {
+                    inputAccion.value = result.isConfirmed ? 'eliminar' : 'desactivar';
+                }
+                formElement.submit();
+            }
+        });
+        return false;
+    }
+
+    function confirmarAccionRelacion(formElement) {
+        Swal.fire({
+            title: 'Tipo de relación',
+            text: 'Puedes desactivarla para conservar la integridad del sistema o eliminarla definitivamente si ya no se usa.',
+            icon: 'warning',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#b91c1c',
+            denyButtonColor: '#b45309',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Eliminar definitivamente',
+            denyButtonText: 'Desactivar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed || result.isDenied) {
+                const inputAccion = formElement.querySelector('input[name=\"accion_relacion\"]');
+                if (inputAccion) {
+                    inputAccion.value = result.isConfirmed ? 'eliminar' : 'desactivar';
+                }
+                formElement.submit();
+            }
+        });
+        return false;
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         cambiarPestana('<?php echo in_array($tab_actual, ['catalogo', 'tipos', 'matriz', 'datos'], true) ? $tab_actual : 'catalogo'; ?>');
         document.querySelectorAll('select[name="tiene_vencimiento"]').forEach(function(selectElement) {
@@ -718,3 +879,12 @@ $todas_politicas = $data['todas_politicas'] ?? [];
 </style>
 
 <?php pie() ?>
+
+
+
+
+
+
+
+
+

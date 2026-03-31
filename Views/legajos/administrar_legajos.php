@@ -6,7 +6,8 @@ $resultados = $data['resultados'] ?? [];
 $estado_legajo = $data['estado_legajo'] ?? '';
 $id_tipo_legajo = intval($data['id_tipo_legajo'] ?? 0);
 $tipos_legajo = $data['tipos_legajo'] ?? [];
-$puedeGestionarLegajo = in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2], true);
+$puedeAdministrarLegajo = !empty($data['puede_administrar_legajo']);
+$puedeEliminarLegajo = !empty($data['puede_eliminar_legajo']);
 $formatearCi = static function ($valor) {
     $digitos = preg_replace('/\D+/', '', (string) $valor);
     return $digitos === '' ? '' : preg_replace('/\B(?=(\d{3})+(?!\d))/', '.', $digitos);
@@ -156,19 +157,28 @@ $formatearCi = static function ($valor) {
                                     </td>
                                     <td class="px-6 py-3 text-right">
                                         <div class="flex justify-end gap-2">
+                                            <?php if (!empty($resultado['pdf_final_disponible'])): ?>
                                             <a href="<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
                                                 class="w-10 h-10 bg-red-700 text-white rounded-lg font-bold text-xs hover:bg-red-900 transition-all inline-flex items-center justify-center"
-                                                title="Abrir PDF"
+                                                title="Ver PDF"
                                                 target="_blank"
                                                 rel="noopener noreferrer">
                                                 <i class="fas fa-file-pdf"></i>
                                             </a>
+                                            <?php else: ?>
+                                            <button type="button"
+                                                class="w-10 h-10 bg-red-200 text-red-400 rounded-lg font-bold text-xs cursor-not-allowed inline-flex items-center justify-center opacity-80"
+                                                title="Ver PDF no disponible"
+                                                disabled>
+                                                <i class="fas fa-file-pdf"></i>
+                                            </button>
+                                            <?php endif; ?>
                                             <a href="<?php echo base_url(); ?>legajos/armar_legajo?id_legajo=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
                                                 class="w-10 h-10 bg-scantec-blue text-white rounded-lg font-bold text-xs hover:bg-blue-800 transition-all inline-flex items-center justify-center"
-                                                title="Editar">
-                                                <i class="fas fa-pen-to-square"></i>
+                                                title="Abrir">
+                                                <i class="fas fa-folder-open"></i>
                                             </a>
-                                            <?php if ($puedeGestionarLegajo): ?>
+                                            <?php if ($puedeAdministrarLegajo): ?>
                                             <form action="<?php echo base_url(); ?>legajos/cerrar_legajo/<?php echo intval($resultado['id_legajo'] ?? 0); ?>" method="post" class="inline-flex frm-cerrar-legajo">
                                                 <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                                                 <input type="hidden" name="id_legajo" value="<?php echo intval($resultado['id_legajo'] ?? 0); ?>">
@@ -181,6 +191,8 @@ $formatearCi = static function ($valor) {
                                                     <i class="fas fa-lock"></i>
                                                 </button>
                                             </form>
+                                            <?php endif; ?>
+                                            <?php if ($puedeEliminarLegajo): ?>
                                             <form action="<?php echo base_url(); ?>legajos/eliminar_legajo/<?php echo intval($resultado['id_legajo'] ?? 0); ?>" method="post" class="inline-flex frm-eliminar-legajo">
                                                 <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                                                 <input type="hidden" name="id_legajo" value="<?php echo intval($resultado['id_legajo'] ?? 0); ?>">

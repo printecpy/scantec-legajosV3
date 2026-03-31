@@ -35,6 +35,13 @@ class DashboardModel extends Mysql
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
+    private function obtenerCampoUsuarioLegajo(string $alias = 'l'): string
+    {
+        return $this->existeColumna('cfg_legajo', 'id_usuario_armado')
+            ? "{$alias}.id_usuario_armado"
+            : "{$alias}.id_usuario";
+    }
+
     private function construirFiltroLegajos(string $alias = 'l', array $tiposPermitidos = [], int $idUsuario = 0, bool $soloPropios = false): array
     {
         $sql = '';
@@ -48,7 +55,7 @@ class DashboardModel extends Mysql
         }
 
         if ($soloPropios && $idUsuario > 0) {
-            $sql .= " AND {$alias}.id_usuario = ?";
+            $sql .= " AND " . $this->obtenerCampoUsuarioLegajo($alias) . " = ?";
             $params[] = $idUsuario;
         }
 

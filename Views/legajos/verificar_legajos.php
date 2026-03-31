@@ -7,7 +7,7 @@ $estado_legajo = $data['estado_legajo'] ?? '';
 $id_tipo_legajo = intval($data['id_tipo_legajo'] ?? 0);
 $tipos_legajo = $data['tipos_legajo'] ?? [];
 $busqueda_ejecutada = $data['busqueda_ejecutada'] ?? false;
-$puedeGestionarLegajo = in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2], true);
+$puedeGestionarLegajo = !empty($data['puede_gestionar_legajo']);
 $formatearCi = static function ($valor) {
     $digitos = preg_replace('/\D+/', '', (string) $valor);
     return $digitos === '' ? '' : preg_replace('/\B(?=(\d{3})+(?!\d))/', '.', $digitos);
@@ -177,17 +177,26 @@ $formatearCi = static function ($valor) {
                                                     <i class="fas fa-user-check"></i>
                                                 </button>
                                             </form>
+                                            <?php if (!empty($resultado['pdf_final_disponible'])): ?>
                                             <a href="<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
                                                 class="w-10 h-10 bg-red-700 text-white rounded-lg font-bold text-xs hover:bg-red-900 transition-all inline-flex items-center justify-center"
-                                                title="Abrir PDF"
+                                                title="Ver PDF"
                                                 target="_blank"
                                                 rel="noopener noreferrer">
                                                 <i class="fas fa-file-pdf"></i>
                                             </a>
+                                            <?php else: ?>
+                                            <button type="button"
+                                                class="w-10 h-10 bg-red-200 text-red-400 rounded-lg font-bold text-xs cursor-not-allowed inline-flex items-center justify-center opacity-80"
+                                                title="Ver PDF no disponible"
+                                                disabled>
+                                                <i class="fas fa-file-pdf"></i>
+                                            </button>
+                                            <?php endif; ?>
                                             <a href="<?php echo base_url(); ?>legajos/armar_legajo?id_legajo=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
                                                 class="w-10 h-10 bg-scantec-blue text-white rounded-lg font-bold text-xs hover:bg-blue-800 transition-all inline-flex items-center justify-center"
-                                                title="Editar">
-                                                <i class="fas fa-pen-to-square"></i>
+                                                title="Abrir Legajo">
+                                                <i class="fas fa-folder-open"></i>
                                             </a>
                                             <?php endif; ?>
                                         </div>
@@ -213,17 +222,21 @@ $formatearCi = static function ($valor) {
         document.querySelectorAll('.frm-verificar-legajo').forEach((formOriginal) => {
             const form = formOriginal.cloneNode(true);
             formOriginal.replaceWith(form);
+
             form.addEventListener('submit', function (event) {
                 event.preventDefault();
+
                 const observacionInicial = String(form.dataset.observacion || '').trim();
+                const inputObservacion = form.querySelector('input[name="observacion_legajo"]');
+
+                if (!inputObservacion) {
+                    return;
+                }
+
                 Swal.fire({
                     icon: 'warning',
                     title: 'Verificación del legajo',
                     text: '¿Confirma que revisó todos los documentos físicamente?',
-                    input: 'textarea',
-                    inputLabel: 'Observación del legajo',
-                    inputPlaceholder: 'Escriba una observación si hace falta',
-                    inputValue: observacionInicial,
                     showCancelButton: true,
                     showDenyButton: true,
                     confirmButtonText: 'Aceptar',
@@ -231,35 +244,47 @@ $formatearCi = static function ($valor) {
                     cancelButtonText: 'Cancelar',
                     confirmButtonColor: '#0f766e',
                     denyButtonColor: '#d97706'
-                }).then((result) => {
+                }).then(async (result) => {
                     if (!result.isConfirmed && !result.isDenied) {
                         return;
                     }
 
-                    const observacion = String(result.value || '').trim();
-                    if (result.isDenied && observacion === '') {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Observación requerida',
-                            text: 'Debe ingresar una observación para rechazar la verificación.'
-                        });
+                    if (result.isConfirmed) {
+                        inputObservacion.value = observacionInicial;
+                        form.action = form.dataset.accionAceptar || form.action;
+                        HTMLFormElement.prototype.submit.call(form);
                         return;
                     }
 
-                    const inputObservacion = form.querySelector('input[name="observacion_legajo"]');
-                    if (inputObservacion) {
-                        inputObservacion.value = observacion;
+                    const rechazo = await Swal.fire({
+                        icon: 'warning',
+                        title: 'Rechazar legajo',
+                        input: 'textarea',
+                        inputLabel: 'Escriba el motivo del rechazo del legajo',
+                        inputPlaceholder: 'Detalle el motivo del rechazo del legajo',
+                        inputValue: observacionInicial,
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirmar rechazo',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#d97706',
+                        inputValidator: (value) => {
+                            if (String(value || '').trim() === '') {
+                                return 'Debe escribir el motivo del rechazo del legajo.';
+                            }
+                            return null;
+                        }
+                    });
+
+                    if (!rechazo.isConfirmed) {
+                        return;
                     }
 
-                    form.action = result.isDenied
-                        ? (form.dataset.accionRechazar || form.action)
-                        : (form.dataset.accionAceptar || form.action);
-
+                    inputObservacion.value = String(rechazo.value || '').trim();
+                    form.action = form.dataset.accionRechazar || form.action;
                     HTMLFormElement.prototype.submit.call(form);
                 });
             });
         });
-
     });
 </script>
 

@@ -47,6 +47,37 @@ class Legajos extends Controllers
         ];
     }
 
+    private function sanitizarSegmentoNombreArchivo(string $valor, string $fallback): string
+    {
+        $valor = trim($valor);
+        $valor = preg_replace('/[^A-Za-z0-9]+/', '_', $valor);
+        $valor = trim((string)$valor, '_');
+        return $valor !== '' ? strtoupper($valor) : $fallback;
+    }
+
+    private function construirNombrePdfFinalLegajo(array $legajoActual, int $idLegajo): string
+    {
+        $nombreTipoLegajo = 'LEGAJO';
+        $idTipoLegajo = intval($legajoActual['id_tipo_legajo'] ?? 0);
+        if ($idTipoLegajo > 0) {
+            $tipoLegajo = $this->model->selectTipoLegajoPorId($idTipoLegajo);
+            $nombreTipoLegajo = trim((string)($tipoLegajo['nombre'] ?? 'LEGAJO'));
+        }
+
+        $prefijoTipo = $this->sanitizarSegmentoNombreArchivo(substr($nombreTipoLegajo, 0, 20), 'LEGAJO');
+        $cedulaLegajo = preg_replace('/[^0-9]+/', '', (string)($legajoActual['ci_socio'] ?? ''));
+        if ($cedulaLegajo === '') {
+            $cedulaLegajo = 'SINCI';
+        }
+        $numeroSolicitud = preg_replace('/[^0-9A-Za-z]+/', '', (string)($legajoActual['nro_solicitud'] ?? ''));
+        if ($numeroSolicitud === '') {
+            $numeroSolicitud = 'SINSOLICITUD';
+        }
+
+        $nombreFinal = $prefijoTipo . '_' . $cedulaLegajo . '_' . $numeroSolicitud . '_LEGAJO.pdf';
+        return $nombreFinal !== '' ? $nombreFinal : ('LEGAJO_' . $idLegajo . '.pdf');
+    }
+
     private function obtenerRutaPdfFinalLegajo(int $idLegajo): ?array
     {
         if (!defined('RUTA_BASE')) {
@@ -58,10 +89,13 @@ class Legajos extends Controllers
             return null;
         }
 
-        $coincidencias = array_merge(
-            glob($carpetaLegajo . '*_legajo.pdf') ?: [],
-            glob($carpetaLegajo . '*_unificado.pdf') ?: []
-        );
+        $coincidencias = [];
+        foreach ((glob($carpetaLegajo . '*.pdf') ?: []) as $archivoPdf) {
+            $nombreArchivo = basename($archivoPdf);
+            if (preg_match('/_(legajo|unificado)\.pdf$/i', $nombreArchivo)) {
+                $coincidencias[] = $archivoPdf;
+            }
+        }
         if (empty($coincidencias)) {
             return null;
         }
@@ -75,6 +109,41 @@ class Legajos extends Controllers
             'ruta_absoluta' => $rutaAbsoluta,
             'nombre_archivo' => basename($rutaAbsoluta),
         ];
+    }
+
+    private function invalidarPdfFinalLegajo(int $idLegajo): void
+    {
+        if ($idLegajo <= 0 || !defined('RUTA_BASE')) {
+            return;
+        }
+
+        $carpetaLegajo = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . 'Legajos' . DIRECTORY_SEPARATOR . $idLegajo . DIRECTORY_SEPARATOR;
+        if (!is_dir($carpetaLegajo)) {
+            return;
+        }
+
+        foreach ((glob($carpetaLegajo . '*.pdf') ?: []) as $archivoPdf) {
+            $nombreArchivo = basename($archivoPdf);
+            if (preg_match('/_(legajo|unificado)\.pdf$/i', $nombreArchivo) && is_file($archivoPdf)) {
+                @unlink($archivoPdf);
+            }
+        }
+
+        if (isset($_SESSION['legajo_pdf_final_listo']['id_legajo']) && intval($_SESSION['legajo_pdf_final_listo']['id_legajo']) === $idLegajo) {
+            unset($_SESSION['legajo_pdf_final_listo']);
+        }
+    }
+
+    private function enriquecerResultadosConPdfFinal(array $resultados): array
+    {
+        foreach ($resultados as &$resultado) {
+            $idLegajo = intval($resultado['id_legajo'] ?? 0);
+            $archivoPdf = $idLegajo > 0 ? $this->obtenerRutaPdfFinalLegajo($idLegajo) : null;
+            $resultado['pdf_final_disponible'] = !empty($archivoPdf['ruta_absoluta']) && is_file($archivoPdf['ruta_absoluta']);
+        }
+        unset($resultado);
+
+        return $resultados;
     }
 
     private function obtenerRutaLogoReducidoEmpresa(): ?string
@@ -579,12 +648,7 @@ class Legajos extends Controllers
             mkdir($rutaBaseLegajos, 0777, true);
         }
 
-        $nombreBase = preg_replace('/[^A-Za-z0-9_\-]/', '_', trim(($legajoActual['ci_socio'] ?? 'legajo') . '_' . ($legajoActual['nombre_completo'] ?? 'legajo')));
-        $nombreFinal = trim($nombreBase, '_');
-        if ($nombreFinal === '') {
-            $nombreFinal = 'legajo_' . $idLegajo;
-        }
-        $nombreFinal .= '_legajo.pdf';
+        $nombreFinal = $this->construirNombrePdfFinalLegajo($legajoActual, $idLegajo);
         $rutaFinal = $rutaBaseLegajos . $nombreFinal;
 
         return $this->unirArchivosLegajo($documentosParaUnir, $rutaFinal, 'Legajo ' . $idLegajo, $usuario, $legajoActual, $matriz);
@@ -638,12 +702,12 @@ class Legajos extends Controllers
 
     /**
      * Verifica si el usuario actual tiene permiso de grupo para una acción de legajos.
-     * Roles 1 y 2 (Admin) siempre tienen acceso total.
+     * Solo el rol 1 (Administrador del sistema) siempre tiene acceso total.
      */
     private function checkLegajoGroupPermission(string $accion)
     {
-        if (intval($_SESSION['id_rol'] ?? 0) <= 2) {
-            return; // Admins tienen acceso a todo
+        if (intval($_SESSION['id_rol'] ?? 0) === 1) {
+            return; // Administrador del sistema tiene acceso a todo
         }
 
         try {
@@ -668,10 +732,53 @@ class Legajos extends Controllers
         }
     }
 
+    private function rolActualTienePermisoLegajo(string $accion): bool
+    {
+        $idRol = intval($_SESSION['id_rol'] ?? 0);
+        if ($idRol === 1) {
+            return true;
+        }
+
+        try {
+            if (!class_exists('SeguridadLegajosModel')) {
+                require_once 'Models/SeguridadLegajosModel.php';
+            }
+            $segModel = new SeguridadLegajosModel();
+            return $segModel->tienePermisoLegajo($idRol, $accion);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private function puedeAccederPdfLegajo(): bool
+    {
+        $idRol = intval($_SESSION['id_rol'] ?? 0);
+        if ($idRol === 1) {
+            return true;
+        }
+
+        try {
+            if (!class_exists('SeguridadLegajosModel')) {
+                require_once 'Models/SeguridadLegajosModel.php';
+            }
+
+            $segModel = new SeguridadLegajosModel();
+            foreach (['generar_pdf', 'armar_legajo', 'buscar_legajos', 'verificar_legajos', 'administrar_legajos'] as $accion) {
+                if ($segModel->tienePermisoLegajo($idRol, $accion)) {
+                    return true;
+                }
+            }
+        } catch (Throwable $e) {
+            return false;
+        }
+
+        return false;
+    }
+
     private function usuarioDebeVerSoloLegajosPropios(): bool
     {
         $idRol = intval($_SESSION['id_rol'] ?? 0);
-        if ($idRol <= 2) {
+        if (in_array($idRol, [1, 2, 5], true)) {
             return false;
         }
 
@@ -689,7 +796,7 @@ class Legajos extends Controllers
     private function obtenerTiposLegajoPermitidosRolActual(): array
     {
         $idRol = intval($_SESSION['id_rol'] ?? 0);
-        if ($idRol <= 2) {
+        if ($idRol === 1) {
             return [];
         }
 
@@ -878,6 +985,7 @@ class Legajos extends Controllers
         $resultados = $busquedaEjecutada
             ? $this->model->buscarLegajosPorTermino($termino, $estado_legajo, $id_tipo_legajo, $filtro_documentos, $idUsuarioActual, $soloPropios, $tiposPermitidos)
             : [];
+        $resultados = $this->enriquecerResultadosConPdfFinal($resultados);
 
         $data = [
             'termino' => $termino,
@@ -917,6 +1025,7 @@ class Legajos extends Controllers
         $soloPropios = $this->usuarioDebeVerSoloLegajosPropios();
         $idUsuarioActual = intval($_SESSION['id'] ?? 0);
         $resultados = $this->model->buscarLegajosParaVerificar($termino, $estado_legajo, $id_tipo_legajo, false, $idUsuarioActual, $soloPropios, $tiposPermitidos);
+        $resultados = $this->enriquecerResultadosConPdfFinal($resultados);
 
         $data = [
             'termino' => $termino,
@@ -924,7 +1033,8 @@ class Legajos extends Controllers
             'estado_legajo' => $estado_legajo,
             'id_tipo_legajo' => $id_tipo_legajo,
             'tipos_legajo' => $tipos_legajo,
-            'busqueda_ejecutada' => $busquedaEjecutada
+            'busqueda_ejecutada' => $busquedaEjecutada,
+            'puede_gestionar_legajo' => $this->rolActualTienePermisoLegajo('verificar_legajos'),
         ];
         $this->views->getView($this, "verificar_legajos", $data);
     }
@@ -945,6 +1055,7 @@ class Legajos extends Controllers
         $soloPropios = $this->usuarioDebeVerSoloLegajosPropios();
         $idUsuarioActual = intval($_SESSION['id'] ?? 0);
         $resultados = $this->model->buscarLegajosParaVerificar($termino, $estado_legajo, $id_tipo_legajo, false, $idUsuarioActual, $soloPropios, $tiposPermitidos);
+        $resultados = $this->enriquecerResultadosConPdfFinal($resultados);
 
         $data = [
             'termino' => $termino,
@@ -952,7 +1063,9 @@ class Legajos extends Controllers
             'estado_legajo' => $estado_legajo,
             'id_tipo_legajo' => $id_tipo_legajo,
             'tipos_legajo' => $tipos_legajo,
-            'busqueda_ejecutada' => true
+            'busqueda_ejecutada' => true,
+            'puede_administrar_legajo' => $this->rolActualTienePermisoLegajo('administrar_legajos'),
+            'puede_eliminar_legajo' => $this->rolActualTienePermisoLegajo('eliminar_legajo'),
         ];
         $this->views->getView($this, "administrar_legajos", $data);
     }
@@ -967,14 +1080,6 @@ class Legajos extends Controllers
 
         if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
             header("Location: " . base_url() . "legajos/buscar_legajos?error=csrf");
-            exit();
-        }
-
-        if (!in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2], true)) {
-            if (function_exists('setAlert')) {
-                setAlert('error', "No tiene permisos para verificar legajos.");
-            }
-            header("Location: " . base_url() . "legajos/buscar_legajos");
             exit();
         }
 
@@ -1058,21 +1163,14 @@ class Legajos extends Controllers
 
     public function rechazar_verificacion_legajo($idLegajo = 0)
     {
+        $this->checkLegajoGroupPermission('verificar_legajos');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos");
             exit();
         }
 
         if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
-            header("Location: " . base_url() . "legajos/verificar_legajos?error=csrf");
-            exit();
-        }
-
-        if (!in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2], true)) {
-            if (function_exists('setAlert')) {
-                setAlert('error', "No tiene permisos para rechazar verificaciones de legajos.");
-            }
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos?error=csrf");
             exit();
         }
 
@@ -1085,7 +1183,7 @@ class Legajos extends Controllers
             if (function_exists('setAlert')) {
                 setAlert('warning', "No se encontró el legajo a rechazar.");
             }
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos");
             exit();
         }
 
@@ -1093,7 +1191,7 @@ class Legajos extends Controllers
             if (function_exists('setAlert')) {
                 setAlert('warning', "Debe escribir una observación para rechazar la verificación.");
             }
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos");
             exit();
         }
 
@@ -1145,33 +1243,28 @@ class Legajos extends Controllers
 
     public function cerrar_legajo($idLegajo = 0)
     {
+        $this->checkLegajoGroupPermission('administrar_legajos');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos");
             exit();
         }
 
         if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
-            header("Location: " . base_url() . "legajos/verificar_legajos?error=csrf");
-            exit();
-        }
-
-        if (!in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2], true)) {
-            if (function_exists('setAlert')) {
-                setAlert('error', "No tiene permisos para cerrar legajos.");
-            }
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos?error=csrf");
             exit();
         }
 
         $idLegajo = intval($idLegajo ?: ($_POST['id_legajo'] ?? 0));
         $this->asegurarAccesoLegajo($idLegajo, 'legajos/administrar_legajos');
         $termino = trim($_POST['termino'] ?? '');
+        $estado_legajo = trim($_POST['estado_legajo'] ?? '');
+        $id_tipo_legajo = intval($_POST['id_tipo_legajo'] ?? 0);
 
         if ($idLegajo <= 0) {
             if (function_exists('setAlert')) {
                 setAlert('warning', "No se encontró el legajo a cerrar.");
             }
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos");
             exit();
         }
 
@@ -1179,9 +1272,19 @@ class Legajos extends Controllers
             if (function_exists('setAlert')) {
                 setAlert('warning', "La base de datos aún no admite el estado Cerrado. Debe actualizar el campo estado de cfg_legajo.");
             }
-            $redirect = base_url() . "legajos/verificar_legajos";
+            $query = [];
             if ($termino !== '') {
-                $redirect .= "?termino=" . urlencode($termino);
+                $query['termino'] = $termino;
+            }
+            if ($estado_legajo !== '') {
+                $query['estado_legajo'] = $estado_legajo;
+            }
+            if ($id_tipo_legajo > 0) {
+                $query['id_tipo_legajo'] = $id_tipo_legajo;
+            }
+            $redirect = base_url() . "legajos/administrar_legajos";
+            if (!empty($query)) {
+                $redirect .= '?' . http_build_query($query);
             }
             header("Location: " . $redirect);
             exit();
@@ -1214,9 +1317,19 @@ class Legajos extends Controllers
             }
         }
 
-        $redirect = base_url() . "legajos/verificar_legajos";
+        $query = [];
         if ($termino !== '') {
-            $redirect .= "?termino=" . urlencode($termino);
+            $query['termino'] = $termino;
+        }
+        if ($estado_legajo !== '') {
+            $query['estado_legajo'] = $estado_legajo;
+        }
+        if ($id_tipo_legajo > 0) {
+            $query['id_tipo_legajo'] = $id_tipo_legajo;
+        }
+        $redirect = base_url() . "legajos/administrar_legajos";
+        if (!empty($query)) {
+            $redirect .= '?' . http_build_query($query);
         }
         header("Location: " . $redirect);
         exit();
@@ -1226,32 +1339,26 @@ class Legajos extends Controllers
     {
         $this->checkLegajoGroupPermission('eliminar_legajo');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos");
             exit();
         }
 
         if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
-            header("Location: " . base_url() . "legajos/verificar_legajos?error=csrf");
-            exit();
-        }
-
-        if (!in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2], true)) {
-            if (function_exists('setAlert')) {
-                setAlert('error', "No tiene permisos para eliminar legajos.");
-            }
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos?error=csrf");
             exit();
         }
 
         $idLegajo = intval($idLegajo ?: ($_POST['id_legajo'] ?? 0));
         $this->asegurarAccesoLegajo($idLegajo, 'legajos/administrar_legajos');
         $termino = trim($_POST['termino'] ?? '');
+        $estado_legajo = trim($_POST['estado_legajo'] ?? '');
+        $id_tipo_legajo = intval($_POST['id_tipo_legajo'] ?? 0);
 
         if ($idLegajo <= 0) {
             if (function_exists('setAlert')) {
                 setAlert('warning', "No se encontró el legajo a eliminar.");
             }
-            header("Location: " . base_url() . "legajos/verificar_legajos");
+            header("Location: " . base_url() . "legajos/administrar_legajos");
             exit();
         }
 
@@ -1270,9 +1377,19 @@ class Legajos extends Controllers
             }
         }
 
-        $redirect = base_url() . "legajos/verificar_legajos";
+        $query = [];
         if ($termino !== '') {
-            $redirect .= "?termino=" . urlencode($termino);
+            $query['termino'] = $termino;
+        }
+        if ($estado_legajo !== '') {
+            $query['estado_legajo'] = $estado_legajo;
+        }
+        if ($id_tipo_legajo > 0) {
+            $query['id_tipo_legajo'] = $id_tipo_legajo;
+        }
+        $redirect = base_url() . "legajos/administrar_legajos";
+        if (!empty($query)) {
+            $redirect .= '?' . http_build_query($query);
         }
         header("Location: " . $redirect);
         exit();
@@ -1375,8 +1492,22 @@ class Legajos extends Controllers
 
         $esNuevoLegajo = $idLegajo <= 0;
         $legajoAntesGuardar = $idLegajo > 0 ? $this->model->selectLegajoPorId($idLegajo) : [];
+        $legajoEstabaVerificado = strtolower(trim((string)($legajoAntesGuardar['estado'] ?? ''))) === 'verificado';
+        $legajoModificadoTrasVerificacion = false;
 
         if ($idLegajo > 0) {
+            if (
+                $legajoEstabaVerificado
+                && (
+                    intval($legajoAntesGuardar['id_tipo_legajo'] ?? 0) !== $idTipoLegajo
+                    || trim((string)($legajoAntesGuardar['ci_socio'] ?? '')) !== $ciSocio
+                    || trim((string)($legajoAntesGuardar['nombre_completo'] ?? '')) !== $nombreCompleto
+                    || trim((string)($legajoAntesGuardar['nro_solicitud'] ?? '')) !== $nroSolicitud
+                )
+            ) {
+                $legajoModificadoTrasVerificacion = true;
+            }
+
             $actualizado = $this->model->actualizarLegajo(
                 $idLegajo,
                 $idTipoLegajo,
@@ -1513,7 +1644,11 @@ class Legajos extends Controllers
                 if ($cedulaLegajo === '') {
                     $cedulaLegajo = 'SINCI';
                 }
-                $nombreArchivo = $codigoDocumento . '_' . $cedulaLegajo . '_' . date('Ymd_His');
+                $numeroSolicitudArchivo = preg_replace('/[^0-9A-Za-z]+/', '', (string)($nroSolicitud ?? ($legajoAntesGuardar['nro_solicitud'] ?? '')));
+                if ($numeroSolicitudArchivo === '') {
+                    $numeroSolicitudArchivo = 'SINSOLICITUD';
+                }
+                $nombreArchivo = $codigoDocumento . '_' . $cedulaLegajo . '_' . $numeroSolicitudArchivo;
                 if ($extension !== '') {
                     $nombreArchivo .= '.' . $extension;
                 }
@@ -1573,9 +1708,24 @@ class Legajos extends Controllers
             $rutaAnterior = trim((string)($documentoAnterior['ruta_archivo'] ?? ''));
             $estadoAnteriorDocumento = trim((string)($documentoAnterior['estado'] ?? 'pendiente'));
             $observacionAnteriorDocumento = trim((string)($documentoAnterior['observacion'] ?? ''));
+            $fechaAnteriorDocumento = trim((string)($documentoAnterior['fecha_vencimiento'] ?? ''));
             $fechaVencimientoLog = $fechaVencimiento !== null
                 ? $fechaVencimiento
                 : trim((string)($documentoAnterior['fecha_vencimiento'] ?? ''));
+            $rutaNuevaDocumento = trim((string)($rutaGuardar ?? $rutaArchivoExistente));
+            $fechaNuevaDocumento = trim((string)($fechaVencimiento ?? $fechaAnteriorDocumento));
+
+            if (
+                $legajoEstabaVerificado
+                && (
+                    $marcadoEliminarArchivo
+                    || $rutaRelativa !== null
+                    || $rutaNuevaDocumento !== $rutaAnterior
+                    || $fechaNuevaDocumento !== $fechaAnteriorDocumento
+                )
+            ) {
+                $legajoModificadoTrasVerificacion = true;
+            }
 
             $this->model->actualizarLegajoDocumento(
                 intval($idLegajo),
@@ -1641,6 +1791,10 @@ class Legajos extends Controllers
 
         $legajoDocumentosActualizados = $this->model->selectLegajoDocumentosPorLegajo(intval($idLegajo));
         $estadoLegajoCalculado = $this->resolverEstadoLegajo($matriz, $legajoDocumentosActualizados);
+        $requiereRearmadoDespuesDeVerificar = $legajoEstabaVerificado && $legajoModificadoTrasVerificacion;
+        if ($requiereRearmadoDespuesDeVerificar) {
+            $this->invalidarPdfFinalLegajo(intval($idLegajo));
+        }
         $this->model->actualizarEstadoLegajo(intval($idLegajo), $estadoLegajoCalculado, false);
         $this->model->registrarLogLegajo(
             intval($idLegajo),
@@ -1660,12 +1814,7 @@ class Legajos extends Controllers
             if (!empty($documentosParaUnir)) {
                 $legajoActual = $this->model->selectLegajoPorId(intval($idLegajo));
                 $usuario = $_SESSION['nombre'] ?? 'Sistema';
-                $nombreBase = preg_replace('/[^A-Za-z0-9_\-]/', '_', trim(($legajoActual['ci_socio'] ?? 'legajo') . '_' . ($legajoActual['nombre_completo'] ?? 'legajo')));
-                $nombreFinal = trim($nombreBase, '_');
-                if ($nombreFinal === '') {
-                    $nombreFinal = 'legajo_' . intval($idLegajo);
-                }
-                $nombreFinal .= '_legajo.pdf';
+                $nombreFinal = $this->construirNombrePdfFinalLegajo($legajoActual, intval($idLegajo));
                 $rutaFinal = $rutaBaseLegajos . $nombreFinal;
 
                 if ($this->unirArchivosLegajo($documentosParaUnir, $rutaFinal, 'Legajo ' . intval($idLegajo), $usuario, $legajoActual, $matriz)) {
@@ -1706,7 +1855,11 @@ class Legajos extends Controllers
         }
 
         if (function_exists('setAlert')) {
-            setAlert('success', $mensajeExito);
+            if ($requiereRearmadoDespuesDeVerificar && !$esFinalizacion) {
+                setAlert('warning', 'El legajo fue modificado y volvió a Completado. Debe armarlo nuevamente para generar un PDF actualizado.');
+            } else {
+                setAlert('success', $mensajeExito);
+            }
         }
         unset($_SESSION['legajo_form_flash']);
         header("Location: " . base_url() . "legajos/armar_legajo?id_legajo=" . intval($idLegajo));
@@ -1721,10 +1874,16 @@ class Legajos extends Controllers
 
     public function descargar_pdf_final($idLegajo = 0)
     {
-        $this->checkLegajoGroupPermission('generar_pdf');
         $idLegajo = intval($idLegajo ?: ($_GET['id_legajo'] ?? 0));
         if ($idLegajo <= 0) {
             header("Location: " . base_url() . "legajos/armar_legajo");
+            exit();
+        }
+        if (!$this->puedeAccederPdfLegajo()) {
+            if (function_exists('setAlert')) {
+                setAlert('warning', 'Tu rol no tiene permisos para abrir el PDF del legajo.');
+            }
+            header("Location: " . base_url() . "legajos/armar_legajo?id_legajo=" . $idLegajo);
             exit();
         }
         $this->asegurarAccesoLegajo($idLegajo, 'legajos/buscar_legajos');
@@ -1747,10 +1906,16 @@ class Legajos extends Controllers
 
     public function ver_pdf_final($idLegajo = 0)
     {
-        $this->checkLegajoGroupPermission('generar_pdf');
         $idLegajo = intval($idLegajo ?: ($_GET['id_legajo'] ?? 0));
         if ($idLegajo <= 0) {
             header("Location: " . base_url() . "legajos/armar_legajo");
+            exit();
+        }
+        if (!$this->puedeAccederPdfLegajo()) {
+            if (function_exists('setAlert')) {
+                setAlert('warning', 'Tu rol no tiene permisos para abrir el PDF del legajo.');
+            }
+            header("Location: " . base_url() . "legajos/armar_legajo?id_legajo=" . $idLegajo);
             exit();
         }
         $this->asegurarAccesoLegajo($idLegajo, 'legajos/buscar_legajos');
@@ -1771,6 +1936,50 @@ class Legajos extends Controllers
         exit();
     }
 
+    public function ver_documento_checklist()
+    {
+        $this->checkLegajoGroupPermission('armar_legajo');
+
+        $idLegajo = intval($_GET['id_legajo'] ?? 0);
+        $idRequisito = intval($_GET['id_requisito'] ?? 0);
+        if ($idLegajo <= 0 || $idRequisito <= 0) {
+            setAlert('warning', 'No se encontro el documento solicitado.');
+            header('Location: ' . base_url() . 'legajos/armar_legajo');
+            exit();
+        }
+
+        $this->asegurarAccesoLegajo($idLegajo, 'legajos/armar_legajo?id_legajo=' . $idLegajo);
+        $documentos = $this->model->selectLegajoDocumentosPorLegajo($idLegajo);
+        $documento = null;
+        foreach ($documentos as $item) {
+            if (intval($item['id_requisito'] ?? 0) === $idRequisito) {
+                $documento = $item;
+                break;
+            }
+        }
+
+        $rutaRelativa = trim((string)($documento['ruta_archivo'] ?? ''));
+        if ($rutaRelativa === '') {
+            setAlert('warning', 'No se encontro el archivo cargado para este documento.');
+            header('Location: ' . base_url() . 'legajos/armar_legajo?id_legajo=' . $idLegajo);
+            exit();
+        }
+
+        $rutaBaseReal = realpath(rtrim(RUTA_BASE, '/\\'));
+        $rutaArchivoReal = realpath(rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $rutaRelativa));
+        if ($rutaBaseReal === false || $rutaArchivoReal === false || strpos($rutaArchivoReal, $rutaBaseReal) !== 0 || !file_exists($rutaArchivoReal)) {
+            setAlert('warning', 'El archivo solicitado no esta disponible.');
+            header('Location: ' . base_url() . 'legajos/armar_legajo?id_legajo=' . $idLegajo);
+            exit();
+        }
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: inline; filename="' . basename($rutaArchivoReal) . '"');
+        header('Content-Length: ' . filesize($rutaArchivoReal));
+        readfile($rutaArchivoReal);
+        exit();
+    }
+
     public function log_legajos()
     {
         $this->checkLegajoGroupPermission('log_legajos');
@@ -1780,3 +1989,4 @@ class Legajos extends Controllers
         $this->views->getView($this, "log_legajos", $data);
     }
 }
+

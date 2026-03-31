@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Google Charts</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+</head>
+<body>
+    <h1>Test Google Charts Table</h1>
+    <div id="testChart" style="width: 100%; height: 400px;"></div>
+
+    <script>
+        google.charts.load('current', {'packages': ['table']});
+        google.charts.setOnLoadCallback(drawTestChart);
+
+        function drawTestChart() {
+            var data = google.visualization.arrayToDataTable([
+                ['Fecha', 'Usuario', 'Cantidad de Legajos'],
+                ['2026-03-14', 'Administrador sistema', 2],
+                ['2026-03-15', 'Administrador sistema', 3],
+                ['2026-03-17', 'Administrador sistema', 5]
+            ]);
+
+            var options = {
+                title: 'Test Chart',
+                cssClassNames: {
+                    'header-row': 'header-row',
+                    'table-row': 'table-row'
+                }
+            };
+
+            var table = new google.visualization.Table(document.getElementById('testChart'));
+            table.draw(data, options);
+        }
+    </script>
+
+    <style>
+        .header-row {
+            background-color: #182541 !important;
+            color: white !important;
+        }
+        .table-row:hover {
+            background-color: #f3f4f6;
+        }
+    </style>
+</body>
+</html>

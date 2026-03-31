@@ -13,7 +13,7 @@
                                     <th>Id</th>
                                     <th>Nombre</th>
                                     <th>Estado</th>
-                                    <th>Accion</th>
+                                    <th>Acción</th>
                                 </tr>
                             </thead>
                             <tbody>

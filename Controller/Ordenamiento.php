@@ -132,7 +132,7 @@ require_once 'Models/UsuariosModel.php';
             $pdf->setX(10);
             $pdf->SetFont('Arial', '', 10);
             $pdf->Cell(40, 5, 'Codigo caja', 1, 0, 'C',1);
-            $pdf->Cell(40, 5, 'Descripcion', 1, 0, 'C',1);
+            $pdf->Cell(40, 5, 'Descripción', 1, 0, 'C',1);
             $pdf->Cell(30, 5, 'Ubicacion', 1, 0, 'C',1);
             $pdf->Cell(40, 5, 'Fecha.', 1, 0, 'C',1);
             $pdf->Cell(90, 5, 'Observaciones', 1, 0, 'C',1);

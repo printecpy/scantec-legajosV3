@@ -6,6 +6,7 @@ class ConfiguracionModel extends Mysql
     {
         parent::__construct();
         $this->db = new Mysql();
+        $this->ensureMatrizActivoColumn();
     }
 
     public function selectConfiguracion()
@@ -45,7 +46,7 @@ class ConfiguracionModel extends Mysql
         return $this->update($query, $data);
     }
 
-    // Insertar nueva configuración y desactivar las anteriores
+    // Insertar nueva configuraciÃ³n y desactivar las anteriores
     public function insertarServSMTP(string $host, string $username, string $password, string $smtpsecure, string $port, string $remitente, string $nombre_remitente) 
     {
         // 1. Primero ponemos TODO en 'inactivo' para evitar duplicidad
@@ -61,14 +62,14 @@ class ConfiguracionModel extends Mysql
         return $request;
     }
 
-    // Obtener la configuración activa
+    // Obtener la configuraciÃ³n activa
     public function getActiveSMTP()
     {
         $sql = "SELECT * FROM smtp_datos WHERE estado = 'activo' ORDER BY id DESC LIMIT 1";
         return $this->select($sql);
     }
 
-    // Método para apagar el servicio SMTP
+    // MÃ©todo para apagar el servicio SMTP
     public function desactivarSMTP()
     {
         $sql = "UPDATE smtp_datos SET estado = 'inactivo'";
@@ -115,6 +116,17 @@ class ConfiguracionModel extends Mysql
                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?";
         $result = $this->select($sql, [$tabla, $columna]);
         return !empty($result) && intval($result['total'] ?? 0) > 0;
+    }
+
+    private function ensureMatrizActivoColumn(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_matriz_requisitos') && !$this->existeColumna('cfg_matriz_requisitos', 'activo')) {
+                $this->update("ALTER TABLE cfg_matriz_requisitos ADD COLUMN activo TINYINT(1) NOT NULL DEFAULT 1 AFTER politica_actualizacion", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aún no está alineada.
+        }
     }
 
     private function getCampoRelacionTipoLegajo(): string
@@ -222,57 +234,165 @@ class ConfiguracionModel extends Mysql
         return $this->update($query, [$nombre, $descripcion, $activo, $idTipoLegajo]);
     }
 
-    public function eliminarTipoLegajo(int $idTipoLegajo)
+    public function actualizarEstadoTipoLegajo(int $idTipoLegajo, int $activo)
     {
         if (!$this->existeTabla('cfg_tipo_legajo')) {
             return false;
         }
 
-        $campoRelacion = $this->getCampoRelacionTipoLegajo();
-        $sql = "SELECT COUNT(*) AS total
-                FROM cfg_matriz_requisitos
-                WHERE $campoRelacion = ?";
-        $result = $this->select($sql, [$idTipoLegajo]);
-        if (!empty($result) && intval($result['total'] ?? 0) > 0) {
-            return false;
+        $query = "UPDATE cfg_tipo_legajo SET activo = ? WHERE id_tipo_legajo = ?";
+        return $this->update($query, [$activo, $idTipoLegajo]);
+    }
+
+    public function contarUsoTipoLegajo(int $idTipoLegajo): int
+    {
+        if ($idTipoLegajo <= 0 || !$this->existeTabla('cfg_tipo_legajo')) {
+            return 0;
         }
 
-        $query = "DELETE FROM cfg_tipo_legajo WHERE id_tipo_legajo = ?";
+        $total = 0;
+
         try {
-            return $this->update($query, [$idTipoLegajo]);
+            $campoRelacion = $this->getCampoRelacionTipoLegajo();
+            $sql = "SELECT COUNT(*) AS total FROM cfg_matriz_requisitos WHERE $campoRelacion = ?";
+            $result = $this->select($sql, [$idTipoLegajo]);
+            $total += intval($result['total'] ?? 0);
         } catch (Throwable $e) {
-            return false;
+            // Continuamos con las demás validaciones.
+        }
+
+        try {
+            if ($this->existeTabla('cfg_legajo')) {
+                $result = $this->select("SELECT COUNT(*) AS total FROM cfg_legajo WHERE id_tipo_legajo = ?", [$idTipoLegajo]);
+                $total += intval($result['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            // Continuamos.
+        }
+
+        try {
+            if ($this->existeTabla('permisos_legajos_tipos')) {
+                $result = $this->select("SELECT COUNT(*) AS total FROM permisos_legajos_tipos WHERE id_tipo_legajo = ?", [$idTipoLegajo]);
+                $total += intval($result['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            // Continuamos.
+        }
+
+        return $total;
+    }
+
+    public function eliminarTipoLegajo(int $idTipoLegajo, string $accion = 'desactivar'): string
+    {
+        if (!$this->existeTabla('cfg_tipo_legajo')) {
+            return 'error';
+        }
+
+        if ($idTipoLegajo <= 0) {
+            return 'invalido';
+        }
+
+        $accion = strtolower(trim($accion));
+        if (!in_array($accion, ['eliminar', 'desactivar'], true)) {
+            $accion = 'desactivar';
+        }
+
+        try {
+            $enUso = $this->contarUsoTipoLegajo($idTipoLegajo) > 0;
+
+            if ($accion === 'eliminar' && !$enUso) {
+                try {
+                    if ($this->existeTabla('permisos_legajos_tipos')) {
+                        $this->delete("DELETE FROM permisos_legajos_tipos WHERE id_tipo_legajo = ?", [$idTipoLegajo]);
+                    }
+                } catch (Throwable $e) {
+                    // Continuamos con la eliminación principal.
+                }
+
+                $query = "DELETE FROM cfg_tipo_legajo WHERE id_tipo_legajo = ?";
+                $ok = $this->update($query, [$idTipoLegajo]);
+                return $ok ? 'eliminado' : 'error';
+            }
+
+            $ok = $this->actualizarEstadoTipoLegajo($idTipoLegajo, 0);
+            if (!$ok) {
+                return 'error';
+            }
+
+            if ($accion === 'eliminar' && $enUso) {
+                return 'desactivado_en_uso';
+            }
+
+            return 'desactivado';
+        } catch (Throwable $e) {
+            return 'error';
         }
     }
 
     public function getMatrizRequisitosLegajo(int $idTipoDoc)
     {
+        $this->ensureMatrizActivoColumn();
         $campoRelacion = $this->getCampoRelacionTipoLegajo();
         $campoPoliticaActualizacion = $this->getCampoPoliticaActualizacionSql();
 
         if ($this->existeTabla('cfg_tipo_legajo')) {
             $sql = "SELECT mr.id_requisito, mr.$campoRelacion AS id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
-                    mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion,
+                    mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
                     cd.nombre AS documento_nombre, cd.codigo_interno,
                     tl.nombre AS nombre_tipoDoc
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
                     INNER JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = mr.$campoRelacion
                     WHERE mr.$campoRelacion = $idTipoDoc
-                    ORDER BY mr.orden_visual ASC, mr.id_requisito ASC";
+                    ORDER BY mr.activo DESC, mr.orden_visual ASC, mr.id_requisito ASC";
             return $this->select_all($sql);
         }
 
         $sql = "SELECT mr.id_requisito, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
-                mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion,
+                mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
                 cd.nombre AS documento_nombre, cd.codigo_interno,
                 td.nombre_tipoDoc
                 FROM cfg_matriz_requisitos mr
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
                 INNER JOIN tipo_documento td ON td.id_tipoDoc = mr.id_tipoDoc
                 WHERE mr.id_tipoDoc = $idTipoDoc
-                ORDER BY mr.orden_visual ASC, mr.id_requisito ASC";
+                ORDER BY mr.activo DESC, mr.orden_visual ASC, mr.id_requisito ASC";
         return $this->select_all($sql);
+    }
+
+    public function getMatrizRequisitoLegajoById(int $idRequisito)
+    {
+        if ($idRequisito <= 0) {
+            return null;
+        }
+
+        $this->ensureMatrizActivoColumn();
+        $campoRelacion = $this->getCampoRelacionTipoLegajo();
+        $campoPoliticaActualizacion = $this->getCampoPoliticaActualizacionSql();
+
+        if ($this->existeTabla('cfg_tipo_legajo')) {
+            $sql = "SELECT mr.id_requisito, mr.$campoRelacion AS id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
+                    mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
+                    cd.nombre AS documento_nombre, cd.codigo_interno,
+                    tl.nombre AS nombre_tipoDoc
+                    FROM cfg_matriz_requisitos mr
+                    INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
+                    INNER JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = mr.$campoRelacion
+                    WHERE mr.id_requisito = ?";
+            $resultado = $this->select($sql, [$idRequisito]);
+            return !empty($resultado[0]) ? $resultado[0] : null;
+        }
+
+        $sql = "SELECT mr.id_requisito, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
+                mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
+                cd.nombre AS documento_nombre, cd.codigo_interno,
+                td.nombre_tipoDoc
+                FROM cfg_matriz_requisitos mr
+                INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
+                INNER JOIN tipo_documento td ON td.id_tipoDoc = mr.id_tipoDoc
+                WHERE mr.id_requisito = ?";
+        $resultado = $this->select($sql, [$idRequisito]);
+        return !empty($resultado[0]) ? $resultado[0] : null;
     }
 
     public function insertarCatalogoDocumentoLegajo(
@@ -301,6 +421,19 @@ class ConfiguracionModel extends Mysql
     {
         $query = "UPDATE cfg_catalogo_documentos SET activo = ? WHERE id_documento_maestro = ?";
         return $this->update($query, [$activo, $idDocumentoMaestro]);
+    }
+
+    public function contarUsoCatalogoDocumentoLegajo(int $idDocumentoMaestro): int
+    {
+        $sql = "SELECT COUNT(*) AS total FROM cfg_matriz_requisitos WHERE id_documento_maestro = ?";
+        $result = $this->select($sql, [$idDocumentoMaestro]);
+        return intval($result['total'] ?? 0);
+    }
+
+    public function eliminarCatalogoDocumentoLegajo(int $idDocumentoMaestro): bool
+    {
+        $query = "DELETE FROM cfg_catalogo_documentos WHERE id_documento_maestro = ?";
+        return $this->update($query, [$idDocumentoMaestro]);
     }
 
     public function getCatalogoDocumentoLegajoById(int $idDocumentoMaestro)
@@ -436,10 +569,86 @@ class ConfiguracionModel extends Mysql
         ]);
     }
 
-    public function eliminarMatrizRequisitoLegajo(int $idRequisito)
+    public function contarUsoMatrizRequisitoLegajo(int $idRequisito): int
     {
-        $query = "DELETE FROM cfg_matriz_requisitos WHERE id_requisito = ?";
-        return $this->update($query, [$idRequisito]);
+        if ($idRequisito <= 0) {
+            return 0;
+        }
+
+        $total = 0;
+
+        try {
+            if ($this->existeTabla('cfg_legajo_documento')) {
+                $row = $this->select("SELECT COUNT(*) AS total FROM cfg_legajo_documento WHERE id_requisito = ?", [$idRequisito]);
+                $total += intval($row['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            // Continuamos con las demás validaciones.
+        }
+
+        try {
+            if ($this->existeTabla('cfg_legajo_documento_log')) {
+                $row = $this->select("SELECT COUNT(*) AS total FROM cfg_legajo_documento_log WHERE id_requisito = ?", [$idRequisito]);
+                $total += intval($row['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            // Continuamos.
+        }
+
+        try {
+            if ($this->existeTabla('expediente')) {
+                $row = $this->select("SELECT COUNT(*) AS total FROM expediente WHERE id_requisito = ?", [$idRequisito]);
+                $total += intval($row['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            // Continuamos.
+        }
+
+        return $total;
+    }
+
+    public function cambiarEstadoMatrizRequisitoLegajo(int $idRequisito, int $activo): bool
+    {
+        if ($idRequisito <= 0) {
+            return false;
+        }
+
+        $this->ensureMatrizActivoColumn();
+        return $this->update("UPDATE cfg_matriz_requisitos SET activo = ? WHERE id_requisito = ?", [$activo, $idRequisito]);
+    }
+
+    public function eliminarMatrizRequisitoLegajo(int $idRequisito, string $accion = 'desactivar'): string
+    {
+        if ($idRequisito <= 0) {
+            return 'invalido';
+        }
+
+        $accion = strtolower(trim($accion));
+        if (!in_array($accion, ['eliminar', 'desactivar'], true)) {
+            $accion = 'desactivar';
+        }
+
+        $enUso = $this->contarUsoMatrizRequisitoLegajo($idRequisito) > 0;
+        if ($accion === 'eliminar' && !$enUso) {
+            try {
+                $query = "DELETE FROM cfg_matriz_requisitos WHERE id_requisito = ?";
+                $ok = $this->update($query, [$idRequisito]);
+                return $ok ? 'eliminado' : 'error';
+            } catch (Throwable $e) {
+                return 'error';
+            }
+        }
+
+        $ok = $this->cambiarEstadoMatrizRequisitoLegajo($idRequisito, 0);
+        if (!$ok) {
+            return 'error';
+        }
+
+        if ($accion === 'eliminar' && $enUso) {
+            return 'desactivado_en_uso';
+        }
+
+        return 'desactivado';
     }
 
     public function actualizarMatrizRequisitoLegajo(
@@ -449,7 +658,8 @@ class ConfiguracionModel extends Mysql
         int $esObligatorio,
         int $ordenVisual,
         int $permiteReemplazo,
-        string $politicaActualizacion = 'REEMPLAZAR'
+        string $politicaActualizacion = 'REEMPLAZAR',
+        int $activo = 1
     ) {
         $politicaActualizacion = strtoupper(trim($politicaActualizacion));
         $politicasPermitidas = ['REEMPLAZAR', 'UNIR_AL_INICIO', 'UNIR_AL_FINAL', 'NO_PERMITIR', 'CONSULTAR'];
@@ -458,9 +668,10 @@ class ConfiguracionModel extends Mysql
         }
 
         if ($this->existeColumna('cfg_matriz_requisitos', 'politica_actualizacion')) {
+            $this->ensureMatrizActivoColumn();
             $query = "UPDATE cfg_matriz_requisitos
                     SET id_documento_maestro = ?, rol_vinculado = ?, es_obligatorio = ?,
-                        orden_visual = ?, permite_reemplazo = ?, politica_actualizacion = ?
+                        orden_visual = ?, permite_reemplazo = ?, politica_actualizacion = ?, activo = ?
                     WHERE id_requisito = ?";
             return $this->update($query, [
                 $idDocumentoMaestro,
@@ -469,13 +680,15 @@ class ConfiguracionModel extends Mysql
                 $ordenVisual,
                 $permiteReemplazo,
                 $politicaActualizacion,
+                $activo,
                 $idRequisito
             ]);
         }
 
+        $this->ensureMatrizActivoColumn();
         $query = "UPDATE cfg_matriz_requisitos
                 SET id_documento_maestro = ?, rol_vinculado = ?, es_obligatorio = ?,
-                    orden_visual = ?, permite_reemplazo = ?
+                    orden_visual = ?, permite_reemplazo = ?, activo = ?
                 WHERE id_requisito = ?";
         return $this->update($query, [
             $idDocumentoMaestro,
@@ -483,6 +696,7 @@ class ConfiguracionModel extends Mysql
             $esObligatorio,
             $ordenVisual,
             $permiteReemplazo,
+            $activo,
             $idRequisito
         ]);
     }
@@ -495,7 +709,7 @@ class ConfiguracionModel extends Mysql
         $pass = PASS;
         $dbname = BD;
         
-        // CORRECCIÓN: Usar constante o ruta por defecto, pero asegurarse que exista
+        // CORRECCIÃ“N: Usar constante o ruta por defecto, pero asegurarse que exista
         $backup_dir = defined('BACKUP_PATH') ? BACKUP_PATH : dirname(__DIR__) . "\\backups\\";
         
         if (!file_exists($backup_dir)) {
@@ -506,9 +720,9 @@ class ConfiguracionModel extends Mysql
         $filename = $dbname . "_" . $date . ".sql";
         $backup_file = $backup_dir . $filename;
 
-        // CORRECCIÓN: Ruta de mysqldump con comillas por si hay espacios
+        // CORRECCIÃ“N: Ruta de mysqldump con comillas por si hay espacios
         // NOTA: Verifica que esta ruta exista en tu servidor. 
-        // Idealmente debería estar en una constante en Config.php
+        // Idealmente deberÃ­a estar en una constante en Config.php
         $mysqldumpPath = '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysqldump.exe"';
 
         // Comando con manejo de errores y comillas en rutas
@@ -521,7 +735,7 @@ class ConfiguracionModel extends Mysql
         if ($result_code === 0) {
             return ['status' => true, 'msg' => "Respaldo creado correctamente.", 'file' => $filename];
         } else {
-            return ['status' => false, 'msg' => "Error al crear respaldo (Código: $result_code)."];
+            return ['status' => false, 'msg' => "Error al crear respaldo (CÃ³digo: $result_code)."];
         }
     }
 
@@ -533,7 +747,7 @@ class ConfiguracionModel extends Mysql
         $pass = PASS;
         $dbname = BD;
 
-        // CORRECCIÓN: Ruta de mysql.exe con comillas
+        // CORRECCIÃ“N: Ruta de mysql.exe con comillas
         $mysqlPath = '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysql.exe"';
 
         // Validar que el archivo existe antes de intentar
@@ -551,7 +765,7 @@ class ConfiguracionModel extends Mysql
         if ($result_code === 0) {
             return ['status' => true, 'msg' => "Base de datos restaurada exitosamente."];
         } else {
-            return ['status' => false, 'msg' => "Error crítico al restaurar. Código: $result_code."];
+            return ['status' => false, 'msg' => "Error crÃ­tico al restaurar. CÃ³digo: $result_code."];
         }
     }
 
@@ -566,7 +780,7 @@ class ConfiguracionModel extends Mysql
             }
 
             if (!defined('RUTA_BASE')) {
-                return ['status' => false, 'msg' => 'La constante RUTA_BASE no está definida.'];
+                return ['status' => false, 'msg' => 'La constante RUTA_BASE no estÃ¡ definida.'];
             }
 
             // 2. Dividir la ruta para que Windows Explorer lea bien el ZIP
@@ -583,13 +797,13 @@ class ConfiguracionModel extends Mysql
             $fecha = date('Ymd_His');
             $archivo_zip = rtrim($ruta_destino, '/\\') . DIRECTORY_SEPARATOR . "backup_documentos_{$fecha}.zip";
 
-            // tar comprimirá la carpeta completa desde afuera
+            // tar comprimirÃ¡ la carpeta completa desde afuera
             $comando = 'tar -a -c -f ' . escapeshellarg($archivo_zip) . ' -C ' . escapeshellarg($directorio_padre) . ' ' . escapeshellarg($nombre_carpeta);
 
             // 4. Ejecutar en segundo plano
             exec('start "" /B ' . $comando);
             
-            return ['status' => true, 'msg' => 'El respaldo físico se inició. Archivo: backup_documentos_' . $fecha . '.zip'];
+            return ['status' => true, 'msg' => 'El respaldo fÃ­sico se iniciÃ³. Archivo: backup_documentos_' . $fecha . '.zip'];
 
         } catch (Throwable $e) {
             return ['status' => false, 'msg' => 'Error en el modelo: ' . $e->getMessage()];
@@ -597,7 +811,7 @@ class ConfiguracionModel extends Mysql
     }
 
     // ============================================================
-    // CRUD para cfg_relaciones (Tipos de relación en legajos)
+    // CRUD para cfg_relaciones (Tipos de relaciÃ³n en legajos)
     // ============================================================
 
     public function getRelaciones()
@@ -611,10 +825,23 @@ class ConfiguracionModel extends Mysql
         return $this->select_all($sql);
     }
 
+    public function getRelacionById(int $idRelacion)
+    {
+        if ($idRelacion <= 0 || !$this->existeTabla('cfg_relaciones')) {
+            return null;
+        }
+
+        $sql = "SELECT id_relacion, nombre, activo, orden
+                FROM cfg_relaciones
+                WHERE id_relacion = ?";
+        $resultado = $this->select($sql, [$idRelacion]);
+        return !empty($resultado[0]) ? $resultado[0] : null;
+    }
+
     public function getRelacionesActivas()
     {
         if (!$this->existeTabla('cfg_relaciones')) {
-            // Fallback: devolver las opciones clásicas hardcodeadas
+            // Fallback: devolver las opciones clÃ¡sicas hardcodeadas
             return [
                 ['nombre' => 'TITULAR'],
                 ['nombre' => 'CONYUGE'],
@@ -638,6 +865,19 @@ class ConfiguracionModel extends Mysql
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
+    public function existeOtraRelacionPorNombre(int $idRelacion, string $nombre): bool
+    {
+        if ($idRelacion <= 0 || !$this->existeTabla('cfg_relaciones')) {
+            return false;
+        }
+
+        $sql = "SELECT COUNT(*) AS total
+                FROM cfg_relaciones
+                WHERE id_relacion != ? AND UPPER(nombre) = UPPER(?)";
+        $result = $this->select($sql, [$idRelacion, $nombre]);
+        return !empty($result) && intval($result['total'] ?? 0) > 0;
+    }
+
     public function insertarRelacion(string $nombre, int $orden = 0)
     {
         if (!$this->existeTabla('cfg_relaciones')) {
@@ -646,10 +886,26 @@ class ConfiguracionModel extends Mysql
         if ($orden <= 0) {
             $sql = "SELECT COALESCE(MAX(orden), 0) + 1 AS siguiente FROM cfg_relaciones";
             $result = $this->select($sql);
-            $orden = intval($result['siguiente'] ?? 1);
+            $orden = intval($result[0]['siguiente'] ?? ($result['siguiente'] ?? 1));
         }
         $query = "INSERT INTO cfg_relaciones (nombre, activo, orden) VALUES (?, 1, ?)";
         return $this->insert($query, [strtoupper(trim($nombre)), $orden]);
+    }
+
+    public function actualizarRelacion(int $idRelacion, string $nombre, int $orden, int $activo): bool
+    {
+        if ($idRelacion <= 0 || !$this->existeTabla('cfg_relaciones')) {
+            return false;
+        }
+
+        if ($orden <= 0) {
+            $orden = 1;
+        }
+
+        $query = "UPDATE cfg_relaciones
+                  SET nombre = ?, orden = ?, activo = ?
+                  WHERE id_relacion = ?";
+        return $this->update($query, [strtoupper(trim($nombre)), $orden, $activo, $idRelacion]);
     }
 
     public function cambiarEstadoRelacion(int $idRelacion, int $activo)
@@ -658,42 +914,82 @@ class ConfiguracionModel extends Mysql
         return $this->update($query, [$activo, $idRelacion]);
     }
 
-    public function eliminarRelacion(int $idRelacion)
+    public function contarUsoRelacion(string $nombre): int
     {
-        // 1. Obtener el nombre de la relación
+        if ($nombre === '') {
+            return 0;
+        }
+
+        $total = 0;
+
+        try {
+            if ($this->existeTabla('cfg_matriz_requisitos')) {
+                $enMatriz = $this->select("SELECT COUNT(*) AS total FROM cfg_matriz_requisitos WHERE rol_vinculado = ?", [$nombre]);
+                $total += intval($enMatriz['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+        }
+
+        try {
+            if ($this->existeTabla('legajos_documentos')) {
+                $enLegajos = $this->select("SELECT COUNT(*) AS total FROM legajos_documentos WHERE rol_vinculado = ?", [$nombre]);
+                $total += intval($enLegajos['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+        }
+
+        try {
+            if ($this->existeTabla('cfg_legajo_documento')) {
+                $enCfgLegajos = $this->select("SELECT COUNT(*) AS total FROM cfg_legajo_documento WHERE rol_vinculado = ?", [$nombre]);
+                $total += intval($enCfgLegajos['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+        }
+
+        return $total;
+    }
+
+    public function eliminarRelacion(int $idRelacion, string $accion = 'desactivar')
+    {
+        if ($idRelacion <= 0 || !$this->existeTabla('cfg_relaciones')) {
+            return 'error';
+        }
+
+        $accion = strtolower(trim($accion));
+        if (!in_array($accion, ['eliminar', 'desactivar'], true)) {
+            $accion = 'desactivar';
+        }
+
         $sql = "SELECT r.nombre FROM cfg_relaciones r WHERE r.id_relacion = ?";
         $relacion = $this->select($sql, [$idRelacion]);
         if (empty($relacion)) {
-            return false;
+            return 'error';
         }
         $nombre = $relacion[0]['nombre'] ?? ($relacion['nombre'] ?? '');
         if ($nombre === '') {
-            return false;
+            return 'error';
         }
 
-        // 2. Verificar si está en uso en la matriz de requisitos (reglas)
-        $sqlMatriz = "SELECT COUNT(*) AS total FROM cfg_matriz_requisitos WHERE rol_vinculado = ?";
-        $enMatriz = $this->select($sqlMatriz, [$nombre]);
-        if (!empty($enMatriz) && intval($enMatriz['total'] ?? 0) > 0) {
-            return 'EN_USO_MATRIZ';
-        }
-
-        // 3. Verificar si está en uso en legajos ya armados (documentos cargados)
-        if ($this->existeTabla('legajos_documentos')) {
-            $sqlLegajos = "SELECT COUNT(*) AS total FROM legajos_documentos WHERE rol_vinculado = ?";
-            $enLegajos = $this->select($sqlLegajos, [$nombre]);
-            if (!empty($enLegajos) && intval($enLegajos['total'] ?? 0) > 0) {
-                return 'EN_USO_LEGAJOS';
+        $enUso = $this->contarUsoRelacion($nombre) > 0;
+        if ($accion === 'eliminar' && !$enUso) {
+            $query = "DELETE FROM cfg_relaciones WHERE id_relacion = ?";
+            try {
+                return $this->update($query, [$idRelacion]) ? 'eliminado' : 'error';
+            } catch (Throwable $e) {
+                return 'error';
             }
         }
 
-        // 4. Si no está en uso en ningún lado, eliminar
-        $query = "DELETE FROM cfg_relaciones WHERE id_relacion = ?";
-        try {
-            return $this->update($query, [$idRelacion]);
-        } catch (Throwable $e) {
-            return false;
+        $ok = $this->cambiarEstadoRelacion($idRelacion, 0);
+        if (!$ok) {
+            return 'error';
         }
+
+        if ($accion === 'eliminar' && $enUso) {
+            return 'desactivado_en_uso';
+        }
+
+        return 'desactivado';
     }
 
     // ============================================================
@@ -721,7 +1017,7 @@ class ConfiguracionModel extends Mysql
             ('UNIR_AL_INICIO', 'Solo agregar al inicio', 'El archivo nuevo se agrega al inicio del existente', 1, 2),
             ('UNIR_AL_FINAL', 'Solo agregar al final', 'El archivo nuevo se agrega al final del existente', 1, 3),
             ('NO_PERMITIR', 'No permitir actualizar', 'Una vez cargado, no se permite modificar', 1, 4),
-            ('CONSULTAR', 'Consultar en cada archivo', 'Pregunta al usuario qué hacer en cada carga', 1, 5)";
+            ('CONSULTAR', 'Consultar en cada archivo', 'Pregunta al usuario quÃ© hacer en cada carga', 1, 5)";
         $this->update($insert, []);
     }
 
@@ -752,3 +1048,10 @@ class ConfiguracionModel extends Mysql
 
 }
 ?>
+
+
+
+
+
+
+

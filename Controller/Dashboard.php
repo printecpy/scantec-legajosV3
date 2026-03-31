@@ -31,6 +31,7 @@
         {
             $idRol = intval($_SESSION['id_rol'] ?? 0);
             $idUsuario = intval($_SESSION['id'] ?? 0);
+            $idDepartamento = intval($_SESSION['id_departamento'] ?? 0);
 
             if (!class_exists('SeguridadLegajosModel')) {
                 require_once 'Models/SeguridadLegajosModel.php';
@@ -42,28 +43,27 @@
             $segModel = new SeguridadLegajosModel();
             $legajosModel = new LegajosModel();
             $tiposDisponibles = $legajosModel->selectTiposLegajo();
+            $esAdministradorDashboard = ($idRol === 1);
+            $puedeVerOtrosUsuarios = $esAdministradorDashboard || $segModel->puedeVerLegajosOtrosUsuarios($idRol);
+            $tiposPermitidos = $esAdministradorDashboard
+                ? []
+                : ($segModel->obtenerTiposLegajoPermitidosPorRol($idRol, $tiposDisponibles) ?: [-1]);
+            $cardsPermitidas = $esAdministradorDashboard
+                ? array_fill_keys(array_keys(SeguridadLegajosModel::getDashboardCardsDisponibles()), 1)
+                : $segModel->selectDashboardCardsPorRol($idRol);
 
             return [
                 'id_rol' => $idRol,
                 'id_usuario' => $idUsuario,
-                'solo_propios' => ($idRol > 2) ? !$segModel->puedeVerLegajosOtrosUsuarios($idRol) : false,
-                'tipos_permitidos' => ($idRol > 2) ? ($segModel->obtenerTiposLegajoPermitidosPorRol($idRol, $tiposDisponibles) ?: [-1]) : [],
-                'cards' => $segModel->selectDashboardCardsPorRol($idRol),
+                'id_departamento' => $idDepartamento,
+                'solo_propios' => !$puedeVerOtrosUsuarios,
+                'tipos_permitidos' => $tiposPermitidos,
+                'cards' => $cardsPermitidas,
             ];
         }
 
         public function dashboard_legajos()
         {
-            if (!class_exists('SeguridadLegajosModel')) {
-                require_once 'Models/SeguridadLegajosModel.php';
-            }
-            $seguridadModel = new SeguridadLegajosModel();
-            if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'dashboard_legajos')) {
-                setAlert('warning', 'Tu rol no tiene permiso para acceder al dashboard de legajos.');
-                header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-                exit();
-            }
-
             $scope = $this->obtenerScopeLegajosDashboard();
             $periodo_productividad = trim((string)($_GET['periodo_productividad'] ?? '1w'));
             $periodos_permitidos = [

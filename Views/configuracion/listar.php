@@ -20,6 +20,7 @@
     $anchoBarra = ($porcentajeUso > 100) ? 100 : $porcentajeUso;
     // Color semántico: Verde si hay espacio, Rojo si está lleno (>90%)
     $colorBarra = ($porcentajeUso > 90) ? 'bg-red-500' : 'bg-green-400';
+    $departamentos = is_array($config['departamentos'] ?? null) ? $config['departamentos'] : [];
     encabezado($data); 
 ?>
 <main class="app-content bg-gray-50 min-h-screen py-8">
@@ -31,7 +32,7 @@
                 <h1 class="text-2xl font-montserrat font-bold text-scantec-blue uppercase tracking-wide">
                     <i class="fa fa-cogs mr-2"></i> Configuración del Sistema
                 </h1>
-                <p class="text-sm text-gray-500 mt-1">Gestione los datos generales de la empresa y parámetros globales.</p>
+                <p class="text-sm text-gray-500 mt-1">Gestiona los datos generales de la empresa y parámetros globales.</p>
             </div>
         </div>
 
@@ -40,9 +41,9 @@
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     
-                    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                        <h3 class="font-bold text-gray-700 text-sm uppercase tracking-wider">Datos de la Empresa</h3>
-                        <span class="text-xs text-scantec-blue bg-blue-50 px-2 py-1 rounded border border-blue-100">
+                    <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue flex justify-between items-center">
+                        <h3 class="font-bold text-white text-sm uppercase tracking-wider">Datos de la Empresa</h3>
+                        <span class="text-xs text-scantec-blue bg-white px-2 py-1 rounded border border-white/80">
                             ID: <?php echo $config['id'] ?? '---'; ?>
                         </span>
                     </div>
@@ -50,6 +51,7 @@
                     <div class="p-6">
                         <form action="<?php echo base_url(); ?>configuracion/actualizar" method="post" enctype="multipart/form-data">
                             <input type="hidden" name="id" value="<?php echo $config['id'] ?? ''; ?>">
+                            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <div class="col-span-1 md:col-span-2">
@@ -149,6 +151,89 @@
                         </form>
                     </div>
                 </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-6">
+                    <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue flex justify-between items-center gap-4">
+                        <div>
+                            <h3 class="font-bold text-white text-sm uppercase tracking-wider">Departamentos</h3>
+                            <p class="text-xs text-white/80 mt-1">Administra los departamentos disponibles para identificar usuarios.</p>
+                        </div>
+                        <button type="button" onclick="abrirModalNuevoDepartamento()" class="bg-white/95 hover:bg-white text-scantec-blue font-bold py-2 px-3 rounded-lg shadow transition-all inline-flex items-center text-xs uppercase tracking-wide">
+                            <i class="fa fa-plus mr-2"></i>Nuevo
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Departamento</th>
+                                    <th class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-32">Estado</th>
+                                    <th class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-32">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($departamentos)): ?>
+                                    <tr>
+                                        <td colspan="3" class="text-center py-6 text-gray-500">No hay departamentos registrados.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($departamentos as $departamento): ?>
+                                        <?php
+                                            $idDepto = intval($departamento['id_departamento'] ?? 0);
+                                            $estadoDepto = strtoupper(trim((string)($departamento['estado'] ?? 'ACTIVO')));
+                                            $esActivoDepto = $estadoDepto === 'ACTIVO';
+                                            $totalUsuariosDepto = intval($departamento['total_usuarios'] ?? 0);
+                                            $puedeEliminarDepto = $totalUsuariosDepto === 0;
+                                        ?>
+                                        <tr class="border-b border-gray-100 transition-colors <?php echo $esActivoDepto ? 'hover:bg-gray-50' : 'bg-gray-50/80'; ?>">
+                                            <td class="px-4 py-3 align-middle">
+                                                <div class="flex items-center min-h-[36px] font-bold <?php echo $esActivoDepto ? 'text-gray-800' : 'text-gray-400'; ?>">
+                                                    <div class="w-8 h-8 rounded-full <?php echo $esActivoDepto ? 'bg-blue-50 text-scantec-blue border-blue-100' : 'bg-gray-100 text-gray-300 border-gray-200'; ?> border flex items-center justify-center mr-3 flex-shrink-0 <?php echo $esActivoDepto ? '' : 'opacity-70'; ?>">
+                                                        <i class="fas fa-building text-xs"></i>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 <?php echo $esActivoDepto ? '' : 'opacity-70'; ?>">
+                                                        <span><?php echo htmlspecialchars($departamento['nombre'] ?? ''); ?></span>
+                                                        <?php if (!$esActivoDepto): ?>
+                                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-500 uppercase tracking-wide">Inactivo</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-3 align-middle text-center">
+                                                <?php if ($esActivoDepto): ?>
+                                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Activo</span>
+                                                <?php else: ?>
+                                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200 opacity-70">Inactivo</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-4 py-3 align-middle text-center">
+                                                <div class="flex items-center justify-center gap-1.5 h-8 <?php echo $esActivoDepto ? '' : 'opacity-55'; ?>">
+                                                    <div class="h-8 flex items-center">
+                                                        <button type="button"
+                                                            onclick="abrirModalEditarDepartamento(<?php echo $idDepto; ?>, '<?php echo htmlspecialchars($departamento['nombre'] ?? '', ENT_QUOTES); ?>', '<?php echo $estadoDepto; ?>')"
+                                                            class="btn-action btn-action-primary"
+                                                            title="Editar Departamento">
+                                                            <i class="fas fa-pen"></i>
+                                                        </button>
+                                                    </div>
+                                                    <form action="<?php echo base_url(); ?>configuracion/eliminar_departamento" method="post" onsubmit="return confirmarAccionDepartamento(this);" class="h-8 flex items-center m-0">
+                                                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                                        <input type="hidden" name="id_departamento" value="<?php echo $idDepto; ?>">
+                                                        <input type="hidden" name="accion_departamento" value="desactivar">
+                                                        <button type="submit" class="btn-action btn-action-danger" title="Eliminar o desactivar departamento">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <div class="lg:col-span-1 space-y-6">
@@ -238,4 +323,142 @@
     </div>
 </main>
 
+<div id="modal-editar-departamento" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden" style="backdrop-filter: blur(2px);">
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-md transform transition-all p-6 relative">
+        <button type="button" onclick="cerrarModalEditarDepartamento()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 focus:outline-none">
+            <i class="fas fa-times fa-lg"></i>
+        </button>
+
+        <h3 class="text-xl font-bold text-slate-800 mb-2">Editar Departamento</h3>
+        <p class="text-xs text-gray-500 mb-6">Actualiza el nombre visible del departamento seleccionado y su estado.</p>
+
+        <form action="<?php echo base_url(); ?>configuracion/actualizar_departamento" method="POST">
+            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+            <input type="hidden" name="id_departamento" id="editar_id_departamento" value="">
+
+            <div class="mb-5">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Nombre del Departamento <span class="text-red-500">*</span></label>
+                <input type="text" name="nombre_departamento" id="editar_nombre_departamento" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow" placeholder="Ej. Recursos Humanos">
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Estado</label>
+                <select name="estado_departamento" id="editar_estado_departamento" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow">
+                    <option value="ACTIVO">Activo</option>
+                    <option value="INACTIVO">Inactivo</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-2">Si el departamento está inactivo, al volver a marcarlo como activo quedará habilitado nuevamente.</p>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8">
+                <button type="button" onclick="cerrarModalEditarDepartamento()" class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2 bg-scantec-blue hover:bg-gray-800 text-white font-bold rounded-xl shadow transition-colors flex items-center">
+                    <i class="fas fa-save mr-2"></i> Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-nuevo-departamento" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden" style="backdrop-filter: blur(2px);">
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-md transform transition-all p-6 relative">
+        <button type="button" onclick="cerrarModalNuevoDepartamento()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 focus:outline-none">
+            <i class="fas fa-times fa-lg"></i>
+        </button>
+
+        <h3 class="text-xl font-bold text-slate-800 mb-2">Nuevo Departamento</h3>
+        <p class="text-xs text-gray-500 mb-6">Agrega un nuevo departamento disponible para el sistema.</p>
+
+        <form action="<?php echo base_url(); ?>configuracion/guardar_departamento" method="POST">
+            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+
+            <div class="mb-5">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Nombre del Departamento <span class="text-red-500">*</span></label>
+                <input type="text" name="nombre_departamento" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow" placeholder="Ej. Recursos Humanos">
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8">
+                <button type="button" onclick="cerrarModalNuevoDepartamento()" class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2 bg-scantec-blue hover:bg-gray-800 text-white font-bold rounded-xl shadow transition-colors flex items-center">
+                    <i class="fas fa-save mr-2"></i> Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
 <?php pie() ?>
+
+<script>
+function abrirModalEditarDepartamento(idDepartamento, nombre, estado) {
+    document.getElementById('editar_id_departamento').value = idDepartamento;
+    document.getElementById('editar_nombre_departamento').value = nombre;
+    document.getElementById('editar_estado_departamento').value = estado || 'ACTIVO';
+    document.getElementById('modal-editar-departamento').classList.remove('hidden');
+    document.getElementById('editar_nombre_departamento').focus();
+}
+
+function cerrarModalEditarDepartamento() {
+    document.getElementById('modal-editar-departamento').classList.add('hidden');
+    document.getElementById('editar_id_departamento').value = '';
+    document.getElementById('editar_nombre_departamento').value = '';
+    document.getElementById('editar_estado_departamento').value = 'ACTIVO';
+}
+
+function abrirModalNuevoDepartamento() {
+    document.getElementById('modal-nuevo-departamento').classList.remove('hidden');
+}
+
+function cerrarModalNuevoDepartamento() {
+    document.getElementById('modal-nuevo-departamento').classList.add('hidden');
+}
+
+function confirmarAccionDepartamento(formElement) {
+    Swal.fire({
+        title: 'Departamento',
+        text: 'Puedes desactivarlo para conservar la integridad del sistema o eliminarlo definitivamente si ya no se usa.',
+        icon: 'warning',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonColor: '#b91c1c',
+        denyButtonColor: '#b45309',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Eliminar definitivamente',
+        denyButtonText: 'Desactivar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed || result.isDenied) {
+            const inputAccion = formElement.querySelector('input[name="accion_departamento"]');
+            if (inputAccion) {
+                inputAccion.value = result.isConfirmed ? 'eliminar' : 'desactivar';
+            }
+            formElement.submit();
+        }
+    });
+
+    return false;
+}
+
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

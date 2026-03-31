@@ -24,7 +24,11 @@ $mostrarCardCerrados = !empty($dashboardCards['dashboard_card_legajos_cerrados']
 $mostrarCardDocsVigentes = !empty($dashboardCards['dashboard_card_docs_vigentes']);
 $mostrarCardDocsPorVencer = !empty($dashboardCards['dashboard_card_docs_por_vencer']);
 $mostrarCardDocsVencidos = !empty($dashboardCards['dashboard_card_docs_vencidos']);
+$mostrarLegajosPorTipo = !empty($dashboardCards['dashboard_card_legajos_por_tipo']);
+$mostrarLegajosPorUsuario = !empty($dashboardCards['dashboard_card_legajos_por_usuario']);
+$mostrarGraficoProductividad = !empty($dashboardCards['dashboard_card_grafico_productividad']);
 $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
+$totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
 ?>
 
 <div id="layoutSidenav_content" class="bg-gray-50">
@@ -45,8 +49,14 @@ $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
     <main class="p-6">
 
         <?php if ($dashboardSoloPropios): ?>
-        <div class="mb-6 rounded-2xl border border-yellow-200 bg-yellow-50 px-5 py-4 text-sm text-yellow-800">
+        <div id="dashboard-aviso-solo-propios" class="hidden mb-6 rounded-2xl border border-yellow-200 bg-yellow-50 px-5 py-4 text-sm text-yellow-800">
             Este dashboard está mostrando solamente legajos creados por tu propio usuario dentro de los tipos permitidos para tu rol.
+        </div>
+        <?php endif; ?>
+
+        <?php if ($dashboardSoloPropios && $totalLegajosUsuario === 0): ?>
+        <div id="dashboard-aviso-sin-legajos" class="hidden mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
+            Todavía no tenés legajos creados con tu usuario. Las tarjetas se muestran en cero hasta que generes tus propios registros.
         </div>
         <?php endif; ?>
 
@@ -181,8 +191,10 @@ $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
         </div>
         <?php endif; ?>
 
+        <?php if ($mostrarLegajosPorTipo || $mostrarLegajosPorUsuario): ?>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 
+            <?php if ($mostrarLegajosPorTipo): ?>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="p-5 border-b border-gray-50 bg-gray-50/50">
                     <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos por
@@ -214,7 +226,9 @@ $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
 
+            <?php if ($mostrarLegajosPorUsuario): ?>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="p-5 border-b border-gray-50 bg-gray-50/50">
                     <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos por
@@ -245,10 +259,12 @@ $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
 
         </div>
+        <?php endif; ?>
 
-        <?php if ($_SESSION['id_rol'] == 1): ?>
+        <?php if ($mostrarGraficoProductividad): ?>
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
             <div class="p-5 border-b border-gray-50 bg-gray-50/50 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -397,8 +413,47 @@ $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
             </div>
         </div>
         <?php endif; ?>
-    </main>
 
+        <div id="dashboard-avisos-inferiores" class="space-y-4 mt-8"></div>
 <?php pie(); ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const contenedorAvisos = document.getElementById('dashboard-avisos-inferiores');
+    if (!contenedorAvisos) {
+        return;
+    }
+
+    ['dashboard-aviso-solo-propios', 'dashboard-aviso-sin-legajos'].forEach(function (idAviso) {
+        const avisoOriginal = document.getElementById(idAviso);
+        if (!avisoOriginal) {
+            return;
+        }
+
+        avisoOriginal.classList.remove('hidden');
+        avisoOriginal.classList.add('relative', 'pr-12');
+
+        const botonCerrar = document.createElement('button');
+        botonCerrar.type = 'button';
+        botonCerrar.className = 'absolute right-4 top-4 transition-colors';
+        botonCerrar.setAttribute('aria-label', 'Cerrar aviso');
+        botonCerrar.innerHTML = '<i class="fas fa-times"></i>';
+
+        if (idAviso === 'dashboard-aviso-solo-propios') {
+            botonCerrar.classList.add('text-yellow-700', 'hover:text-yellow-900');
+        } else {
+            botonCerrar.classList.add('text-blue-700', 'hover:text-blue-900');
+        }
+
+        botonCerrar.addEventListener('click', function () {
+            avisoOriginal.remove();
+        });
+
+        avisoOriginal.appendChild(botonCerrar);
+        contenedorAvisos.appendChild(avisoOriginal);
+    });
+});
+</script>
+
 </div>
 

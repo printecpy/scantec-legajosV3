@@ -4,6 +4,7 @@ class LegajosModel extends Mysql
     public function __construct()
     {
         parent::__construct();
+        $this->ensureMatrizActivoColumn();
     }
 
     private function existeTabla(string $tabla): bool
@@ -24,9 +25,20 @@ class LegajosModel extends Mysql
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
+    private function ensureMatrizActivoColumn(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_matriz_requisitos') && !$this->existeColumna('cfg_matriz_requisitos', 'activo')) {
+                $this->update("ALTER TABLE cfg_matriz_requisitos ADD COLUMN activo TINYINT(1) NOT NULL DEFAULT 1 AFTER politica_actualizacion", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga.
+        }
+    }
+
     /**
      * Retorna el fragmento SQL del CASE de estado de legajo a texto legible.
-     * Centraliza la lógica para no duplicar en múltiples queries.
+     * Centraliza la lÃ³gica para no duplicar en mÃºltiples queries.
      */
     private function sqlCaseEstadoTexto(string $alias = 'l'): string
     {
@@ -131,8 +143,9 @@ class LegajosModel extends Mysql
             : "CASE WHEN mr.permite_reemplazo = 1 THEN 'REEMPLAZAR' ELSE 'NO_PERMITIR' END AS politica_actualizacion";
 
         if ($this->existeTabla('cfg_tipo_legajo') && $this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo')) {
+            $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
             $sql = "SELECT mr.id_requisito, mr.id_tipo_legajo, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
-                    mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion,
+                    mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, $campoActivo,
                     cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
@@ -140,8 +153,9 @@ class LegajosModel extends Mysql
             return $this->select_all($sql);
         }
 
+        $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
         $sql = "SELECT mr.id_requisito, NULL AS id_tipo_legajo, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
-                mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion,
+                mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, $campoActivo,
                 cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
                 FROM cfg_matriz_requisitos mr
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
@@ -160,22 +174,26 @@ class LegajosModel extends Mysql
             : "CASE WHEN mr.permite_reemplazo = 1 THEN 'REEMPLAZAR' ELSE 'NO_PERMITIR' END AS politica_actualizacion";
 
         if ($this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo')) {
+            $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
+            $filtroActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? ' AND mr.activo = 1' : '';
             $sql = "SELECT mr.id_requisito, mr.id_documento_maestro, mr.rol_vinculado,
-                    mr.es_obligatorio, mr.permite_reemplazo, mr.orden_visual, $campoPoliticaActualizacion,
+                    mr.es_obligatorio, mr.permite_reemplazo, mr.orden_visual, $campoPoliticaActualizacion, $campoActivo,
                     cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
-                    WHERE mr.id_tipo_legajo = ?
+                    WHERE mr.id_tipo_legajo = ?$filtroActivo
                     ORDER BY mr.orden_visual ASC, mr.id_requisito ASC";
             return $this->select_all($sql, [$idTipoLegajo]);
         }
 
+        $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
+        $filtroActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? ' AND mr.activo = 1' : '';
         $sql = "SELECT mr.id_requisito, mr.id_documento_maestro, mr.rol_vinculado,
-                mr.es_obligatorio, mr.permite_reemplazo, mr.orden_visual, $campoPoliticaActualizacion,
+                mr.es_obligatorio, mr.permite_reemplazo, mr.orden_visual, $campoPoliticaActualizacion, $campoActivo,
                 cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
                 FROM cfg_matriz_requisitos mr
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
-                WHERE mr.id_tipoDoc = ?
+                WHERE mr.id_tipoDoc = ?$filtroActivo
                 ORDER BY mr.orden_visual ASC, mr.id_requisito ASC";
         return $this->select_all($sql, [$idTipoLegajo]);
     }
@@ -272,10 +290,6 @@ class LegajosModel extends Mysql
         $termino = trim($termino);
         $estadoFiltro = trim($estadoFiltro);
         $filtroDocumentos = trim($filtroDocumentos);
-        if ($termino === '' && $estadoFiltro === '' && $idTipoLegajo <= 0 && $filtroDocumentos === '') {
-            return [];
-        }
-
         $campoObservacion = $this->existeColumna('cfg_legajo', 'observacion')
             ? 'l.observacion'
             : 'NULL AS observacion';
@@ -405,7 +419,7 @@ class LegajosModel extends Mysql
         return $this->select($sql, $params);
     }
 
-    // Nota: usar selectLegajoPorId() directamente. Alias eliminado para evitar confusión.
+    // Nota: usar selectLegajoPorId() directamente. Alias eliminado para evitar confusiÃ³n.
 
     public function existeSolicitudAprobada(string $nroSolicitud, int $idLegajoExcluir = 0): bool
     {
@@ -462,7 +476,7 @@ class LegajosModel extends Mysql
         return $this->select($sql, [$idLegajo]);
     }
 
-    // Nota: usar selectLegajoDocumentosPorLegajo() directamente. Alias eliminado para evitar confusión.
+    // Nota: usar selectLegajoDocumentosPorLegajo() directamente. Alias eliminado para evitar confusiÃ³n.
 
     public function existeLegajoDocumento(int $idLegajo, int $idRequisito): bool
     {
@@ -796,3 +810,6 @@ class LegajosModel extends Mysql
         return $this->select($sql, $params);
     }
 }
+
+
+

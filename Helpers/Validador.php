@@ -32,6 +32,14 @@ class Validador
     // Función para determinar acceso a vistas
     public static function puedeVer($usuarioSesion, $rolesPermitidos)
     {
-        return isset($usuarioSesion['id_rol']) && in_array($usuarioSesion['id_rol'], $rolesPermitidos);
+        if (!isset($usuarioSesion['id_rol'])) {
+            return false;
+        }
+
+        if (intval($usuarioSesion['id_rol']) === 1) {
+            return true;
+        }
+
+        return in_array($usuarioSesion['id_rol'], $rolesPermitidos);
     }
 }

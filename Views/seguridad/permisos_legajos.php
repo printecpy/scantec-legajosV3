@@ -1,4 +1,5 @@
 <?php encabezado($data); ?>
+<?php $selectedRoleId = intval($data['selected_role_id'] ?? 0); ?>
 
 <main class="app-content bg-gray-50 min-h-screen py-8 font-sans">
     <div class="container mx-auto px-4">
@@ -14,19 +15,31 @@
             </div>
         </div>
 
-        <!-- Advertencia de Prevención de Auto-bloqueo -->
-        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
-            <div class="flex gap-3">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-lock text-yellow-600 text-xl"></i>
-                </div>
-                <div>
-                    <h4 class="text-yellow-800 font-bold mb-1">Protección contra Auto-bloqueo</h4>
-                    <p class="text-yellow-700 text-sm">
-                        El sistema previene automáticamente que te bloquees a ti mismo. Si intentas quitarte los permisos críticos 
-                        <strong>"Gestionar Permisos"</strong>, <strong>"Gestionar Roles"</strong> o <strong>"Permisos de Legajos"</strong> 
-                        en tu propio rol, estos se mantendrán habilitados para tu seguridad.
-                    </p>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
+                <h5 class="font-bold text-white flex items-center">
+                    <i class="fas fa-filter mr-2 text-white"></i> Filtro por Rol
+                </h5>
+                <p class="text-xs text-white/80 mt-1">
+                    Selecciona un rol para ver solo sus permisos en todas las secciones.
+                </p>
+            </div>
+            <div class="px-6 py-4 bg-white">
+                <div class="flex flex-col md:flex-row gap-3 md:items-center">
+                    <div class="w-full md:max-w-md">
+                        <select id="filtroRolPermisos" class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none">
+                            <option value="0">Todos los roles</option>
+                            <?php foreach (($data['roles'] ?? []) as $rolFiltro): ?>
+                                <?php $idRolFiltro = intval($rolFiltro['id_rol'] ?? 0); ?>
+                                <option value="<?php echo $idRolFiltro; ?>" <?php echo $selectedRoleId === $idRolFiltro ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($rolFiltro['descripcion'] ?? ''); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <button type="button" id="btnLimpiarFiltroRol" class="px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+                        Mostrar todos
+                    </button>
                 </div>
             </div>
         </div>
@@ -80,7 +93,7 @@
                                 $idRol = intval($rol['id_rol']);
                                 $permisosRol = $permisos[$idRol] ?? [];
                             ?>
-                                <tr class="border-b border-gray-100 hover:bg-blue-50/30 transition-colors rol-row" data-rol="<?php echo $idRol; ?>">
+                                <tr class="border-b border-gray-100 hover:bg-blue-50/30 transition-colors rol-row role-filter-row <?php echo $selectedRoleId === $idRol ? 'bg-blue-50/60 ring-1 ring-inset ring-blue-200' : ''; ?>" data-rol="<?php echo $idRol; ?>">
                                     <td class="px-4 py-3 font-bold text-gray-800 sticky left-0 bg-white z-10 border-r border-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                         <div class="flex items-center">
                                             <div class="w-8 h-8 rounded-full bg-blue-50 text-scantec-blue flex items-center justify-center mr-3 border border-blue-100 flex-shrink-0">
@@ -126,6 +139,12 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <button type="button"
+                        class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
+                        <i class="fas fa-save mr-2"></i> Guardar permisos
+                    </button>
+                </div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
@@ -138,12 +157,12 @@
                     </p>
                 </div>
 
-                <div class="p-6 overflow-x-auto">
+                <div class="p-4 overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b border-gray-100">
-                                <th class="text-left py-3 pr-4 font-bold text-xs uppercase tracking-wider text-gray-600">Rol</th>
-                                <th class="text-left py-3 px-4 font-bold text-xs uppercase tracking-wider text-gray-600">Puede ver legajos de otros usuarios</th>
+                                <th class="text-left py-2.5 pr-4 font-bold text-xs uppercase tracking-wider text-gray-600 sticky left-0 bg-white z-10 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Rol</th>
+                                <th class="text-left py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-gray-600">Puede ver legajos de otros usuarios</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -151,20 +170,20 @@
                             $visibilidadLegajosOtros = $data['visibilidad_legajos_otros'] ?? [];
                             foreach ($roles as $rol):
                                 $idRol = intval($rol['id_rol']);
-                                $esAdmin = $idRol <= 2;
+                                $esAdmin = $idRol === 1;
                                 $valorVisibilidad = $esAdmin ? '1' : strval(intval($visibilidadLegajosOtros[$idRol] ?? 1));
                             ?>
-                                <tr class="border-b border-gray-50">
-                                    <td class="py-4 pr-4">
+                                <tr class="border-b border-gray-100 role-filter-row" data-rol="<?php echo $idRol; ?>">
+                                    <td class="py-2.5 pr-4 align-middle sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                         <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?></div>
                                         <?php if ($esAdmin): ?>
-                                            <div class="text-xs text-gray-500 mt-1">Los roles administradores conservan acceso total.</div>
+                                            <div class="text-xs text-gray-500 mt-0.5">El administrador del sistema conserva acceso total.</div>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="py-4 px-4">
+                                    <td class="py-2.5 px-4 align-middle">
                                         <select
                                             name="visibilidad_legajos_otros[<?php echo $idRol; ?>]"
-                                            class="w-full md:w-44 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none"
+                                            class="w-full md:w-40 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none"
                                             <?php echo $esAdmin ? 'disabled' : ''; ?>>
                                             <option value="1" <?php echo $valorVisibilidad === '1' ? 'selected' : ''; ?>>Si</option>
                                             <option value="0" <?php echo $valorVisibilidad === '0' ? 'selected' : ''; ?>>No</option>
@@ -178,58 +197,11 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-                <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
-                    <h5 class="font-bold text-white flex items-center">
-                        <i class="fas fa-table-columns mr-2 text-white"></i> Tarjetas del Dashboard por Rol
-                    </h5>
-                    <p class="text-xs text-white/80 mt-1">
-                        Selecciona qué tarjetas del dashboard puede visualizar cada rol.
-                    </p>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 min-w-[180px]">Rol</th>
-                                <?php foreach (($data['dashboard_cards'] ?? []) as $claveCard => $cardInfo): ?>
-                                    <th class="text-center px-3 py-3 font-bold text-[10px] uppercase tracking-wider text-gray-600 min-w-[120px]">
-                                        <div class="flex flex-col items-center gap-1">
-                                            <i class="<?php echo htmlspecialchars($cardInfo['icono'] ?? 'fas fa-square'); ?> text-gray-400 text-xs"></i>
-                                            <span class="leading-tight"><?php echo htmlspecialchars($cardInfo['etiqueta'] ?? $claveCard); ?></span>
-                                        </div>
-                                    </th>
-                                <?php endforeach; ?>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $dashboardCardsPorRol = $data['dashboard_cards_por_rol'] ?? [];
-                            foreach ($roles as $rol):
-                                $idRol = intval($rol['id_rol']);
-                                $cardsRol = $dashboardCardsPorRol[$idRol] ?? [];
-                            ?>
-                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                    <td class="px-4 py-3 font-bold text-gray-800">
-                                        <?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?>
-                                    </td>
-                                    <?php foreach (($data['dashboard_cards'] ?? []) as $claveCard => $cardInfo): ?>
-                                        <?php $checkedCard = intval($cardsRol[$claveCard] ?? 1) === 1; ?>
-                                        <td class="text-center px-3 py-3">
-                                            <input type="checkbox"
-                                                name="dashboard_cards[<?php echo $idRol; ?>][<?php echo htmlspecialchars($claveCard); ?>]"
-                                                value="1"
-                                                class="w-5 h-5 text-scantec-blue bg-white border-2 border-gray-300 rounded focus:ring-0 focus:ring-offset-0 transition-all cursor-pointer hover:border-scantec-blue checked:border-scantec-blue checked:bg-scantec-blue"
-                                                <?php echo $checkedCard ? 'checked' : ''; ?>>
-                                        </td>
-                                    <?php endforeach; ?>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <button type="button"
+                        class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
+                        <i class="fas fa-save mr-2"></i> Guardar permisos
+                    </button>
                 </div>
             </div>
 
@@ -247,7 +219,7 @@
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 min-w-[180px]">Rol</th>
+                                <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 min-w-[180px] sticky left-0 bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Rol</th>
                                 <?php foreach (($data['tipos_legajo'] ?? []) as $tipoLegajo): ?>
                                     <th class="text-center px-3 py-3 font-bold text-[10px] uppercase tracking-wider text-gray-600 min-w-[120px]">
                                         <?php echo htmlspecialchars($tipoLegajo['nombre'] ?? 'Sin tipo'); ?>
@@ -261,10 +233,10 @@
                             foreach ($roles as $rol):
                                 $idRol = intval($rol['id_rol']);
                                 $tiposRol = $tiposLegajoPorRol[$idRol] ?? [];
-                                $esAdminRol = $idRol <= 2;
+                                $esAdminRol = $idRol === 1;
                             ?>
-                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                    <td class="px-4 py-3 font-bold text-gray-800">
+                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors role-filter-row" data-rol="<?php echo $idRol; ?>">
+                                    <td class="px-4 py-3 font-bold text-gray-800 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                         <?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?>
                                     </td>
                                     <?php foreach (($data['tipos_legajo'] ?? []) as $tipoLegajo): ?>
@@ -289,18 +261,74 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <button type="button"
+                        class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
+                        <i class="fas fa-save mr-2"></i> Guardar permisos
+                    </button>
+                </div>
             </div>
 
-            <div class="flex justify-end gap-3">
-                <a href="<?php echo base_url(); ?>dashboard/listar"
-                    class="px-6 py-2.5 border border-gray-300 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all">
-                    <i class="fas fa-times mr-2"></i>Cancelar
-                </a>
-                <button type="button" id="btnGuardarPermisos"
-                    class="bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-8 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center">
-                    <i class="fas fa-save mr-2"></i> Guardar Permisos
-                </button>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
+                    <h5 class="font-bold text-white flex items-center">
+                        <i class="fas fa-table-columns mr-2 text-white"></i> Tarjetas del Dashboard por Rol
+                    </h5>
+                    <p class="text-xs text-white/80 mt-1">
+                        Selecciona qué tarjetas del dashboard puede visualizar cada rol.
+                    </p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 min-w-[180px] sticky left-0 bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Rol</th>
+                                <?php foreach (($data['dashboard_cards'] ?? []) as $claveCard => $cardInfo): ?>
+                                    <th class="text-center px-3 py-3 font-bold text-[10px] uppercase tracking-wider text-gray-600 min-w-[120px]">
+                                        <div class="flex flex-col items-center gap-1">
+                                            <i class="<?php echo htmlspecialchars($cardInfo['icono'] ?? 'fas fa-square'); ?> text-gray-400 text-xs"></i>
+                                            <span class="leading-tight"><?php echo htmlspecialchars($cardInfo['etiqueta'] ?? $claveCard); ?></span>
+                                        </div>
+                                    </th>
+                                <?php endforeach; ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $dashboardCardsPorRol = $data['dashboard_cards_por_rol'] ?? [];
+                            foreach ($roles as $rol):
+                                $idRol = intval($rol['id_rol']);
+                                $cardsRol = $dashboardCardsPorRol[$idRol] ?? [];
+                            ?>
+                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors role-filter-row" data-rol="<?php echo $idRol; ?>">
+                                    <td class="px-4 py-3 font-bold text-gray-800 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                        <?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?>
+                                    </td>
+                                    <?php foreach (($data['dashboard_cards'] ?? []) as $claveCard => $cardInfo): ?>
+                                        <?php $checkedCard = intval($cardsRol[$claveCard] ?? 1) === 1; ?>
+                                        <td class="text-center px-3 py-3">
+                                            <input type="checkbox"
+                                                name="dashboard_cards[<?php echo $idRol; ?>][<?php echo htmlspecialchars($claveCard); ?>]"
+                                                value="1"
+                                                class="w-5 h-5 text-scantec-blue bg-white border-2 border-gray-300 rounded focus:ring-0 focus:ring-offset-0 transition-all cursor-pointer hover:border-scantec-blue checked:border-scantec-blue checked:bg-scantec-blue"
+                                                <?php echo $checkedCard ? 'checked' : ''; ?>>
+                                        </td>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <button type="button"
+                        class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
+                        <i class="fas fa-save mr-2"></i> Guardar permisos
+                    </button>
+                </div>
             </div>
+
+            <button type="button" id="btnGuardarPermisos" class="hidden" aria-hidden="true" tabindex="-1"></button>
         </form>
 
     </div>
@@ -312,7 +340,41 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Obtener el rol del usuario actual desde la sesión
     const rolUsuarioActual = <?php echo intval($_SESSION['id_rol'] ?? 0); ?>;
+    const rolSeleccionado = <?php echo $selectedRoleId; ?>;
     const permisosCriticos = ['gestionar_permisos', 'gestionar_roles', 'permisos_legajos'];
+    const filtroRol = document.getElementById('filtroRolPermisos');
+    const btnLimpiarFiltro = document.getElementById('btnLimpiarFiltroRol');
+
+    function aplicarFiltroRol(idRol) {
+        document.querySelectorAll('.role-filter-row').forEach(function(fila) {
+            const coincide = idRol === 0 || fila.dataset.rol === String(idRol);
+            fila.classList.toggle('hidden', !coincide);
+        });
+    }
+
+    if (rolSeleccionado > 0) {
+        const filaRol = document.querySelector('.rol-row[data-rol="' + rolSeleccionado + '"]');
+        if (filaRol) {
+            filaRol.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    aplicarFiltroRol(rolSeleccionado);
+
+    if (filtroRol) {
+        filtroRol.addEventListener('change', function() {
+            aplicarFiltroRol(parseInt(this.value || '0', 10));
+        });
+    }
+
+    if (btnLimpiarFiltro) {
+        btnLimpiarFiltro.addEventListener('click', function() {
+            if (filtroRol) {
+                filtroRol.value = '0';
+            }
+            aplicarFiltroRol(0);
+        });
+    }
 
     // Toggle all checkboxes for a rol
     document.querySelectorAll('.toggle-all-rol').forEach(function(toggle) {
@@ -365,6 +427,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const total = document.querySelectorAll('.permiso-check[data-rol="' + rolId + '"]').length;
         const checked = document.querySelectorAll('.permiso-check[data-rol="' + rolId + '"]:checked').length;
         toggle.checked = (total > 0 && checked === total);
+    });
+
+    document.querySelectorAll('.btn-guardar-permisos').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const btnPrincipal = document.getElementById('btnGuardarPermisos');
+            if (btnPrincipal) {
+                btnPrincipal.click();
+            }
+        });
     });
 
     // Confirm before saving

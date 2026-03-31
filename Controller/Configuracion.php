@@ -13,6 +13,7 @@ require_once $base_path . '/Libraries/PHPMailer6.9.2/src/SMTP.php';
 class Configuracion extends Controllers
 {
     private $configuracionModel, $db;
+    private $usuariosModel;
 
     private function obtenerDirectorioBranding(): string
     {
@@ -76,6 +77,11 @@ class Configuracion extends Controllers
         }
         parent::__construct();
         $this->configuracionModel = new ConfiguracionModel();
+        $usuariosModelPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Models' . DIRECTORY_SEPARATOR . 'UsuariosModel.php';
+        if (!class_exists('UsuariosModel') && file_exists($usuariosModelPath)) {
+            require_once $usuariosModelPath;
+        }
+        $this->usuariosModel = new UsuariosModel();
         $this->db = new Mysql();
     }
 
@@ -85,6 +91,8 @@ class Configuracion extends Controllers
         if (isset($data[0]) && is_array($data[0])) {
             $data[0]['logo_empresa_url'] = $this->obtenerLogoBrandingUrl('logo_empresa');
             $data[0]['logo_empresa_reducido_url'] = $this->obtenerLogoBrandingUrl('logo_empresa_reducido');
+            $data[0]['departamentos'] = $this->usuariosModel->selectTodosDepartamentos();
+            $data[0]['total_usuarios'] = intval($this->usuariosModel->contarUsuariosActivos()['total'] ?? 0);
         }
         $this->views->getView($this, "listar", $data);
     }
@@ -95,8 +103,96 @@ class Configuracion extends Controllers
         if (isset($data[0]) && is_array($data[0])) {
             $data[0]['logo_empresa_url'] = $this->obtenerLogoBrandingUrl('logo_empresa');
             $data[0]['logo_empresa_reducido_url'] = $this->obtenerLogoBrandingUrl('logo_empresa_reducido');
+            $data[0]['departamentos'] = $this->usuariosModel->selectTodosDepartamentos();
+            $data[0]['total_usuarios'] = intval($this->usuariosModel->contarUsuariosActivos()['total'] ?? 0);
         }
         $this->views->getView($this, "mantenimiento", $data);
+    }
+
+    public function guardar_departamento()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/listar");
+            exit();
+        }
+
+        $nombre = trim((string)($_POST['nombre_departamento'] ?? ''));
+        if ($nombre === '') {
+            setAlert('warning', "Debe ingresar el nombre del departamento.");
+            header("Location: " . base_url() . "configuracion/listar");
+            exit();
+        }
+
+        $idDepartamento = $this->usuariosModel->resolverDepartamentoIdPorNombre($nombre, true);
+        if ($idDepartamento > 0) {
+            $this->usuariosModel->cambiarEstadoDepartamento($idDepartamento, 'ACTIVO');
+            setAlert('success', "Departamento guardado correctamente.");
+        } else {
+            setAlert('error', "No se pudo guardar el departamento.");
+        }
+
+        header("Location: " . base_url() . "configuracion/listar");
+        exit();
+    }
+
+    public function actualizar_departamento()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/listar");
+            exit();
+        }
+
+        $idDepartamento = intval($_POST['id_departamento'] ?? 0);
+        $nombre = trim((string)($_POST['nombre_departamento'] ?? ''));
+        $estado = strtoupper(trim((string)($_POST['estado_departamento'] ?? 'ACTIVO')));
+
+        if ($idDepartamento <= 0 || $nombre === '') {
+            setAlert('warning', "Datos inválidos para actualizar el departamento.");
+            header("Location: " . base_url() . "configuracion/listar");
+            exit();
+        }
+
+        $ok = $this->usuariosModel->actualizarDepartamento($idDepartamento, $nombre, $estado);
+        setAlert($ok ? 'success' : 'error', $ok ? "Departamento actualizado correctamente." : "No se pudo actualizar el departamento.");
+
+        header("Location: " . base_url() . "configuracion/listar");
+        exit();
+    }
+
+    public function eliminar_departamento()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/listar");
+            exit();
+        }
+
+        $idDepartamento = intval($_POST['id_departamento'] ?? 0);
+        $accion = trim((string)($_POST['accion_departamento'] ?? 'desactivar'));
+        $resultado = $this->usuariosModel->eliminarDepartamento($idDepartamento, $accion);
+
+        switch ($resultado) {
+            case 'eliminado':
+                setAlert('success', "Departamento eliminado correctamente.");
+                break;
+            case 'desactivado':
+                setAlert('success', "Departamento desactivado correctamente.");
+                break;
+            case 'desactivado_en_uso':
+                setAlert('warning', "El departamento está en uso y fue desactivado para evitar errores.");
+                break;
+            case 'invalido':
+                setAlert('warning', "Departamento inválido.");
+                break;
+            default:
+                setAlert('error', "No se pudo procesar el departamento.");
+                break;
+        }
+
+        header("Location: " . base_url() . "configuracion/listar");
+        exit();
     }
 
     public function configuracion_legajos()

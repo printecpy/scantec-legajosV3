@@ -1,6 +1,31 @@
 <?php
 class Logs extends Controllers
 {
+    private function asegurarAccesoAuditoria(string $itemKey): void
+    {
+        $idRol = intval($_SESSION['id_rol'] ?? 0);
+        if ($idRol === 1) {
+            return;
+        }
+
+        require_once 'Models/FuncionalidadesModel.php';
+        $funcionalidadesModel = new FuncionalidadesModel();
+        $idDepartamento = intval($_SESSION['id_departamento'] ?? 0);
+
+        if ($funcionalidadesModel->puedeAccederItemPorContexto($itemKey, $idRol, $idDepartamento)) {
+            return;
+        }
+
+        $_SESSION['alert_message'] = 'No tienes permiso para acceder a esta página';
+        if (!class_exists('UsuariosModel')) {
+            require_once 'Models/UsuariosModel.php';
+        }
+        $usuariosModel = new UsuariosModel();
+        $usuariosModel->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
+        header('Location: ' . base_url() . FuncionalidadesModel::obtenerRutaRedireccionSegura($idRol, $idDepartamento), true, 302);
+        exit();
+    }
+
     public function __construct()
     {
         session_start();
@@ -49,14 +74,14 @@ class Logs extends Controllers
 
     public function views()
     {
-        $this->checkAdminAccess();
+        $this->asegurarAccesoAuditoria('log_sistema');
         $data = $this->model->selectLogs();
         $this->views->getView($this, "listar", $data);
     }
 
     public function registro_views()
     {
-        $this->checkAdminAccess();
+        $this->asegurarAccesoAuditoria('visitas_archivos');
         $registro_views = $this->model->selectViews();
         $data = ['registro_views' => $registro_views];
         $this->views->getView($this, "registro_views", $data);
@@ -64,7 +89,7 @@ class Logs extends Controllers
 
     public function registro_sesiones()
     {
-        $this->checkAdminAccess();
+        $this->asegurarAccesoAuditoria('sesiones');
         $registro_sesiones = $this->model->selectSesions();
         $data = ['registro_sesiones' => $registro_sesiones];
         $this->views->getView($this, "registro_sesiones", $data);
@@ -72,7 +97,7 @@ class Logs extends Controllers
 
     public function registro_session_fail()
     {
-        $this->checkAdminAccess();
+        $this->asegurarAccesoAuditoria('fallos_sesion');
         $registro_session_fail = $this->model->selectSesionFails();
         $data = ['registro_session_fail' => $registro_session_fail];
         $this->views->getView($this, "registro_session_fail", $data);
