@@ -589,7 +589,7 @@ class SeguridadLegajosModel extends Mysql
                 FROM permisos_legajos
                 WHERE id_rol = ? AND accion IN ($placeholders)";
         $rows = $this->select_all($sql, $params);
-        $mapa = array_fill_keys($acciones, 1);
+        $mapa = array_fill_keys($acciones, 0);
         foreach ($rows as $row) {
             $mapa[$row['accion']] = intval($row['permitido'] ?? 0);
         }

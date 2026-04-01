@@ -1109,7 +1109,7 @@ class Legajos extends Controllers
                 );
             }
             unset($legajo_documento);
-            if (!empty($legajo) && !in_array(($legajo['estado'] ?? ''), ['aprobado', 'verificado', 'cerrado'], true)) {
+            if (!empty($legajo) && !in_array(($legajo['estado'] ?? ''), ['aprobado', 'verificado', 'cerrado', 'verificacion_rechazada'], true)) {
                 $estadoLegajo = $this->resolverEstadoLegajo($matrizActual, $legajo_documentos);
                 if (($legajo['estado'] ?? '') !== $estadoLegajo) {
                     $this->model->actualizarEstadoLegajo($id_legajo, $estadoLegajo, $estadoLegajo === 'finalizado');
@@ -1472,6 +1472,7 @@ class Legajos extends Controllers
         $legajoAntes = $this->model->selectLegajoPorId($idLegajo);
         $actualizado = $this->model->actualizarEstadoLegajo($idLegajo, 'verificacion_rechazada', false);
         if ($actualizado) {
+            $this->invalidarPdfFinalLegajo($idLegajo);
             $auditoria = $this->obtenerContextoAuditoria();
             $this->model->actualizarObservacionLegajo($idLegajo, $observacionLegajo);
             $this->model->registrarLogLegajo(
@@ -1500,6 +1501,41 @@ class Legajos extends Controllers
             $redirect .= "?termino=" . urlencode($termino);
         }
         header("Location: " . $redirect);
+        exit();
+    }
+
+    public function cerrar_aviso_rechazo_legajo($idLegajo = 0)
+    {
+        $this->checkLegajoGroupPermission('armar_legajo');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: " . base_url() . "legajos/armar_legajo");
+            exit();
+        }
+
+        if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
+            header("Location: " . base_url() . "legajos/armar_legajo?error=csrf");
+            exit();
+        }
+
+        $idLegajo = intval($idLegajo ?: ($_POST['id_legajo'] ?? 0));
+        if ($idLegajo <= 0) {
+            header("Location: " . base_url() . "legajos/armar_legajo");
+            exit();
+        }
+
+        $this->asegurarAccesoLegajo($idLegajo, 'legajos/armar_legajo');
+        $legajo = $this->model->selectLegajoPorId($idLegajo);
+        if (empty($legajo)) {
+            header("Location: " . base_url() . "legajos/armar_legajo");
+            exit();
+        }
+
+        $matriz = $this->model->obtenerMatrizLegajoPorTipo(intval($legajo['id_tipo_legajo'] ?? 0));
+        $legajoDocumentos = $this->model->selectLegajoDocumentosPorLegajo($idLegajo);
+        $estadoLegajoCalculado = $this->resolverEstadoLegajo($matriz, $legajoDocumentos);
+        $this->model->actualizarEstadoLegajo($idLegajo, $estadoLegajoCalculado, false);
+
+        header("Location: " . base_url() . "legajos/armar_legajo?id_legajo=" . $idLegajo);
         exit();
     }
 
@@ -1767,8 +1803,11 @@ class Legajos extends Controllers
 
         $esNuevoLegajo = $idLegajo <= 0;
         $legajoAntesGuardar = $idLegajo > 0 ? $this->model->selectLegajoPorId($idLegajo) : [];
-        $legajoEstabaVerificado = strtolower(trim((string)($legajoAntesGuardar['estado'] ?? ''))) === 'verificado';
+        $estadoLegajoAntesGuardar = strtolower(trim((string)($legajoAntesGuardar['estado'] ?? '')));
+        $legajoEstabaVerificado = $estadoLegajoAntesGuardar === 'verificado';
+        $legajoEstabaRechazado = $estadoLegajoAntesGuardar === 'verificacion_rechazada';
         $legajoModificadoTrasVerificacion = false;
+        $legajoModificadoTrasRechazo = false;
 
         if ($idLegajo > 0) {
             if (
@@ -1781,6 +1820,18 @@ class Legajos extends Controllers
                 )
             ) {
                 $legajoModificadoTrasVerificacion = true;
+            }
+
+            if (
+                $legajoEstabaRechazado
+                && (
+                    $marcadoEliminarArchivo
+                    || $rutaRelativa !== null
+                    || $rutaNuevaDocumento !== $rutaAnterior
+                    || $fechaNuevaDocumento !== $fechaAnteriorDocumento
+                )
+            ) {
+                $legajoModificadoTrasRechazo = true;
             }
 
             $actualizado = $this->model->actualizarLegajo(
@@ -2098,6 +2149,9 @@ class Legajos extends Controllers
         $requiereRearmadoDespuesDeVerificar = $legajoEstabaVerificado && $legajoModificadoTrasVerificacion;
         if ($requiereRearmadoDespuesDeVerificar) {
             $this->invalidarPdfFinalLegajo(intval($idLegajo));
+        }
+        if ($legajoEstabaRechazado && !$legajoModificadoTrasRechazo) {
+            $estadoLegajoCalculado = 'verificacion_rechazada';
         }
         $this->model->actualizarEstadoLegajo(intval($idLegajo), $estadoLegajoCalculado, false);
         $this->model->registrarLogLegajo(

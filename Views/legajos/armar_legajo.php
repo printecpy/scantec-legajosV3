@@ -12,6 +12,7 @@ $resultados_busqueda_legajo = $data['resultados_busqueda_legajo'] ?? [];
 $duplicado_desde = intval($data['duplicar_desde'] ?? 0);
 $id_legajo_actual = intval($legajo['id_legajo'] ?? ($pdf_final_listo['id_legajo'] ?? 0));
 $estado_legajo_actual = strtolower(trim($legajo['estado'] ?? ''));
+$observacion_rechazo_legajo = trim((string)($legajo['observacion'] ?? ''));
 $legajo_bloqueado = in_array($estado_legajo_actual, ['aprobado', 'cerrado'], true);
 $pdf_final_disponible = !empty($pdf_final_listo['nombre_archivo']);
 $matriz_por_tipo = [];
@@ -257,6 +258,25 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 </div>
 
                 <div class="space-y-6">
+                    <?php if ($estado_legajo_actual === 'verificacion_rechazada' && $observacion_rechazo_legajo !== ''): ?>
+                    <div id="aviso-legajo-rechazado" class="bg-yellow-50 border border-yellow-200 text-yellow-900 rounded-2xl shadow-sm px-5 py-4 flex items-start justify-between gap-4">
+                        <div>
+                            <div class="text-sm font-bold uppercase tracking-wide text-yellow-800 mb-1">Legajo rechazado</div>
+                            <div class="text-sm">
+                                <span class="font-semibold">Motivo del rechazo:</span>
+                                <?php echo nl2br(htmlspecialchars($observacion_rechazo_legajo)); ?>
+                            </div>
+                        </div>
+                        <button type="submit" id="cerrar-aviso-legajo-rechazado"
+                            formaction="<?php echo base_url(); ?>legajos/cerrar_aviso_rechazo_legajo/<?php echo $id_legajo_actual; ?>"
+                            formmethod="POST"
+                            class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full border border-yellow-300 text-yellow-700 hover:bg-yellow-100 transition-all"
+                            title="Cerrar aviso" aria-label="Cerrar aviso">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="bg-gray-800 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
                             <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
@@ -613,7 +633,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             alternarBotonesPdfFinal(true);
         } else if (estadoLegajoActual === 'verificacion_rechazada') {
             badge.className = 'px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold';
-            badge.textContent = 'VerificaciÃ³n rechazada';
+            badge.textContent = 'Verificación rechazada';
             aplicarEstadoBotonFinalizar(false);
         } else if (hayVencidos) {
             badge.className = 'px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold';

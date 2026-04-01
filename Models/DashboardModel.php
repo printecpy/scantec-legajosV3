@@ -111,7 +111,7 @@ class DashboardModel extends Mysql
         $scope = $this->construirFiltroLegajos('cfg_legajo', $tiposPermitidos, $idUsuario, $soloPropios);
         $sql = "SELECT COUNT(*) AS cant_legajos_proceso
                 FROM cfg_legajo
-                WHERE estado NOT IN ('finalizado', 'verificado', 'cerrado', 'aprobado')" . $scope['sql'];
+                WHERE estado IN ('borrador', 'activo')" . $scope['sql'];
         $res = $this->select($sql, $scope['params']);
         return $res;
     }
@@ -206,7 +206,7 @@ class DashboardModel extends Mysql
         $scope = $this->construirFiltroLegajos('l', $tiposPermitidos, $idUsuario, $soloPropios);
         $sql = "SELECT
                     COALESCE(u.nombre, 'Sin usuario') AS nombre_usuario,
-                    SUM(CASE WHEN l.estado NOT IN ('finalizado', 'verificado', 'cerrado', 'aprobado') THEN 1 ELSE 0 END) AS cantidad_proceso,
+                    SUM(CASE WHEN l.estado IN ('borrador', 'activo') THEN 1 ELSE 0 END) AS cantidad_proceso,
                     SUM(CASE WHEN l.estado = 'finalizado' THEN 1 ELSE 0 END) AS cantidad_completado,
                     SUM(CASE WHEN l.estado = 'verificado' THEN 1 ELSE 0 END) AS cantidad_verificado
                 FROM cfg_legajo l

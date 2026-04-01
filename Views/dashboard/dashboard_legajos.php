@@ -30,6 +30,21 @@ $mostrarLegajosPorUsuario = !empty($dashboardCards['dashboard_card_legajos_por_u
 $mostrarGraficoProductividad = !empty($dashboardCards['dashboard_card_grafico_productividad']);
 $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
 $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
+$tiposLegajoDashboard = $data['tipos_legajo_disponibles_dashboard'] ?? [];
+$tiposLegajoSeleccionadosDashboard = array_map('intval', (array)($data['tipos_legajo_seleccionados_dashboard'] ?? []));
+$nombresTiposSeleccionadosDashboard = [];
+foreach ($tiposLegajoDashboard as $tipoLegajoDashboard) {
+    $idTipoDashboard = intval($tipoLegajoDashboard['id_tipo_legajo'] ?? 0);
+    if (in_array($idTipoDashboard, $tiposLegajoSeleccionadosDashboard, true)) {
+        $nombresTiposSeleccionadosDashboard[] = trim((string)($tipoLegajoDashboard['nombre'] ?? ''));
+    }
+}
+$resumenTiposDashboard = 'Todos los tipos permitidos';
+if (!empty($nombresTiposSeleccionadosDashboard)) {
+    $resumenTiposDashboard = count($nombresTiposSeleccionadosDashboard) === 1
+        ? $nombresTiposSeleccionadosDashboard[0]
+        : count($nombresTiposSeleccionadosDashboard) . ' tipos seleccionados';
+}
 ?>
 
 <div id="layoutSidenav_content" class="bg-gray-50">
@@ -151,6 +166,35 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
         </div>
         <?php endif; ?>
 
+        <?php if (false && !empty($tiposLegajoDashboard)): ?>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8">
+            <form action="<?php echo base_url(); ?>dashboard/dashboard_legajos" method="get" class="flex flex-col lg:flex-row lg:items-end gap-4">
+                <div class="flex-1">
+                    <label for="tipos_legajo_dashboard" class="block text-xs font-bold text-gray-500 uppercase mb-2">Filtrar por tipos de legajo permitidos</label>
+                    <select id="tipos_legajo_dashboard" name="tipos_legajo[]" multiple
+                        class="w-full min-h-[140px] rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 focus:border-scantec-blue focus:outline-none">
+                        <?php foreach ($tiposLegajoDashboard as $tipoDashboard): ?>
+                            <?php $idTipoDashboard = intval($tipoDashboard['id_tipo_legajo'] ?? 0); ?>
+                            <option value="<?php echo $idTipoDashboard; ?>" <?php echo in_array($idTipoDashboard, $tiposLegajoSeleccionadosDashboard, true) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($tipoDashboard['nombre'] ?? 'Sin tipo'); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="mt-2 text-xs text-gray-500">Podés seleccionar varios tipos manteniendo `Ctrl` o `Cmd`.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-scantec-blue text-white text-sm font-bold hover:bg-blue-800 transition-all">
+                        Aplicar filtro
+                    </button>
+                    <a href="<?php echo base_url(); ?>dashboard/dashboard_legajos"
+                        class="px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+        <?php endif; ?>
+
         <?php if ($mostrarCardDocsVigentes || $mostrarCardDocsPorVencer || $mostrarCardDocsVencidos): ?>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
@@ -208,6 +252,47 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
             </a>
             <?php endif; ?>
 
+        </div>
+        <?php endif; ?>
+
+        <?php if (!empty($tiposLegajoDashboard)): ?>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8">
+            <form action="<?php echo base_url(); ?>dashboard/dashboard_legajos" method="get"
+                class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <input type="hidden" name="periodo_productividad" value="<?php echo htmlspecialchars($periodoProductividad); ?>">
+                <div class="flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-4">
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-gray-500">Filtrar por tipo</span>
+                    <details class="group relative">
+                        <summary class="flex min-w-[260px] cursor-pointer list-none items-center justify-between rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-scantec-blue">
+                            <span class="truncate pr-4"><?php echo htmlspecialchars($resumenTiposDashboard); ?></span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
+                        </summary>
+                        <div class="absolute left-0 z-20 mt-2 w-[320px] max-w-[90vw] rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
+                            <div class="max-h-64 overflow-y-auto space-y-2">
+                                <?php foreach ($tiposLegajoDashboard as $tipoDashboard): ?>
+                                <?php $idTipoDashboard = intval($tipoDashboard['id_tipo_legajo'] ?? 0); ?>
+                                <label class="flex items-center gap-3 rounded-lg px-2 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    <input type="checkbox" name="tipos_legajo[]" value="<?php echo $idTipoDashboard; ?>"
+                                        class="h-4 w-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue"
+                                        <?php echo in_array($idTipoDashboard, $tiposLegajoSeleccionadosDashboard, true) ? 'checked' : ''; ?>>
+                                    <span class="truncate"><?php echo htmlspecialchars($tipoDashboard['nombre'] ?? 'Sin tipo'); ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="submit"
+                        class="px-4 py-2.5 rounded-xl bg-scantec-blue text-white text-sm font-bold hover:bg-blue-800 transition-all">
+                        Aplicar
+                    </button>
+                    <a href="<?php echo base_url(); ?>dashboard/dashboard_legajos?periodo_productividad=<?php echo urlencode($periodoProductividad); ?>"
+                        class="px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
+                        Limpiar
+                    </a>
+                </div>
+            </form>
         </div>
         <?php endif; ?>
 
@@ -292,6 +377,9 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
                     <p class="text-xs text-gray-500 mt-1">Solo incluye legajos cuyo tipo requiere número de solicitud.</p>
                 </div>
                 <form action="<?php echo base_url(); ?>dashboard/dashboard_legajos" method="get" class="flex items-end gap-3">
+                    <?php foreach ($tiposLegajoSeleccionadosDashboard as $tipoDashboardSeleccionado): ?>
+                    <input type="hidden" name="tipos_legajo[]" value="<?php echo intval($tipoDashboardSeleccionado); ?>">
+                    <?php endforeach; ?>
                     <div>
                         <label for="periodo_productividad" class="block text-xs font-bold text-gray-500 uppercase mb-1">Período</label>
                         <select id="periodo_productividad" name="periodo_productividad"
