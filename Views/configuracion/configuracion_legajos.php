@@ -200,6 +200,11 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                 </div>
 
                 <div id="panel-tipo-legajo" class="<?php echo !empty($tipo_legajo_editar) ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
+                    <?php if (!empty($filtrar_tipos_por_departamento) && intval($id_departamento_actual ?? 0) > 0): ?>
+                    <div class="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                        Se muestran solo los tipos de legajo del departamento asociado a este usuario.
+                    </div>
+                    <?php endif; ?>
                     <form method="POST" action="<?php echo !empty($tipo_legajo_editar) ? base_url() . 'configuracion/actualizar_tipo_legajo' : base_url() . 'configuracion/guardar_tipo_legajo'; ?>"
                         class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
@@ -217,7 +222,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Requiere Nro solicitud</label>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Requiere Nro de solicitud</label>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" name="requiere_nro_solicitud" value="1" <?php echo !empty($tipo_legajo_editar['requiere_nro_solicitud']) ? 'checked' : ''; ?> class="sr-only peer">
                                 <div class="w-11 h-6 bg-gray-200 rounded-full transition-colors peer-checked:bg-scantec-blue after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-full"></div>
@@ -249,7 +254,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Descripción</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Requiere Nro. Solicitud</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Requiere Nro. de Solicitud</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                             </tr>
@@ -879,7 +884,6 @@ $todas_politicas = $data['todas_politicas'] ?? [];
 </style>
 
 <?php pie() ?>
-
 
 
 

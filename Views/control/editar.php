@@ -111,7 +111,7 @@
                                     <th>Nombre archivo</th>
                                     <th>Paginas</th>
                                     <th>Fecha Creación</th>
-                                    <th>Fecha Modificacion</th>
+                                    <th>Fecha Modificación</th>
                                     <th>Ruta archivo</th>
                                 </tr>
                             </thead>

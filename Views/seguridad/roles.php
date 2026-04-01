@@ -207,7 +207,7 @@
 <script>
 function actualizarDescripcionPreset() {
     const presets = {
-        'solo_lectura': 'Acceso a vistas de consulta, sin capacidad de modificacion',
+        'solo_lectura': 'Acceso a vistas de consulta, sin capacidad de modificación',
         'basico': 'Acceso completo a legajos con operaciones basicas',
         'avanzado': 'Acceso completo a legajos incluyendo administracion y logs',
         'vacio': 'Sin permisos (se asignaran manualmente)'
@@ -244,13 +244,13 @@ function cambiarEstadoRol(idRol, nuevoEstado) {
     const btnColor = nuevoEstado === 'activo' ? '#10b981' : '#f59e0b';
 
     Swal.fire({
-        title: `${accion.charAt(0).toUpperCase() + accion.slice(1)} rol?`,
-        text: `Estas seguro que deseas ${accion} este rol de usuario?`,
+        title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} rol?`,
+        text: `¿Estás seguro que deseas ${accion} este rol de usuario?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: btnColor,
         cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Si, ' + accion,
+        confirmButtonText: 'Sí, ' + accion,
         cancelButtonText: 'Cancelar'
     }).then((result) => {
         if (result.isConfirmed) {

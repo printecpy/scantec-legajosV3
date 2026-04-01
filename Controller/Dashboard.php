@@ -44,7 +44,14 @@
             $legajosModel = new LegajosModel();
             $tiposDisponibles = $legajosModel->selectTiposLegajo();
             $esAdministradorDashboard = ($idRol === 1);
-            $puedeVerOtrosUsuarios = $esAdministradorDashboard || $segModel->puedeVerLegajosOtrosUsuarios($idRol);
+            $esAdministradorTotalDashboard = ($idRol === 1);
+            $esAdministradorSinRestriccionPropios = in_array($idRol, [1, 2], true);
+            if (!$esAdministradorTotalDashboard && $idDepartamento > 0) {
+                $tiposDisponibles = array_values(array_filter($tiposDisponibles, static function ($tipo) use ($idDepartamento) {
+                    return intval($tipo['id_departamento'] ?? 0) === $idDepartamento;
+                }));
+            }
+            $puedeVerOtrosUsuarios = $esAdministradorSinRestriccionPropios || $segModel->puedeVerLegajosOtrosUsuarios($idRol);
             $tiposPermitidos = $esAdministradorDashboard
                 ? []
                 : ($segModel->obtenerTiposLegajoPermitidosPorRol($idRol, $tiposDisponibles) ?: [-1]);
@@ -81,6 +88,7 @@
             $cant_legajos = $this->model->selectLegajosCantidad($scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
             $cant_legajos_proceso = $this->model->selectLegajosProceso($scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
             $cant_legajos_completados = $this->model->selectLegajosCompletados($scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
+            $cant_legajos_rechazados = $this->model->selectLegajosRechazados($scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
             $cant_legajos_verificados = $this->model->selectLegajosVerificados($scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
             $cant_legajos_cerrados = $this->model->selectLegajosCerrados($scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
             $cant_legajos_activos = $this->model->selectLegajosActivos($scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
@@ -100,7 +108,7 @@
             $archiv_tipoDoc = $this->model->selectarchivosTipoDoc();
             $archiv_tipoDoc2 = $this->model->selectCantArchivosDoc();
             $legajos_armados = $this->model->selectLegajosArmadosPorFechaUsuario($periodo_config['cantidad'], $periodo_config['unidad'], $scope['tipos_permitidos'], $scope['id_usuario'], $scope['solo_propios']);
-            $data = ['cant_legajos'=> $cant_legajos, 'cant_legajos_proceso' => $cant_legajos_proceso, 'cant_legajos_completados' => $cant_legajos_completados, 'cant_legajos_verificados' => $cant_legajos_verificados, 'cant_legajos_cerrados' => $cant_legajos_cerrados, 'cant_legajos_activos' => $cant_legajos_activos, 'pagina_procesada' => $pagina_procesada,
+            $data = ['cant_legajos'=> $cant_legajos, 'cant_legajos_proceso' => $cant_legajos_proceso, 'cant_legajos_completados' => $cant_legajos_completados, 'cant_legajos_rechazados' => $cant_legajos_rechazados, 'cant_legajos_verificados' => $cant_legajos_verificados, 'cant_legajos_cerrados' => $cant_legajos_cerrados, 'cant_legajos_activos' => $cant_legajos_activos, 'pagina_procesada' => $pagina_procesada,
             'cant_faltante' => $cant_faltante, 'porc_avanza' => $porc_avanza,
             'logs_uman' => $logs_uman, 'usuarios_activos' => $usuarios_activos,  'cant_porIndice' => $cant_porIndice,
             'exp_consultados' => $exp_consultados, 'legajos_por_tipo' => $legajos_por_tipo, 'legajos_por_usuario' => $legajos_por_usuario, 'productividad_solicitudes' => $productividad_solicitudes, 'periodo_productividad' => $periodo_productividad, 'docs_vigentes' => $docs_vigentes, 'docs_por_vencer' => $docs_por_vencer, 'docs_vencidos' => $docs_vencidos, 'archiv_tipoDoc' => $archiv_tipoDoc, 'archiv_tipoDoc2' => $archiv_tipoDoc2, 'legajos_armados' => $legajos_armados];

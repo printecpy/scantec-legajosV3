@@ -11,7 +11,7 @@
                                 <div class="row">
                                     <div class="col-md-5">
                                         <div class="form-group">
-                                            <label for="id">Codigo caja</label>
+                                            <label for="id">Código caja</label>
                                             <input type="hidden" name="id"
                                                 value="<?php echo $data['ordenamiento']['id'] ; ?>">
                                             <input id="codigo_caja" class="form-control" type="text" name="codigo_caja"                                                
@@ -20,7 +20,7 @@
                                     </div>
                                     <div class="col-md-5">
                                         <div class="form-group">
-                                            <label for="descripcion">Terminacion</label>
+                                            <label for="descripcion">Terminación</label>
                                             <input id="descripcion" class="form-control" type="text" name="descripcion"
                                                 
                                                 value="<?php echo $data['ordenamiento']['descripcion'] ?>">
@@ -28,7 +28,7 @@
                                     </div>
                                     <div class="col-md-5">
                                         <div class="form-group">
-                                            <label for="ubicacion">Ubicacion</label>
+                                            <label for="ubicacion">Ubicación</label>
                                             <input id="ubicacion" class="form-control" type="text" name="ubicacion"
                                                 value="<?php echo $data['ordenamiento']['ubicacion'] ?>">
                                         </div>

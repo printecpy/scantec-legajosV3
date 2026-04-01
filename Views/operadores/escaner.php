@@ -20,7 +20,7 @@
                                     <!-- <th text-left small>ID </th> -->
                                     <th text-left small>Nombre</th>
                                     <th text-left small>Apellido</th>
-                                    <th text-left small>Direccion</th>
+                                    <th text-left small>Dirección</th>
                                     <th text-left small>Proyecto</th>
                                     <!-- <th text-left small>Estado</th> -->
                                     <th></th>
@@ -86,7 +86,7 @@
                         </div>
                         <div class="col-md-8">
                             <div class="form-group">
-                                <label for="direccion">Direccion</label>
+                                <label for="direccion">Dirección</label>
                                 <input id="direccion" class="form-control" type="text" name="direccion"
                                     placeholder="Direccion">
                             </div>

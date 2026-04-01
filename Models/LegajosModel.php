@@ -5,6 +5,7 @@ class LegajosModel extends Mysql
     {
         parent::__construct();
         $this->ensureMatrizActivoColumn();
+        $this->ensureTipoLegajoDepartamentoColumn();
     }
 
     private function existeTabla(string $tabla): bool
@@ -30,6 +31,17 @@ class LegajosModel extends Mysql
         try {
             if ($this->existeTabla('cfg_matriz_requisitos') && !$this->existeColumna('cfg_matriz_requisitos', 'activo')) {
                 $this->update("ALTER TABLE cfg_matriz_requisitos ADD COLUMN activo TINYINT(1) NOT NULL DEFAULT 1 AFTER politica_actualizacion", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga.
+        }
+    }
+
+    private function ensureTipoLegajoDepartamentoColumn(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'id_departamento')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN id_departamento INT NOT NULL DEFAULT 0 AFTER descripcion", []);
             }
         } catch (Throwable $e) {
             // No interrumpimos la carga.
@@ -104,11 +116,14 @@ class LegajosModel extends Mysql
             return [];
         }
 
+        $campoDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento')
+            ? 'id_departamento'
+            : '0 AS id_departamento';
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
 
-        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoRequiereSolicitud
+        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud
                 FROM cfg_tipo_legajo
                 WHERE activo = 1
                 ORDER BY nombre ASC";
@@ -461,6 +476,85 @@ class LegajosModel extends Mysql
 
         $result = $this->select($sql, $params);
         return !empty($result) && intval($result['total'] ?? 0) > 0;
+    }
+
+    public function selectLegajoPorSolicitud(string $nroSolicitud, int $idLegajoExcluir = 0)
+    {
+        $nroSolicitud = trim($nroSolicitud);
+        if ($nroSolicitud === '') {
+            return [];
+        }
+
+        $sql = "SELECT *
+                FROM cfg_legajo
+                WHERE nro_solicitud = ?";
+        $params = [$nroSolicitud];
+
+        if ($idLegajoExcluir > 0) {
+            $sql .= " AND id_legajo <> ?";
+            $params[] = $idLegajoExcluir;
+        }
+
+        $sql .= " ORDER BY id_legajo DESC LIMIT 1";
+        $result = $this->select($sql, $params);
+
+        if (is_array($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return is_array($result) ? $result : [];
+    }
+
+    public function existeLegajoDuplicadoSinSolicitud(int $idTipoLegajo, string $ciSocio, int $idLegajoExcluir = 0): bool
+    {
+        $ciSocio = trim($ciSocio);
+        if ($idTipoLegajo <= 0 || $ciSocio === '') {
+            return false;
+        }
+
+        $sql = "SELECT COUNT(*) AS total
+                FROM cfg_legajo
+                WHERE id_tipo_legajo = ?
+                  AND ci_socio = ?
+                  AND (nro_solicitud IS NULL OR TRIM(nro_solicitud) = '')";
+        $params = [$idTipoLegajo, $ciSocio];
+
+        if ($idLegajoExcluir > 0) {
+            $sql .= " AND id_legajo <> ?";
+            $params[] = $idLegajoExcluir;
+        }
+
+        $result = $this->select($sql, $params);
+        return !empty($result) && intval($result['total'] ?? 0) > 0;
+    }
+
+    public function selectLegajoDuplicadoSinSolicitud(int $idTipoLegajo, string $ciSocio, int $idLegajoExcluir = 0)
+    {
+        $ciSocio = trim($ciSocio);
+        if ($idTipoLegajo <= 0 || $ciSocio === '') {
+            return [];
+        }
+
+        $sql = "SELECT *
+                FROM cfg_legajo
+                WHERE id_tipo_legajo = ?
+                  AND ci_socio = ?
+                  AND (nro_solicitud IS NULL OR TRIM(nro_solicitud) = '')";
+        $params = [$idTipoLegajo, $ciSocio];
+
+        if ($idLegajoExcluir > 0) {
+            $sql .= " AND id_legajo <> ?";
+            $params[] = $idLegajoExcluir;
+        }
+
+        $sql .= " ORDER BY id_legajo DESC LIMIT 1";
+        $result = $this->select($sql, $params);
+
+        if (is_array($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return is_array($result) ? $result : [];
     }
 
     public function selectLegajoDocumentosPorLegajo(int $idLegajo)

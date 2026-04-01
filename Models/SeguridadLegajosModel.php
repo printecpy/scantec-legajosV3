@@ -127,13 +127,14 @@ class SeguridadLegajosModel extends Mysql
         return [
             'dashboard_card_legajos_proceso' => ['etiqueta' => 'Legajos en proceso', 'icono' => 'fas fa-copy'],
             'dashboard_card_legajos_completados' => ['etiqueta' => 'Legajos completados', 'icono' => 'fas fa-folder-open'],
+            'dashboard_card_legajos_rechazados' => ['etiqueta' => 'Legajos rechazados', 'icono' => 'fas fa-circle-xmark'],
             'dashboard_card_legajos_verificados' => ['etiqueta' => 'Legajos verificados', 'icono' => 'fas fa-check-double'],
             'dashboard_card_legajos_cerrados' => ['etiqueta' => 'Legajos cerrados', 'icono' => 'fas fa-box-archive'],
             'dashboard_card_docs_vigentes' => ['etiqueta' => 'Documentos vigentes', 'icono' => 'fas fa-circle-check'],
             'dashboard_card_docs_por_vencer' => ['etiqueta' => 'Documentos por vencer', 'icono' => 'fas fa-clock'],
             'dashboard_card_docs_vencidos' => ['etiqueta' => 'Documentos vencidos / faltantes', 'icono' => 'fas fa-circle-exclamation'],
-            'dashboard_card_legajos_por_tipo' => ['etiqueta' => 'Legajos por tipo', 'icono' => 'fas fa-table-list'],
-            'dashboard_card_legajos_por_usuario' => ['etiqueta' => 'Legajos por usuario', 'icono' => 'fas fa-users'],
+            'dashboard_card_legajos_por_tipo' => ['etiqueta' => 'Legajos completados por tipo', 'icono' => 'fas fa-table-list'],
+            'dashboard_card_legajos_por_usuario' => ['etiqueta' => 'Legajos verificados por usuario', 'icono' => 'fas fa-users'],
             'dashboard_card_grafico_productividad' => ['etiqueta' => 'Gráfico de productividad', 'icono' => 'fas fa-chart-line'],
         ];
     }
@@ -653,9 +654,14 @@ class SeguridadLegajosModel extends Mysql
         }
 
         $permitidos = [];
+        $mapaEstados = [];
         foreach ($rows as $row) {
-            if (intval($row['permitido'] ?? 0) === 1) {
-                $permitidos[] = intval($row['id_tipo_legajo'] ?? 0);
+            $mapaEstados[intval($row['id_tipo_legajo'] ?? 0)] = intval($row['permitido'] ?? 0);
+        }
+
+        foreach ($idsDisponibles as $idTipoLegajo) {
+            if (!array_key_exists($idTipoLegajo, $mapaEstados) || intval($mapaEstados[$idTipoLegajo]) === 1) {
+                $permitidos[] = $idTipoLegajo;
             }
         }
 

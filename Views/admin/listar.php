@@ -122,7 +122,7 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="fecha_prestamo">Fecha de Prestamo</label>
+                                        <label for="fecha_prestamo">Fecha de Préstamo</label>
                                         <input id="fecha_prestamo" class="form-control" type="datetime-local"
                                             name="fecha_prestamo" value="<?php echo date("Y-m-d h-m-s"); ?>">
                                     </div>

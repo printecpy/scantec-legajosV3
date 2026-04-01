@@ -35,13 +35,6 @@ class DashboardModel extends Mysql
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
-    private function obtenerCampoUsuarioLegajo(string $alias = 'l'): string
-    {
-        return $this->existeColumna('cfg_legajo', 'id_usuario_armado')
-            ? "{$alias}.id_usuario_armado"
-            : "{$alias}.id_usuario";
-    }
-
     private function construirFiltroLegajos(string $alias = 'l', array $tiposPermitidos = [], int $idUsuario = 0, bool $soloPropios = false): array
     {
         $sql = '';
@@ -55,8 +48,14 @@ class DashboardModel extends Mysql
         }
 
         if ($soloPropios && $idUsuario > 0) {
-            $sql .= " AND " . $this->obtenerCampoUsuarioLegajo($alias) . " = ?";
-            $params[] = $idUsuario;
+            if ($this->existeColumna('cfg_legajo', 'id_usuario_armado')) {
+                $sql .= " AND ({$alias}.id_usuario = ? OR {$alias}.id_usuario_armado = ?)";
+                $params[] = $idUsuario;
+                $params[] = $idUsuario;
+            } else {
+                $sql .= " AND {$alias}.id_usuario = ?";
+                $params[] = $idUsuario;
+            }
         }
 
         return ['sql' => $sql, 'params' => $params];
@@ -112,7 +111,7 @@ class DashboardModel extends Mysql
         $scope = $this->construirFiltroLegajos('cfg_legajo', $tiposPermitidos, $idUsuario, $soloPropios);
         $sql = "SELECT COUNT(*) AS cant_legajos_proceso
                 FROM cfg_legajo
-                WHERE estado = 'borrador'" . $scope['sql'];
+                WHERE estado NOT IN ('finalizado', 'verificado', 'cerrado', 'aprobado')" . $scope['sql'];
         $res = $this->select($sql, $scope['params']);
         return $res;
     }
@@ -123,6 +122,16 @@ class DashboardModel extends Mysql
         $sql = "SELECT COUNT(*) AS cant_legajos_completados
                 FROM cfg_legajo
                 WHERE estado = 'finalizado'" . $scope['sql'];
+        $res = $this->select($sql, $scope['params']);
+        return $res;
+    }
+
+    public function selectLegajosRechazados(array $tiposPermitidos = [], int $idUsuario = 0, bool $soloPropios = false)
+    {
+        $scope = $this->construirFiltroLegajos('cfg_legajo', $tiposPermitidos, $idUsuario, $soloPropios);
+        $sql = "SELECT COUNT(*) AS cant_legajos_rechazados
+                FROM cfg_legajo
+                WHERE estado = 'verificacion_rechazada'" . $scope['sql'];
         $res = $this->select($sql, $scope['params']);
         return $res;
     }
@@ -165,7 +174,7 @@ class DashboardModel extends Mysql
                     COUNT(l.id_legajo) AS cantidad_legajos
                 FROM cfg_legajo l
                 LEFT JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = l.id_tipo_legajo
-                WHERE 1=1" . $scope['sql'] . "
+                WHERE l.estado = 'finalizado'" . $scope['sql'] . "
                 GROUP BY l.id_tipo_legajo, tl.nombre
                 ORDER BY cantidad_legajos DESC, nombre_tipo_legajo ASC;";
         $res = $this->select_all($sql, $scope['params']);
@@ -180,7 +189,7 @@ class DashboardModel extends Mysql
                     COUNT(l.id_legajo) AS cantidad_legajos
                 FROM cfg_legajo l
                 LEFT JOIN usuarios u ON u.id = l.id_usuario
-                WHERE 1=1" . $scope['sql'] . "
+                WHERE l.estado = 'verificado'" . $scope['sql'] . "
                 GROUP BY l.id_usuario, u.nombre
                 ORDER BY cantidad_legajos DESC, nombre_usuario ASC;";
         $res = $this->select_all($sql, $scope['params']);
@@ -197,7 +206,7 @@ class DashboardModel extends Mysql
         $scope = $this->construirFiltroLegajos('l', $tiposPermitidos, $idUsuario, $soloPropios);
         $sql = "SELECT
                     COALESCE(u.nombre, 'Sin usuario') AS nombre_usuario,
-                    SUM(CASE WHEN l.estado = 'borrador' THEN 1 ELSE 0 END) AS cantidad_proceso,
+                    SUM(CASE WHEN l.estado NOT IN ('finalizado', 'verificado', 'cerrado', 'aprobado') THEN 1 ELSE 0 END) AS cantidad_proceso,
                     SUM(CASE WHEN l.estado = 'finalizado' THEN 1 ELSE 0 END) AS cantidad_completado,
                     SUM(CASE WHEN l.estado = 'verificado' THEN 1 ELSE 0 END) AS cantidad_verificado
                 FROM cfg_legajo l

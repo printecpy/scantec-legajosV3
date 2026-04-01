@@ -7,6 +7,7 @@ class ConfiguracionModel extends Mysql
         parent::__construct();
         $this->db = new Mysql();
         $this->ensureMatrizActivoColumn();
+        $this->ensureTipoLegajoDepartamentoColumn();
     }
 
     public function selectConfiguracion()
@@ -118,11 +119,43 @@ class ConfiguracionModel extends Mysql
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
+    private function existeIndice(string $tabla, string $indice): bool
+    {
+        $sql = "SELECT COUNT(*) AS total
+                FROM information_schema.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?";
+        $result = $this->select($sql, [$tabla, $indice]);
+        return !empty($result) && intval($result['total'] ?? 0) > 0;
+    }
+
     private function ensureMatrizActivoColumn(): void
     {
         try {
             if ($this->existeTabla('cfg_matriz_requisitos') && !$this->existeColumna('cfg_matriz_requisitos', 'activo')) {
                 $this->update("ALTER TABLE cfg_matriz_requisitos ADD COLUMN activo TINYINT(1) NOT NULL DEFAULT 1 AFTER politica_actualizacion", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aún no está alineada.
+        }
+    }
+
+    private function ensureTipoLegajoDepartamentoColumn(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'id_departamento')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN id_departamento INT NOT NULL DEFAULT 0 AFTER descripcion", []);
+            }
+
+            if ($this->existeTabla('cfg_tipo_legajo') && $this->existeColumna('cfg_tipo_legajo', 'id_departamento')) {
+                $this->update("UPDATE cfg_tipo_legajo SET id_departamento = 0 WHERE id_departamento IS NULL", []);
+
+                if ($this->existeIndice('cfg_tipo_legajo', 'uk_cfg_tipo_legajo_nombre') && !$this->existeIndice('cfg_tipo_legajo', 'uk_cfg_tipo_legajo_nombre_departamento')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo DROP INDEX uk_cfg_tipo_legajo_nombre", []);
+                }
+
+                if (!$this->existeIndice('cfg_tipo_legajo', 'uk_cfg_tipo_legajo_nombre_departamento')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo ADD UNIQUE KEY uk_cfg_tipo_legajo_nombre_departamento (nombre, id_departamento)", []);
+                }
             }
         } catch (Throwable $e) {
             // No interrumpimos la carga si la base aún no está alineada.
@@ -150,16 +183,26 @@ class ConfiguracionModel extends Mysql
         return $this->select_all($sql);
     }
 
-    public function getTiposDocumentoLegajo()
+    public function getTiposDocumentoLegajo(int $idDepartamento = 0, bool $filtrarPorDepartamento = false)
     {
         if ($this->existeTabla('cfg_tipo_legajo')) {
             $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
                 ? 'requiere_nro_solicitud'
                 : '0 AS requiere_nro_solicitud';
-            $sql = "SELECT id_tipo_legajo AS id_tipoDoc, nombre AS nombre_tipoDoc, descripcion, activo, $campoRequiereSolicitud
-                    FROM cfg_tipo_legajo
-                    ORDER BY nombre ASC";
-            return $this->select_all($sql);
+            $campoDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento')
+                ? 'id_departamento'
+                : '0 AS id_departamento';
+            $sql = "SELECT id_tipo_legajo AS id_tipoDoc, nombre AS nombre_tipoDoc, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud
+                    FROM cfg_tipo_legajo";
+            $params = [];
+
+            if ($filtrarPorDepartamento && $idDepartamento > 0 && $this->existeColumna('cfg_tipo_legajo', 'id_departamento')) {
+                $sql .= " WHERE id_departamento = ?";
+                $params[] = $idDepartamento;
+            }
+
+            $sql .= " ORDER BY nombre ASC";
+            return $this->select_all($sql, $params);
         }
 
         $sql = "SELECT id_tipoDoc, nombre_tipoDoc
@@ -168,7 +211,7 @@ class ConfiguracionModel extends Mysql
         return $this->select_all($sql);
     }
 
-    public function existeTipoLegajoPorNombre(string $nombre): bool
+    public function existeTipoLegajoPorNombre(string $nombre, int $idDepartamento = 0, bool $filtrarPorDepartamento = false): bool
     {
         if (!$this->existeTabla('cfg_tipo_legajo')) {
             return false;
@@ -177,19 +220,36 @@ class ConfiguracionModel extends Mysql
         $sql = "SELECT COUNT(*) AS total
                 FROM cfg_tipo_legajo
                 WHERE UPPER(nombre) = UPPER(?)";
-        $result = $this->select($sql, [$nombre]);
+        $params = [$nombre];
+        if ($filtrarPorDepartamento && $idDepartamento > 0 && $this->existeColumna('cfg_tipo_legajo', 'id_departamento')) {
+            $sql .= " AND id_departamento = ?";
+            $params[] = $idDepartamento;
+        }
+        $result = $this->select($sql, $params);
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
-    public function insertarTipoLegajo(string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0)
+    public function insertarTipoLegajo(string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0, ?int $idDepartamento = null)
     {
         if (!$this->existeTabla('cfg_tipo_legajo')) {
             return false;
         }
 
+        $idDepartamento = intval($idDepartamento ?? 0);
+
+        $tieneDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento');
         if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')) {
+            if ($tieneDepartamento) {
+                $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, id_departamento, activo, requiere_nro_solicitud) VALUES (?, ?, ?, ?, ?)";
+                return $this->insert($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud]);
+            }
             $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, activo, requiere_nro_solicitud) VALUES (?, ?, ?, ?)";
             return $this->insert($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud]);
+        }
+
+        if ($tieneDepartamento) {
+            $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, id_departamento, activo) VALUES (?, ?, ?, ?)";
+            return $this->insert($query, [$nombre, $descripcion, $idDepartamento, $activo]);
         }
 
         $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, activo) VALUES (?, ?, ?)";
@@ -202,10 +262,13 @@ class ConfiguracionModel extends Mysql
             return null;
         }
 
+        $campoDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento')
+            ? 'id_departamento'
+            : '0 AS id_departamento';
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
-        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoRequiereSolicitud
+        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud
                 FROM cfg_tipo_legajo
                 WHERE id_tipo_legajo = ?";
         $result = $this->select($sql, [$idTipoLegajo]);
@@ -215,17 +278,33 @@ class ConfiguracionModel extends Mysql
         return $result;
     }
 
-    public function actualizarTipoLegajo(int $idTipoLegajo, string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0)
+    public function actualizarTipoLegajo(int $idTipoLegajo, string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0, ?int $idDepartamento = null)
     {
         if (!$this->existeTabla('cfg_tipo_legajo')) {
             return false;
         }
 
+        $idDepartamento = intval($idDepartamento ?? 0);
+
+        $tieneDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento');
         if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')) {
+            if ($tieneDepartamento) {
+                $query = "UPDATE cfg_tipo_legajo
+                        SET nombre = ?, descripcion = ?, id_departamento = ?, activo = ?, requiere_nro_solicitud = ?
+                        WHERE id_tipo_legajo = ?";
+                return $this->update($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud, $idTipoLegajo]);
+            }
             $query = "UPDATE cfg_tipo_legajo
                     SET nombre = ?, descripcion = ?, activo = ?, requiere_nro_solicitud = ?
                     WHERE id_tipo_legajo = ?";
             return $this->update($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud, $idTipoLegajo]);
+        }
+
+        if ($tieneDepartamento) {
+            $query = "UPDATE cfg_tipo_legajo
+                    SET nombre = ?, descripcion = ?, id_departamento = ?, activo = ?
+                    WHERE id_tipo_legajo = ?";
+            return $this->update($query, [$nombre, $descripcion, $idDepartamento, $activo, $idTipoLegajo]);
         }
 
         $query = "UPDATE cfg_tipo_legajo

@@ -1,16 +1,26 @@
-﻿<?php
+<?php
 if (isset($_SESSION['alert'])) {
     $type = $_SESSION['alert']['type'] ?? 'info';
     $msg = $_SESSION['alert']['message'] ?? '';
     $typeJson = json_encode((string) $type, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     $msgJson = json_encode((string) $msg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     echo "<script>
+        function __scantecRestaurarScroll() {
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            document.documentElement.style.paddingRight = '';
+            document.body.style.paddingRight = '';
+            document.body.classList.remove('swal2-shown', 'swal2-height-auto');
+            document.documentElement.classList.remove('swal2-shown', 'swal2-height-auto');
+        }
         document.addEventListener('DOMContentLoaded', function() {
             Swal.fire({
                 icon: $typeJson,
                 title: 'Notificación Scantec',
                 text: $msgJson,
-                confirmButtonColor: '#182541'
+                confirmButtonColor: '#182541',
+                didClose: __scantecRestaurarScroll,
+                willClose: __scantecRestaurarScroll
             });
         });
     </script>";
@@ -94,6 +104,14 @@ if (isset($_SESSION['alert'])) {
         }
     </style>
     <script>
+        function __scantecRestaurarScrollGlobal() {
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            document.documentElement.style.paddingRight = '';
+            document.body.style.paddingRight = '';
+            document.body.classList.remove('swal2-shown', 'swal2-height-auto');
+            document.documentElement.classList.remove('swal2-shown', 'swal2-height-auto');
+        }
         document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('.swal2-container').forEach(function (container) {
                 const popupVisible = container.querySelector('.swal2-popup.swal2-show');
@@ -101,6 +119,7 @@ if (isset($_SESSION['alert'])) {
                     container.remove();
                 }
             });
+            __scantecRestaurarScrollGlobal();
         });
     </script>
 </head>
@@ -130,8 +149,8 @@ if (isset($_SESSION['alert'])) {
                 $__accesosRolDepartamento = [];
             }
 
-            // Solo root (rol 1) ignora las restricciones de GestiÃ³n de mÃ³dulos.
-            // Todos los demÃƒÂ¡s roles respetan la configuraciÃƒÂ³n de funcionalidades_sistema.
+            // Solo root (rol 1) ignora las restricciones de Gestión de módulos.
+            // Todos los demás roles respetan la configuración de funcionalidades_sistema.
             $__seccionHabilitada = function (string $clave) use ($__funcionalidadesSistema, $__esAdministradorScantec) {
                 if ($__esAdministradorScantec) {
                     return true;
@@ -348,7 +367,7 @@ if (isset($_SESSION['alert'])) {
             <div class="menu-group">
                 <button onclick="toggleMenu('menu-auditoria')" class="w-full flex items-center px-3 py-3 rounded-lg hover:bg-white/10 transition-all">
                     <span class="w-8 text-center"><i class="fas fa-history"></i></span>
-                    <span class="ml-3 font-medium flex-1 text-left text-[11px] uppercase tracking-wider">AuditorÃ­a</span>
+                    <span class="ml-3 font-medium flex-1 text-left text-[11px] uppercase tracking-wider">Auditoría</span>
                     <i class="fas fa-chevron-down text-[10px] rotate-icon" id="icon-menu-auditoria"></i>
                 </button>
                 <div id="menu-auditoria" class="hidden pl-11 space-y-1 mt-1">

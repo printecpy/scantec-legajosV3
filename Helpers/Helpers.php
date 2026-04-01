@@ -25,8 +25,8 @@ function setAlert($type, $message)
         $type = 'info';
     }
     $_SESSION['alert'] = [
-        'type' => htmlspecialchars($type, ENT_QUOTES, 'UTF-8'),
-        'message' => htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
+        'type' => (string) $type,
+        'message' => (string) $message
     ];
 }
 

@@ -22,7 +22,7 @@
                                     <th>Hasta</th>
                                     <th>Usuario</th>
                                     <th>Proceso</th>
-                                    <th>Observacion</th>
+                                    <th>Observación</th>
                                     <th>Actualizar</th>
                                 </tr>
                             </thead>

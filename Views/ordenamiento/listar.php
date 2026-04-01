@@ -14,9 +14,9 @@
                         <table class="table table-hover table-bordered" id="table">
                             <thead class="thead">
                                 <tr>
-                                    <th>Codigo caja</th>
-                                    <th>Terminacion</th>
-                                    <th>Ubicacion</th>
+                                    <th>Código caja</th>
+                                    <th>Terminación</th>
+                                    <th>Ubicación</th>
                                     <th>Fecha</th>
                                     <th>Observaciones</th>
                                     <th>Tipo</th>

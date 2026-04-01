@@ -15,6 +15,30 @@ class Legajos extends Controllers
         return is_array($flash) ? $flash : [];
     }
 
+    private function construirFlashDocumentosDesdePost(): array
+    {
+        $documentos = [];
+
+        foreach ($_POST as $clave => $valor) {
+            if (strpos($clave, 'fecha_expedicion_') === 0) {
+                $idRequisito = intval(substr($clave, strlen('fecha_expedicion_')));
+                if ($idRequisito > 0) {
+                    $documentos[$idRequisito]['fecha_expedicion'] = trim((string)$valor);
+                }
+                continue;
+            }
+
+            if (strpos($clave, 'observacion_') === 0) {
+                $idRequisito = intval(substr($clave, strlen('observacion_')));
+                if ($idRequisito > 0) {
+                    $documentos[$idRequisito]['observacion'] = trim((string)$valor);
+                }
+            }
+        }
+
+        return $documentos;
+    }
+
     private function construirUrlArmarLegajo(int $idLegajo = 0, int $duplicadoDesde = 0): string
     {
         $url = base_url() . "legajos/armar_legajo";
@@ -221,6 +245,175 @@ class Legajos extends Controllers
         }
     }
 
+    private function convertirImagenAPdf(string $rutaImagen, string $rutaPdf, ?string $tipoImagen = null): bool
+    {
+        if (!is_file($rutaImagen)) {
+            return false;
+        }
+
+        $extension = strtolower(trim((string)($tipoImagen ?? pathinfo($rutaImagen, PATHINFO_EXTENSION))));
+        $rutaTrabajo = $rutaImagen;
+        $rutaTemporalJpg = null;
+
+        try {
+            if ($extension === 'png' && function_exists('imagecreatefrompng')) {
+                $src = @imagecreatefrompng($rutaImagen);
+                if (!$src) {
+                    return false;
+                }
+
+                $w = imagesx($src);
+                $h = imagesy($src);
+                $dst = imagecreatetruecolor($w, $h);
+                $white = imagecolorallocate($dst, 255, 255, 255);
+                imagefill($dst, 0, 0, $white);
+                imagecopy($dst, $src, 0, 0, 0, 0, $w, $h);
+
+                $rutaTemporalJpg = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'legajo_img_' . uniqid('', true) . '.jpg';
+                imagejpeg($dst, $rutaTemporalJpg, 90);
+                imagedestroy($src);
+                imagedestroy($dst);
+                $rutaTrabajo = $rutaTemporalJpg;
+            }
+
+            $tamano = @getimagesize($rutaTrabajo);
+            if (!$tamano || empty($tamano[0]) || empty($tamano[1])) {
+                return false;
+            }
+
+            $anchoPx = (float)$tamano[0];
+            $altoPx = (float)$tamano[1];
+            $anchoMm = max(1, $anchoPx * 0.264583);
+            $altoMm = max(1, $altoPx * 0.264583);
+            $orientacion = $anchoMm > $altoMm ? 'L' : 'P';
+
+            $pdf = $this->crearInstanciaPdf();
+            $pdf->SetMargins(0, 0, 0);
+            $pdf->SetAutoPageBreak(false);
+            $pdf->AddPage($orientacion, [$anchoMm, $altoMm]);
+            $tipoFpdf = '';
+            if (in_array($extension, ['jpg', 'jpeg'], true)) {
+                $tipoFpdf = 'JPEG';
+            } elseif ($extension === 'png') {
+                $tipoFpdf = 'PNG';
+            }
+            $pdf->Image($rutaTrabajo, 0, 0, $anchoMm, $altoMm, $tipoFpdf);
+            $pdf->Output('F', $rutaPdf);
+
+            return is_file($rutaPdf) && filesize($rutaPdf) > 0;
+        } catch (Throwable $e) {
+            return false;
+        } finally {
+            if ($rutaTemporalJpg !== null && is_file($rutaTemporalJpg)) {
+                @unlink($rutaTemporalJpg);
+            }
+        }
+    }
+
+    private function normalizarArchivoAPdf(string $rutaOrigen, string $directorioTemporal): ?string
+    {
+        if (!is_file($rutaOrigen)) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($rutaOrigen, PATHINFO_EXTENSION));
+        if ($extension === 'pdf') {
+            return $rutaOrigen;
+        }
+
+        if (!in_array($extension, ['jpg', 'jpeg', 'png'], true)) {
+            return null;
+        }
+
+        $rutaTemporalPdf = rtrim($directorioTemporal, '/\\') . DIRECTORY_SEPARATOR . 'tmp_pdf_' . uniqid('', true) . '.pdf';
+        return $this->convertirImagenAPdf($rutaOrigen, $rutaTemporalPdf) ? $rutaTemporalPdf : null;
+    }
+
+    private function generarPdfDesdeArchivosSubidos(array $archivo, string $rutaDestino, string $directorioTemporal): bool
+    {
+        $nombres = $archivo['name'] ?? null;
+        $temporales = $archivo['tmp_name'] ?? null;
+        $errores = $archivo['error'] ?? null;
+
+        if (is_array($nombres) && is_array($temporales) && is_array($errores)) {
+            $rutasPdf = [];
+            $temporalesGenerados = [];
+            $cantidadEsperada = 0;
+
+            foreach ($nombres as $indice => $nombreOriginal) {
+                $error = intval($errores[$indice] ?? UPLOAD_ERR_NO_FILE);
+                $rutaTemporal = trim((string)($temporales[$indice] ?? ''));
+                if ($error !== UPLOAD_ERR_OK || $rutaTemporal === '' || !is_file($rutaTemporal)) {
+                    continue;
+                }
+
+                $extension = strtolower(pathinfo((string)$nombreOriginal, PATHINFO_EXTENSION));
+                if (!in_array($extension, ['pdf', 'jpg', 'jpeg', 'png'], true)) {
+                    continue;
+                }
+                $cantidadEsperada++;
+
+                if ($extension === 'pdf') {
+                    $rutaPdf = rtrim($directorioTemporal, '/\\') . DIRECTORY_SEPARATOR . 'tmp_upload_' . uniqid('', true) . '.pdf';
+                    if (!@move_uploaded_file($rutaTemporal, $rutaPdf)) {
+                        if (!@copy($rutaTemporal, $rutaPdf)) {
+                            continue;
+                        }
+                    }
+                    $rutasPdf[] = $rutaPdf;
+                    $temporalesGenerados[] = $rutaPdf;
+                    continue;
+                }
+
+                $rutaPdf = rtrim($directorioTemporal, '/\\') . DIRECTORY_SEPARATOR . 'tmp_upload_' . uniqid('', true) . '.pdf';
+                if ($this->convertirImagenAPdf($rutaTemporal, $rutaPdf, $extension)) {
+                    $rutasPdf[] = $rutaPdf;
+                    $temporalesGenerados[] = $rutaPdf;
+                }
+            }
+
+            if ($cantidadEsperada === 0 || count($rutasPdf) !== $cantidadEsperada) {
+                foreach ($temporalesGenerados as $temporal) {
+                    if (is_file($temporal)) {
+                        @unlink($temporal);
+                    }
+                }
+                return false;
+            }
+
+            if (count($rutasPdf) === 1) {
+                $ok = @copy($rutasPdf[0], $rutaDestino);
+            } else {
+                $ok = $this->unirPdfsSimple($rutasPdf, $rutaDestino);
+            }
+
+            foreach ($temporalesGenerados as $temporal) {
+                if (is_file($temporal)) {
+                    @unlink($temporal);
+                }
+            }
+
+            return $ok && is_file($rutaDestino) && filesize($rutaDestino) > 0;
+        }
+
+        $error = intval($archivo['error'] ?? UPLOAD_ERR_NO_FILE);
+        $rutaTemporal = trim((string)($archivo['tmp_name'] ?? ''));
+        if ($error !== UPLOAD_ERR_OK || $rutaTemporal === '') {
+            return false;
+        }
+
+        $extension = strtolower(pathinfo((string)($archivo['name'] ?? ''), PATHINFO_EXTENSION));
+        if ($extension === 'pdf') {
+            return move_uploaded_file($rutaTemporal, $rutaDestino);
+        }
+
+        if (in_array($extension, ['jpg', 'jpeg', 'png'], true)) {
+            return $this->convertirImagenAPdf($rutaTemporal, $rutaDestino, $extension);
+        }
+
+        return false;
+    }
+
     private function unirSegunPolitica(string $politicaActualizacion, string $rutaFisicaNueva, string $rutaFisicaExistente, string $rutaBaseLegajos, int $idLegajo): ?string
     {
         if (!is_file($rutaFisicaNueva) || !is_file($rutaFisicaExistente)) {
@@ -230,11 +423,34 @@ class Legajos extends Controllers
         $nombreArchivoBase = pathinfo($rutaFisicaNueva, PATHINFO_FILENAME);
         $nombreArchivoUnido = $nombreArchivoBase . '_unido.pdf';
         $rutaFisicaUnida = $rutaBaseLegajos . $nombreArchivoUnido;
-        $rutas = $politicaActualizacion === 'UNIR_AL_FINAL'
+        $rutasOrigen = $politicaActualizacion === 'UNIR_AL_FINAL'
             ? [$rutaFisicaExistente, $rutaFisicaNueva]
             : [$rutaFisicaNueva, $rutaFisicaExistente];
 
+        $rutas = [];
+        $temporales = [];
+        foreach ($rutasOrigen as $rutaOrigen) {
+            $rutaPdfNormalizada = $this->normalizarArchivoAPdf($rutaOrigen, $rutaBaseLegajos);
+            if ($rutaPdfNormalizada === null) {
+                foreach ($temporales as $temporal) {
+                    if (is_file($temporal)) {
+                        @unlink($temporal);
+                    }
+                }
+                return null;
+            }
+            if ($rutaPdfNormalizada !== $rutaOrigen) {
+                $temporales[] = $rutaPdfNormalizada;
+            }
+            $rutas[] = $rutaPdfNormalizada;
+        }
+
         $unionExitosa = $this->unirPdfsSimple($rutas, $rutaFisicaUnida);
+        foreach ($temporales as $temporal) {
+            if (is_file($temporal)) {
+                @unlink($temporal);
+            }
+        }
         if (!$unionExitosa) {
             return null;
         }
@@ -947,6 +1163,16 @@ class Legajos extends Controllers
             }
         }
 
+        $formDocumentos = [];
+        if (!empty($flashFormulario['documentos']) && is_array($flashFormulario['documentos'])) {
+            foreach ($flashFormulario['documentos'] as $idRequisito => $documentoFlash) {
+                $idRequisito = intval($idRequisito);
+                if ($idRequisito > 0 && is_array($documentoFlash)) {
+                    $formDocumentos[$idRequisito] = $documentoFlash;
+                }
+            }
+        }
+
         if (!empty($_SESSION['legajo_pdf_final_listo'])) {
             $pdf_final_listo = $_SESSION['legajo_pdf_final_listo'];
             unset($_SESSION['legajo_pdf_final_listo']);
@@ -957,6 +1183,7 @@ class Legajos extends Controllers
             'matriz_legajo' => $matriz_legajo,
             'legajo' => $legajo,
             'legajo_documentos' => $legajo_documentos,
+            'form_documentos' => $formDocumentos,
             'pdf_final_listo' => $pdf_final_listo,
             'buscar_legajo' => $buscar_legajo,
             'resultados_busqueda_legajo' => $resultados_busqueda_legajo,
@@ -997,6 +1224,41 @@ class Legajos extends Controllers
             'tipos_legajo' => $tipos_legajo
         ];
         $this->views->getView($this, "buscar_legajos", $data);
+    }
+
+    public function validar_solicitud_duplicada()
+    {
+        header('Content-Type: application/json; charset=UTF-8');
+
+        try {
+            $this->checkLegajoGroupPermission('armar_legajo');
+            $nroSolicitud = trim((string)($_GET['nro_solicitud'] ?? ''));
+            $idLegajo = intval($_GET['id_legajo'] ?? 0);
+
+            if ($nroSolicitud === '') {
+                echo json_encode(['ok' => true, 'duplicado' => false], JSON_UNESCAPED_UNICODE);
+                exit();
+            }
+
+            $duplicado = $this->model->existeSolicitudDuplicada($nroSolicitud, $idLegajo);
+            $respuesta = ['ok' => true, 'duplicado' => $duplicado];
+
+            if ($duplicado) {
+                $legajoExistente = $this->model->selectLegajoPorSolicitud($nroSolicitud, $idLegajo);
+                $idLegajoExistente = intval($legajoExistente['id_legajo'] ?? 0);
+                if ($idLegajoExistente > 0) {
+                    $respuesta['id_legajo'] = $idLegajoExistente;
+                    $respuesta['redirect_url'] = base_url() . 'legajos/armar_legajo?id_legajo=' . $idLegajoExistente;
+                }
+            }
+
+            echo json_encode($respuesta, JSON_UNESCAPED_UNICODE);
+            exit();
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'duplicado' => false], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
     }
 
     public function indice_busqueda()
@@ -1441,6 +1703,7 @@ class Legajos extends Controllers
                 'nombre_completo' => $nombreCompleto,
                 'nro_solicitud' => $nroSolicitud,
             ],
+            'documentos' => $this->construirFlashDocumentosDesdePost(),
         ]);
 
         $tipoLegajoActual = $idTipoLegajo > 0 ? $this->model->selectTipoLegajoPorId($idTipoLegajo) : [];
@@ -1477,6 +1740,18 @@ class Legajos extends Controllers
             }
             header("Location: " . $this->construirUrlArmarLegajo($idLegajo, $duplicadoDesde));
             exit();
+        }
+
+        if (!$requiereNroSolicitud && $idLegajo <= 0 && $this->model->existeLegajoDuplicadoSinSolicitud($idTipoLegajo, $ciSocio, 0)) {
+            $legajoExistente = $this->model->selectLegajoDuplicadoSinSolicitud($idTipoLegajo, $ciSocio, 0);
+            $idLegajoExistente = intval($legajoExistente['id_legajo'] ?? 0);
+            if ($idLegajoExistente > 0) {
+                if (function_exists('setAlert')) {
+                    setAlert('warning', "Ya existe un legajo abierto para esta persona en ese tipo. Se cargó el legajo existente.");
+                }
+                header("Location: " . base_url() . "legajos/armar_legajo?id_legajo=" . $idLegajoExistente);
+                exit();
+            }
         }
 
         if ($idLegajo > 0) {
@@ -1625,16 +1900,46 @@ class Legajos extends Controllers
                 $fechaVencimiento = null;
             }
 
-            if ($fileKey !== null && isset($_FILES[$fileKey]) && intval($_FILES[$fileKey]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $hayArchivoSubido = false;
+            if ($fileKey !== null && isset($_FILES[$fileKey])) {
+                $errorArchivo = $_FILES[$fileKey]['error'] ?? UPLOAD_ERR_NO_FILE;
+                if (is_array($errorArchivo)) {
+                    foreach ($errorArchivo as $errorItem) {
+                        if (intval($errorItem) === UPLOAD_ERR_OK) {
+                            $hayArchivoSubido = true;
+                            break;
+                        }
+                    }
+                } else {
+                    $hayArchivoSubido = intval($errorArchivo) === UPLOAD_ERR_OK;
+                }
+            }
+
+            if ($fileKey !== null && isset($_FILES[$fileKey]) && $hayArchivoSubido) {
                 if ($this->requiereFechaExpedicion($regla) && $fechaExpedicion === '') {
                     if (function_exists('setAlert')) {
-                        setAlert('warning', 'Debe completar la fecha de expedicion antes de cargar el documento "' . trim((string)($regla['documento_nombre'] ?? '')) . '".');
+                        setAlert('warning', 'Debe completar la fecha de expedición antes de cargar el documento "' . trim((string)($regla['documento_nombre'] ?? '')) . '".');
                     }
                     header("Location: " . $this->construirUrlArmarLegajo(intval($idLegajo), $duplicadoDesde));
                     exit();
                 }
                 $archivo = $_FILES[$fileKey];
-                $extension = strtolower(pathinfo($archivo['name'] ?? '', PATHINFO_EXTENSION));
+                $nombresArchivo = $archivo['name'] ?? '';
+                $listaNombres = is_array($nombresArchivo) ? $nombresArchivo : [$nombresArchivo];
+                $extensionesInvalidas = [];
+                foreach ($listaNombres as $nombreArchivoOriginal) {
+                    $extension = strtolower(pathinfo((string)$nombreArchivoOriginal, PATHINFO_EXTENSION));
+                    if ($extension !== '' && !in_array($extension, ['pdf', 'jpg', 'jpeg', 'png'], true)) {
+                        $extensionesInvalidas[] = $extension;
+                    }
+                }
+                if (!empty($extensionesInvalidas)) {
+                    if (function_exists('setAlert')) {
+                        setAlert('warning', 'Solo se permiten archivos PDF o imágenes JPG, JPEG o PNG. Los archivos JFIF no están permitidos.');
+                    }
+                    header("Location: " . $this->construirUrlArmarLegajo(intval($idLegajo), $duplicadoDesde));
+                    exit();
+                }
                 $codigoDocumento = trim((string)($regla['codigo_interno'] ?? ''));
                 if ($codigoDocumento === '') {
                     $codigoDocumento = 'DOC' . $idRequisito;
@@ -1649,11 +1954,10 @@ class Legajos extends Controllers
                     $numeroSolicitudArchivo = 'SINSOLICITUD';
                 }
                 $nombreArchivo = $codigoDocumento . '_' . $cedulaLegajo . '_' . $numeroSolicitudArchivo;
-                if ($extension !== '') {
-                    $nombreArchivo .= '.' . $extension;
-                }
+                $nombreArchivo .= '.pdf';
                 $rutaFisica = $rutaBaseLegajos . $nombreArchivo;
-                if (move_uploaded_file($archivo['tmp_name'], $rutaFisica)) {
+                $guardadoArchivo = $this->generarPdfDesdeArchivosSubidos($archivo, $rutaFisica, $rutaBaseLegajos);
+                if ($guardadoArchivo) {
                     $rutaRelativa = 'Legajos/' . intval($idLegajo) . '/' . $nombreArchivo;
                 }
             }
@@ -1973,7 +2277,17 @@ class Legajos extends Controllers
             exit();
         }
 
-        header('Content-Type: application/pdf');
+        $extension = strtolower(pathinfo($rutaArchivoReal, PATHINFO_EXTENSION));
+        $contentType = 'application/octet-stream';
+        if ($extension === 'pdf') {
+            $contentType = 'application/pdf';
+        } elseif (in_array($extension, ['jpg', 'jpeg'], true)) {
+            $contentType = 'image/jpeg';
+        } elseif ($extension === 'png') {
+            $contentType = 'image/png';
+        }
+
+        header('Content-Type: ' . $contentType);
         header('Content-Disposition: inline; filename="' . basename($rutaArchivoReal) . '"');
         header('Content-Length: ' . filesize($rutaArchivoReal));
         readfile($rutaArchivoReal);

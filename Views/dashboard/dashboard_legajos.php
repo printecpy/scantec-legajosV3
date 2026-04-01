@@ -19,6 +19,7 @@ $legajosArmados = $data['legajos_armados'] ?? [];
 $dashboardCards = $data['dashboard_cards'] ?? [];
 $mostrarCardProceso = !empty($dashboardCards['dashboard_card_legajos_proceso']);
 $mostrarCardCompletados = !empty($dashboardCards['dashboard_card_legajos_completados']);
+$mostrarCardRechazados = !empty($dashboardCards['dashboard_card_legajos_rechazados']);
 $mostrarCardVerificados = !empty($dashboardCards['dashboard_card_legajos_verificados']);
 $mostrarCardCerrados = !empty($dashboardCards['dashboard_card_legajos_cerrados']);
 $mostrarCardDocsVigentes = !empty($dashboardCards['dashboard_card_docs_vigentes']);
@@ -60,8 +61,8 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
         </div>
         <?php endif; ?>
 
-        <?php if ($mostrarCardProceso || $mostrarCardCompletados || $mostrarCardVerificados || $mostrarCardCerrados): ?>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <?php if ($mostrarCardProceso || $mostrarCardCompletados || $mostrarCardRechazados || $mostrarCardVerificados || $mostrarCardCerrados): ?>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
             <?php if ($mostrarCardProceso): ?>
             <a href="<?php echo base_url(); ?>legajos/buscar_legajos?estado_legajo=Incompleto"
                 class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-indigo-500">
@@ -95,6 +96,25 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
                 </h3>
                 <p class="text-sm text-scantec-gray font-medium mb-4">Legajos completados</p>
             </div>
+            <?php endif; ?>
+
+            <?php if ($mostrarCardRechazados): ?>
+            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?estado_legajo=Verificaci%C3%B3n%20rechazada"
+                class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-rose-500">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-rose-50 rounded-xl">
+                        <i class="fas fa-circle-xmark text-rose-600 fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Rechazado</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-rose-700">
+                    <?php echo number_format($data['cant_legajos_rechazados']['cant_legajos_rechazados'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Legajos rechazados</p>
+                <span
+                    class="inline-block text-[10px] font-bold bg-rose-100 text-rose-700 px-3 py-1 rounded-full uppercase tracking-wide">Ver
+                    legajos</span>
+            </a>
             <?php endif; ?>
 
             <?php if ($mostrarCardVerificados): ?>
@@ -197,7 +217,7 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
             <?php if ($mostrarLegajosPorTipo): ?>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="p-5 border-b border-gray-50 bg-gray-50/50">
-                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos por
+                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos completados por
                         tipo</h5>
                 </div>
                 <div class="p-4">
@@ -209,7 +229,7 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
                                         de legajo</th>
                                     <th
                                         class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tr-lg text-center">
-                                        Cant. Legajos</th>
+                                        Cant. Completados</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
@@ -231,7 +251,7 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
             <?php if ($mostrarLegajosPorUsuario): ?>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="p-5 border-b border-gray-50 bg-gray-50/50">
-                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos por
+                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos verificados por
                         usuario</h5>
                 </div>
                 <div class="p-4">
@@ -242,7 +262,7 @@ $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
                                     <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tl-lg">Usuario</th>
                                     <th
                                         class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tr-lg text-center">
-                                        Cant. Legajos</th>
+                                        Cant. Verificados</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">

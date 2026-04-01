@@ -34,7 +34,7 @@
                                     </div>
                                     <div class="col-md-7">
                                         <div class="form-group">
-                                            <label for="direccion">Direccion</label>
+                                            <label for="direccion">Dirección</label>
                                             <input id="direccion" class="form-control" type="text"
                                                 name="direccion"
                                                 value="<?php echo $data['operador']['direccion'] ?>">

@@ -5,6 +5,7 @@ $tipos_legajo = $data['tipos_legajo'] ?? [];
 $matriz_legajo = $data['matriz_legajo'] ?? [];
 $legajo = $data['legajo'] ?? [];
 $legajo_documentos = $data['legajo_documentos'] ?? [];
+$form_documentos = $data['form_documentos'] ?? [];
 $pdf_final_listo = $data['pdf_final_listo'] ?? null;
 $buscar_legajo = $data['buscar_legajo'] ?? '';
 $resultados_busqueda_legajo = $data['resultados_busqueda_legajo'] ?? [];
@@ -12,6 +13,7 @@ $duplicado_desde = intval($data['duplicar_desde'] ?? 0);
 $id_legajo_actual = intval($legajo['id_legajo'] ?? ($pdf_final_listo['id_legajo'] ?? 0));
 $estado_legajo_actual = strtolower(trim($legajo['estado'] ?? ''));
 $legajo_bloqueado = in_array($estado_legajo_actual, ['aprobado', 'cerrado'], true);
+$pdf_final_disponible = !empty($pdf_final_listo['nombre_archivo']);
 $matriz_por_tipo = [];
 $documentos_legajo_por_requisito = [];
 $tipos_legajo_por_id = [];
@@ -96,7 +98,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             </div>
             <a href="#" onclick="window.history.back(); return false;"
                 class="group px-4 h-10 rounded-xl bg-gray-600 text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm"
-                    title="Volver atrás">
+                    title="Volver atrÃ¡s">
                 <i class="fas fa-arrow-left mr-2"></i> Volver
             </a>
         </div>
@@ -137,7 +139,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nro. Solicitud</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
-                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">AcciÃ³n</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 bg-white">
@@ -180,7 +182,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 </div>
                 <?php else: ?>
                 <div class="mt-3 px-4 py-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl text-sm font-semibold">
-                    No se encontraron legajos para la búsqueda realizada.
+                    No se encontraron legajos para la bÃºsqueda realizada.
                 </div>
                 <?php endif; ?>
             </div>
@@ -360,10 +362,28 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
 <script>
     const matrizPorTipoLegajo = <?php echo json_encode($matriz_por_tipo, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const documentosLegajoPorRequisito = <?php echo json_encode($documentos_legajo_por_requisito, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    const formDocumentosPorRequisito = <?php echo json_encode($form_documentos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const tiposLegajoPorId = <?php echo json_encode($tipos_legajo_por_id, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const estadoLegajoActual = <?php echo json_encode($estado_legajo_actual, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const legajoBloqueado = <?php echo $legajo_bloqueado ? 'true' : 'false'; ?>;
+    const pdfFinalDisponible = <?php echo $pdf_final_disponible ? 'true' : 'false'; ?>;
     const baseUrlLegajos = <?php echo json_encode(base_url(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+
+    function restaurarScrollPagina() {
+        const limpiar = () => {
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+            document.documentElement.style.paddingRight = '';
+            document.body.style.paddingRight = '';
+            document.body.classList.remove('swal2-shown', 'swal2-height-auto');
+            document.documentElement.classList.remove('swal2-shown', 'swal2-height-auto');
+        };
+
+        limpiar();
+        window.setTimeout(limpiar, 0);
+        window.setTimeout(limpiar, 100);
+        window.setTimeout(limpiar, 250);
+    }
 
     function slugifyLegajo(texto) {
         return String(texto || '')
@@ -593,7 +613,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             alternarBotonesPdfFinal(true);
         } else if (estadoLegajoActual === 'verificacion_rechazada') {
             badge.className = 'px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold';
-            badge.textContent = 'Verificación rechazada';
+            badge.textContent = 'VerificaciÃ³n rechazada';
             aplicarEstadoBotonFinalizar(false);
         } else if (hayVencidos) {
             badge.className = 'px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold';
@@ -609,7 +629,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             badge.className = 'px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold';
             badge.textContent = 'Completado';
             aplicarEstadoBotonFinalizar(true);
-            alternarBotonesPdfFinal(false);
+            alternarBotonesPdfFinal(pdfFinalDisponible);
         }
     }
 
@@ -627,8 +647,8 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
 
     async function mostrarAvisoAccionArchivo(accion) {
         const accionNormalizada = String(accion || '').toUpperCase();
-        let titulo = 'Acción seleccionada';
-        let texto = 'Se aplicara la accion elegida al guardar el legajo.';
+        let titulo = 'AcciÃ³n seleccionada';
+        let texto = 'Se aplicarÃ¡ la acciÃ³n elegida al guardar el legajo.';
         let icono = 'info';
 
         if (accionNormalizada === 'REEMPLAZAR') {
@@ -654,8 +674,11 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 title: titulo,
                 text: texto,
                 icon: icono,
-                confirmButtonText: 'Aceptar'
+                confirmButtonText: 'Aceptar',
+                willClose: restaurarScrollPagina,
+                didClose: restaurarScrollPagina
             });
+            restaurarScrollPagina();
             return;
         }
 
@@ -682,6 +705,51 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         }
     }
 
+    async function validarSolicitudDuplicadaAntesDeEnviar() {
+        const inputSolicitud = document.getElementById('nro_solicitud');
+        const inputTipoLegajo = document.getElementById('tipo_legajo');
+        if (!inputSolicitud || !inputTipoLegajo) {
+            return true;
+        }
+
+        const tipoConfig = tiposLegajoPorId[String(inputTipoLegajo.value)] || tiposLegajoPorId[inputTipoLegajo.value] || {};
+        const requiereSolicitud = !!tipoConfig.requiere_nro_solicitud;
+        const nroSolicitud = String(inputSolicitud.value || '').trim();
+        if (!requiereSolicitud || nroSolicitud === '') {
+            return true;
+        }
+
+        const idLegajo = <?php echo intval($id_legajo_actual); ?>;
+        const url = `${baseUrlLegajos}legajos/validar_solicitud_duplicada?nro_solicitud=${encodeURIComponent(nroSolicitud)}&id_legajo=${idLegajo}`;
+
+        try {
+            const response = await fetch(url, { credentials: 'same-origin' });
+            const data = await response.json();
+            if (data && data.ok && data.duplicado) {
+                if (typeof Swal !== 'undefined') {
+                    await Swal.fire({
+                        title: 'Número duplicado',
+                        text: 'Ya existe un legajo con ese número de solicitud. Se abrirá el legajo existente.',
+                        icon: 'warning',
+                        confirmButtonText: 'Aceptar'
+                    });
+                    restaurarScrollPagina();
+                } else {
+                    alert('Ya existe un legajo con ese número de solicitud. Se abrirá el legajo existente.');
+                }
+
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+                return false;
+            }
+        } catch (error) {
+            return true;
+        }
+
+        return true;
+    }
+
     function renderChecklistLegajo(idTipoLegajo) {
         const body = document.getElementById('checklist-legajo-body');
         const badge = document.getElementById('estado-checklist-badge');
@@ -704,6 +772,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
 
         body.innerHTML = reglas.map(regla => {
             const documentoGuardado = documentosLegajoPorRequisito[String(regla.id_requisito)] || documentosLegajoPorRequisito[regla.id_requisito] || {};
+            const documentoFormulario = formDocumentosPorRequisito[String(regla.id_requisito)] || formDocumentosPorRequisito[regla.id_requisito] || {};
             const estadoGuardado = String(documentoGuardado.estado || 'pendiente').toLowerCase();
             let claseEstado = 'bg-gray-100 text-gray-600';
             let textoEstado = 'PENDIENTE';
@@ -722,7 +791,9 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 : '<div class="text-xs text-gray-500 font-bold">Opcional</div>';
             const inputName = 'doc_' + regla.id_requisito + '_' + slugifyLegajo(regla.rol_vinculado) + '_' + slugifyLegajo(regla.documento_nombre);
             let fechaExpedicionInicial = '';
-            if (regla.tiene_vencimiento && documentoGuardado.fecha_vencimiento && Number(regla.dias_vigencia_base || 0) > 0) {
+            if (String(documentoFormulario.fecha_expedicion || '').trim() !== '') {
+                fechaExpedicionInicial = String(documentoFormulario.fecha_expedicion || '').trim();
+            } else if (regla.tiene_vencimiento && documentoGuardado.fecha_vencimiento && Number(regla.dias_vigencia_base || 0) > 0) {
                 const fechaVencimiento = new Date(documentoGuardado.fecha_vencimiento + 'T00:00:00');
                 if (!Number.isNaN(fechaVencimiento.getTime())) {
                     fechaVencimiento.setDate(fechaVencimiento.getDate() - Number(regla.dias_vigencia_base));
@@ -736,7 +807,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             if (!politicaInicial) {
                 politicaInicial = regla.permite_reemplazo ? 'REEMPLAZAR' : 'NO_PERMITIR';
             }
-            const observacionInicial = String(documentoGuardado.observacion || '').replace(/"/g, '&quot;');
+            const observacionInicial = String(documentoFormulario.observacion ?? documentoGuardado.observacion ?? '').replace(/"/g, '&quot;');
             const nombreArchivoActual = documentoGuardado.ruta_archivo
                 ? String(documentoGuardado.ruta_archivo).split('/').pop().split('\\').pop()
                 : '';
@@ -802,7 +873,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         <input type="hidden" name="ruta_existente_${regla.id_requisito}" value="${String(documentoGuardado.ruta_archivo || '').replace(/"/g, '&quot;')}">
                         <input type="hidden" name="eliminar_archivo_${regla.id_requisito}" value="0" data-remove-file-flag>
                         <input type="hidden" name="accion_archivo_${regla.id_requisito}" value="${politicaInicial}" data-file-action>
-                        <input type="file" name="${inputName}" accept=".pdf" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-scantec-blue hover:file:bg-scantec-blue hover:file:text-white transition-all cursor-pointer" data-file-input data-policy-default="${politicaInicial}" ${legajoBloqueado ? 'disabled' : ''}>
+                        <input type="file" name="${inputName}[]" multiple accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-scantec-blue hover:file:bg-scantec-blue hover:file:text-white transition-all cursor-pointer" data-file-input data-policy-default="${politicaInicial}" ${legajoBloqueado ? 'disabled' : ''}>
                         ${nombreArchivoHtml}
                         ${botonVerArchivoHtml}
                         ${botonEliminarArchivoHtml}
@@ -824,6 +895,33 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 const politicaConfigurada = String(this.dataset.policyDefault || 'REEMPLAZAR').toUpperCase();
                 const tieneArchivoActual = !!(hiddenRuta && hiddenRuta.value && hiddenRuta.value.trim() !== '');
 
+                if (this.files && this.files.length > 0) {
+                    const extensionesInvalidas = Array.from(this.files)
+                        .map((file) => {
+                            const nombre = String(file.name || '');
+                            const partes = nombre.split('.');
+                            return partes.length > 1 ? partes.pop().toLowerCase() : '';
+                        })
+                        .filter((extension) => extension && !['pdf', 'jpg', 'jpeg', 'png'].includes(extension));
+
+                    if (extensionesInvalidas.length > 0) {
+                        if (typeof Swal !== 'undefined') {
+                            await Swal.fire({
+                                title: 'Formato no permitido',
+                                text: 'No se permiten archivos JFIF ni otros formatos distintos de PDF, JPG, JPEG o PNG.',
+                                icon: 'warning',
+                                confirmButtonText: 'Aceptar'
+                            });
+                        } else {
+                            alert('No se permiten archivos JFIF ni otros formatos distintos de PDF, JPG, JPEG o PNG.');
+                        }
+                        this.value = '';
+                        label.textContent = 'Ningun archivo seleccionado';
+                        label.className = 'mt-1 text-xs text-gray-400 truncate';
+                        return;
+                    }
+                }
+
                 if (this.files && this.files.length > 0 && tieneArchivoActual) {
                     let accionSeleccionada = actionInput ? String(actionInput.value || 'REEMPLAZAR').toUpperCase() : 'REEMPLAZAR';
                     if (politicaConfigurada === 'NO_PERMITIR') {
@@ -842,7 +940,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                     } else if (typeof Swal !== 'undefined') {
                         const result = await Swal.fire({
                             title: 'Actualizar documento',
-                            text: 'El documento ya tiene un archivo. ¿Querés reemplazarlo o añadir el nuevo al original?',
+                            text: 'El documento ya tiene un archivo. ¿Quieres reemplazarlo o añadir el nuevo al original?',
                             icon: 'question',
                             showCancelButton: true,
                             showDenyButton: true,
@@ -874,7 +972,11 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 }
 
                 if (this.files && this.files.length > 0) {
-                    label.textContent = this.files[0].name;
+                    if (this.files.length === 1) {
+                        label.textContent = this.files[0].name;
+                    } else {
+                        label.textContent = `${this.files.length} archivos seleccionados`;
+                    }
                     label.className = 'mt-1 text-xs text-blue-700 truncate';
                     if (fila) {
                         const enlaceActual = fila.querySelector('[data-view-file-link]');
@@ -884,8 +986,12 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             if (previewAnterior) {
                                 URL.revokeObjectURL(previewAnterior);
                             }
-                            const previewUrl = URL.createObjectURL(this.files[0]);
-                            enlaceActual.outerHTML = `<a href="${previewUrl}" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}" data-preview-url="${previewUrl}"><i class="fas fa-eye mr-1"></i> Ver archivo</a>`;
+                            if (this.files.length === 1) {
+                                const previewUrl = URL.createObjectURL(this.files[0]);
+                                enlaceActual.outerHTML = `<a href="${previewUrl}" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}" data-preview-url="${previewUrl}"><i class="fas fa-eye mr-1"></i> Ver archivo</a>`;
+                            } else {
+                                enlaceActual.outerHTML = `<button type="button" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}" data-merge-files-btn><i class="fas fa-layer-group mr-1"></i> Unir archivos</button>`;
+                            }
                         }
                     }
                 } else {
@@ -1004,18 +1110,41 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         });
 
         if (formLegajo && submitActionInput && btnGuardarBorrador) {
-            btnGuardarBorrador.addEventListener('click', function () {
+            btnGuardarBorrador.addEventListener('click', async function () {
+                const puedeContinuar = await validarSolicitudDuplicadaAntesDeEnviar();
+                if (!puedeContinuar) {
+                    return;
+                }
                 submitActionInput.value = 'borrador';
                 formLegajo.submit();
             });
         }
 
         if (formLegajo && submitActionInput && btnFinalizarLegajo) {
-            btnFinalizarLegajo.addEventListener('click', function () {
+            btnFinalizarLegajo.addEventListener('click', async function () {
+                const puedeContinuar = await validarSolicitudDuplicadaAntesDeEnviar();
+                if (!puedeContinuar) {
+                    return;
+                }
                 submitActionInput.value = 'finalizar';
                 formLegajo.submit();
             });
         }
+
+        document.addEventListener('click', async function (event) {
+            const mergeButton = event.target.closest('[data-merge-files-btn]');
+            if (!mergeButton || !formLegajo || !submitActionInput) {
+                return;
+            }
+
+            const puedeContinuar = await validarSolicitudDuplicadaAntesDeEnviar();
+            if (!puedeContinuar) {
+                return;
+            }
+
+            submitActionInput.value = 'borrador';
+            formLegajo.submit();
+        });
 
         document.querySelectorAll('[data-format-millares]').forEach((input) => {
             aplicarFormatoMillares(input);

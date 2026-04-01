@@ -89,7 +89,7 @@
 
         <div class="bg-scantec-blue/5 py-3 text-center border-t border-gray-100">
             <p class="text-[9px] text-scantec-gray font-bold uppercase tracking-[0.2em]">
-                © 2023 - 2026 PRINTEC SA | SOFTWARE DE GESTION DOCUMENTAL
+                © 2023 - 2026 PRINTEC SA | SOFTWARE DE GESTIÓN DOCUMENTAL
             </p>
         </div>
     </div>

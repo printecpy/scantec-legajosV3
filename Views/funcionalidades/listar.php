@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btnGuardar.addEventListener('click', function() {
         Swal.fire({
             title: 'Guardar funcionalidades',
-            text: 'Se aplicaran los cambios en el menu, en el acceso directo por URL y en la agrupación por módulo.',
+            text: 'Se aplicaran los cambios en el menú, en el acceso directo por URL y en la agrupación por módulo.',
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#182541',

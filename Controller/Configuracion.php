@@ -15,6 +15,16 @@ class Configuracion extends Controllers
     private $configuracionModel, $db;
     private $usuariosModel;
 
+    private function esAdministradorScantec(): bool
+    {
+        return intval($_SESSION['id_rol'] ?? 0) === 1;
+    }
+
+    private function getDepartamentoActualParaTiposLegajo(): int
+    {
+        return $this->esAdministradorScantec() ? 0 : intval($_SESSION['id_departamento'] ?? 0);
+    }
+
     private function obtenerDirectorioBranding(): string
     {
         return rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, dirname(__DIR__)), DIRECTORY_SEPARATOR)
@@ -203,12 +213,16 @@ class Configuracion extends Controllers
         }
 
         $catalogo_documentos = $this->model->getCatalogoDocumentosLegajo();
-        $tipos_documento = $this->model->getTiposDocumentoLegajo();
+        $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
+        $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
+        $tipos_documento = $this->model->getTiposDocumentoLegajo($idDepartamentoActual, $filtrarTiposPorDepartamento);
         $tab_actual = isset($_GET['tab']) ? $_GET['tab'] : 'catalogo';
         $id_documento_editar = isset($_GET['editar_documento']) ? intval($_GET['editar_documento']) : 0;
         $id_tipo_legajo_editar = isset($_GET['editar_tipo_legajo']) ? intval($_GET['editar_tipo_legajo']) : 0;
+        $id_requisito_editar = isset($_GET['editar_requisito']) ? intval($_GET['editar_requisito']) : 0;
         $documento_editar = null;
         $tipo_legajo_editar = null;
+        $requisito_editar = null;
         if ($id_documento_editar > 0) {
             $documento_editar = $this->model->getCatalogoDocumentoLegajoById($id_documento_editar);
         }
@@ -233,6 +247,23 @@ class Configuracion extends Controllers
             }
         }
 
+        if ($id_requisito_editar > 0) {
+            $requisito_editar = $this->model->getMatrizRequisitoLegajoById($id_requisito_editar);
+            if (!empty($requisito_editar)) {
+                $id_tipoDoc = intval($requisito_editar['id_tipoDoc'] ?? $id_tipoDoc);
+                $matriz_requisitos = $id_tipoDoc > 0
+                    ? $this->model->getMatrizRequisitosLegajo($id_tipoDoc)
+                    : [];
+
+                foreach ($tipos_documento as $tipo_documento) {
+                    if (intval($tipo_documento['id_tipoDoc']) === $id_tipoDoc) {
+                        $tipo_documento_actual = $tipo_documento;
+                        break;
+                    }
+                }
+            }
+        }
+
         $relaciones = $this->model->getRelacionesActivas();
         $politicas_actualizacion = $this->model->getPoliticasActualizacionActivas();
         
@@ -245,9 +276,12 @@ class Configuracion extends Controllers
             'matriz_requisitos' => $matriz_requisitos,
             'id_tipoDoc_actual' => $id_tipoDoc,
             'tipo_documento_actual' => $tipo_documento_actual,
+            'id_departamento_actual' => $idDepartamentoActual,
+            'filtrar_tipos_por_departamento' => $filtrarTiposPorDepartamento,
             'tab_actual' => $tab_actual,
             'documento_editar' => $documento_editar,
             'tipo_legajo_editar' => $tipo_legajo_editar,
+            'requisito_editar' => $requisito_editar,
             'relaciones' => $relaciones,
             'politicas_actualizacion' => $politicas_actualizacion,
             'todas_relaciones' => $todas_relaciones,
@@ -432,6 +466,8 @@ class Configuracion extends Controllers
         $nombre = trim($_POST['nombre_tipo_legajo'] ?? '');
         $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
         $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
+        $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
+        $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
 
         if ($nombre === '') {
             setAlert('warning', "Debe ingresar el nombre del tipo de legajo.");
@@ -439,13 +475,19 @@ class Configuracion extends Controllers
             exit();
         }
 
-        if ($this->model->existeTipoLegajoPorNombre($nombre)) {
+        if ($this->model->existeTipoLegajoPorNombre($nombre, $idDepartamentoActual, $filtrarTiposPorDepartamento)) {
             setAlert('warning', "Ese tipo de legajo ya existe.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
             exit();
         }
 
-        $insert = $this->model->insertarTipoLegajo($nombre, $descripcion !== '' ? $descripcion : null, 1, $requiereNroSolicitud);
+        $insert = $this->model->insertarTipoLegajo(
+            $nombre,
+            $descripcion !== '' ? $descripcion : null,
+            1,
+            $requiereNroSolicitud,
+            $filtrarTiposPorDepartamento ? $idDepartamentoActual : null
+        );
         if ($insert) {
             setAlert('success', "Tipo de legajo registrado correctamente.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
@@ -466,10 +508,14 @@ class Configuracion extends Controllers
         }
 
         $idTipoLegajo = intval($_POST['id_tipo_legajo'] ?? 0);
+        $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
+        $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
         $nombre = trim($_POST['nombre_tipo_legajo'] ?? '');
         $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
         $activo = isset($_POST['activo_tipo_legajo']) ? 1 : 0;
         $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
+        $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
+        $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
 
         if ($idTipoLegajo <= 0 || $nombre === '') {
             setAlert('warning', "Datos invÃ¡lidos para actualizar el tipo de legajo.");
@@ -484,13 +530,26 @@ class Configuracion extends Controllers
             exit();
         }
 
-        if (strcasecmp(trim($actual['nombre'] ?? ''), $nombre) !== 0 && $this->model->existeTipoLegajoPorNombre($nombre)) {
+        if ($filtrarTiposPorDepartamento && intval($actual['id_departamento'] ?? 0) !== $idDepartamentoActual) {
+            setAlert('warning', "No puede modificar tipos de legajo de otro departamento.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        if (strcasecmp(trim($actual['nombre'] ?? ''), $nombre) !== 0 && $this->model->existeTipoLegajoPorNombre($nombre, $idDepartamentoActual, $filtrarTiposPorDepartamento)) {
             setAlert('warning', "Ese tipo de legajo ya existe.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=" . $idTipoLegajo);
             exit();
         }
 
-        $ok = $this->model->actualizarTipoLegajo($idTipoLegajo, $nombre, $descripcion !== '' ? $descripcion : null, $activo, $requiereNroSolicitud);
+        $ok = $this->model->actualizarTipoLegajo(
+            $idTipoLegajo,
+            $nombre,
+            $descripcion !== '' ? $descripcion : null,
+            $activo,
+            $requiereNroSolicitud,
+            $filtrarTiposPorDepartamento ? $idDepartamentoActual : intval($actual['id_departamento'] ?? 0)
+        );
         setAlert($ok ? 'success' : 'error', $ok ? "Tipo de legajo actualizado correctamente." : "No se pudo actualizar el tipo de legajo.");
         header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
         exit();
@@ -507,6 +566,13 @@ class Configuracion extends Controllers
         $idTipoLegajo = intval($_POST['id_tipo_legajo'] ?? 0);
         if ($idTipoLegajo <= 0) {
             setAlert('warning', "Tipo de legajo invÃ¡lido.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $actual = $this->model->getTipoLegajoById($idTipoLegajo);
+        if ($filtrarTiposPorDepartamento && intval($actual['id_departamento'] ?? 0) !== $idDepartamentoActual) {
+            setAlert('warning', "No puede eliminar tipos de legajo de otro departamento.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();
         }
@@ -604,6 +670,56 @@ class Configuracion extends Controllers
 
         setAlert($actualizados > 0 ? 'success' : 'info', $actualizados > 0 ? "Cambios de matriz guardados." : "No se detectaron cambios para guardar.");
         header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $id_tipoDoc);
+        exit();
+    }
+
+    public function actualizar_matriz_legajo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
+            exit();
+        }
+
+        $idRequisito = intval($_POST['id_requisito'] ?? 0);
+        $idTipoDoc = intval($_POST['id_tipoDoc'] ?? 0);
+        $idDocumentoMaestro = intval($_POST['id_documento_maestro'] ?? 0);
+        $rolVinculado = trim($_POST['rol_vinculado'] ?? 'TITULAR');
+        $esObligatorio = intval($_POST['es_obligatorio'] ?? 0) === 1 ? 1 : 0;
+        $ordenVisual = max(1, intval($_POST['orden_visual'] ?? 1));
+        $activo = intval($_POST['activo'] ?? 0) === 1 ? 1 : 0;
+        $politicaActualizacion = strtoupper(trim($_POST['politica_actualizacion'] ?? ''));
+        $politicasPermitidas = ['REEMPLAZAR', 'UNIR_AL_INICIO', 'UNIR_AL_FINAL', 'NO_PERMITIR', 'CONSULTAR'];
+        if (!in_array($politicaActualizacion, $politicasPermitidas, true)) {
+            $politicaActualizacion = 'REEMPLAZAR';
+        }
+        $permiteReemplazo = $politicaActualizacion === 'NO_PERMITIR' ? 0 : 1;
+
+        if ($idRequisito <= 0 || $idTipoDoc <= 0 || $idDocumentoMaestro <= 0) {
+            setAlert('warning', "Regla inválida.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $idTipoDoc);
+            exit();
+        }
+
+        if ($this->model->existeOtroMatrizRequisitoLegajo($idRequisito, $idTipoDoc, $idDocumentoMaestro, $rolVinculado)) {
+            setAlert('warning', "Existe una regla duplicada para el documento y rol seleccionados.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $idTipoDoc . "&editar_requisito=" . $idRequisito);
+            exit();
+        }
+
+        $ok = $this->model->actualizarMatrizRequisitoLegajo(
+            $idRequisito,
+            $idDocumentoMaestro,
+            $rolVinculado,
+            $esObligatorio,
+            $ordenVisual,
+            $permiteReemplazo,
+            $politicaActualizacion,
+            $activo
+        );
+
+        setAlert($ok ? 'success' : 'error', $ok ? "Regla actualizada correctamente." : "No se pudo actualizar la regla.");
+        header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=" . $idTipoDoc);
         exit();
     }
 
