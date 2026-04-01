@@ -480,7 +480,7 @@ class Legajos extends Controllers
             return null;
         }
 
-        $fecha->modify('+' . $diasVigenciaBase . ' days');
+        $fecha->modify('+' . $diasVigenciaBase . ' years');
         return $fecha->format('Y-m-d');
     }
 

@@ -132,27 +132,26 @@
                                             <i class="fas fa-lock mr-1"></i> Expirado
                                         </span>
                                     <?php else: ?>
-                                        <div class="flex flex-col gap-1 items-center">
-                                            <!-- <button
-                                        onclick="mostrarPDFServidor('<?= base_url(); ?>expedientes/expediente?ruta=<?= urlencode($mostrar_registros['ruta_original']); ?>&id_expediente=<?= $mostrar_registros['id_expediente']; ?>')"
-                                        class="text-xs text-scantec-blue hover:text-blue-800 font-medium hover:underline">
-                                        <i class="fas fa-eye mr-1"></i> Vista Rápida
-                                    </button> -->
-                                            
+                                        <div class="px-4 py-3 text-center">
                                             <button
                                                 onclick="mostrarPDFModal('<?php echo base_url(); ?>expedientes/expediente?ruta=<?php echo urlencode($mostrar_registros['ruta_original']); ?>&id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>')"
-                                                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium hover:underline">
-                                                <i class="fas fa-external-link-alt mr-1"></i> Pantalla Completa
+                                                title="Ver con marca de agua"
+                                                class="text-[#182541] hover:text-[#dc153d] transition-colors mr-3 p-1">
+                                                <i class="fas fa-eye fa-lg"></i>
                                             </button>
+
                                             <button
                                                 onclick="mostrarPDFModal('<?php echo base_url(); ?>expedientes/ver_expediente?ruta=<?php echo urlencode($mostrar_registros['ruta_original']); ?>&id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>')"
-                                                class="text-xs text-indigo-600 hover:text-indigo-800 font-medium hover:underline">
-                                                <i class="fas fa-external-link-alt mr-1"></i> Original Completa
+                                                title="Ver Original"
+                                                class="text-[#878787] hover:text-[#182541] transition-colors mr-3 p-1">
+                                                <i class="fas fa-file-alt fa-lg"></i>
                                             </button>
+
                                             <a href="<?php echo base_url() . 'expedientes/ver_expediente?ruta=' . urlencode($mostrar_registros['ruta_original']) . '&id_expediente=' . $mostrar_registros['id_expediente'] . '&return_url=' . urlencode($_SERVER['REQUEST_URI']); ?>"
                                                 target="_blank"
-                                                class="text-xs text-green-600 hover:text-green-800 font-medium hover:underline">
-                                                <i class="fas fa-download mr-1"></i> Original
+                                                title="Abrir en Nueva Pestaña"
+                                                class="text-[#dc153d] hover:text-[#182541] transition-colors mr-3 p-1">
+                                                <i class="fas fa-external-link-alt fa-lg"></i>
                                             </a>
                                         </div>
                                     <?php endif; ?>
@@ -166,7 +165,6 @@
                                                 title="Modificar">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-
                                             <form method="post" action="<?php echo base_url(); ?>expedientes/eliminar"
                                                 class="d-inline eliminar">
                                                 <input type="hidden" name="token"
@@ -179,7 +177,6 @@
                                                     <i class="fas fa-trash-alt"></i>
                                                 </button>
                                             </form>
-
                                             <button
                                                 class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
                                                 onclick="cargarMetadatos('<?php echo $mostrar_registros['ruta_original']; ?>')"
@@ -333,9 +330,9 @@
         // formData.append('token', '<?php echo $_SESSION['csrf_token']; ?>'); 
 
         fetch(urlDestino, {
-            method: 'POST',
-            body: formData
-        })
+                method: 'POST',
+                body: formData
+            })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Error en la red: ' + response.status);

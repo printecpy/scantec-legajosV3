@@ -414,7 +414,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             .toLowerCase();
     }
 
-    function sumarDias(fechaIso, dias) {
+    function sumarAnios(fechaIso, anios) {
         if (!fechaIso) {
             return null;
         }
@@ -422,7 +422,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         if (Number.isNaN(fecha.getTime())) {
             return null;
         }
-        fecha.setDate(fecha.getDate() + Number(dias || 0));
+        fecha.setFullYear(fecha.getFullYear() + Number(anios || 0));
         return fecha;
     }
 
@@ -461,7 +461,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             let fechaVencimiento = null;
 
             if (inputFecha && inputFecha.value) {
-                fechaVencimiento = sumarDias(inputFecha.value, diasVigenciaBase);
+                fechaVencimiento = sumarAnios(inputFecha.value, diasVigenciaBase);
             } else if (fechaVencimientoGuardada) {
                 fechaVencimiento = new Date(fechaVencimientoGuardada + 'T00:00:00');
             } else {
@@ -816,7 +816,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             } else if (regla.tiene_vencimiento && documentoGuardado.fecha_vencimiento && Number(regla.dias_vigencia_base || 0) > 0) {
                 const fechaVencimiento = new Date(documentoGuardado.fecha_vencimiento + 'T00:00:00');
                 if (!Number.isNaN(fechaVencimiento.getTime())) {
-                    fechaVencimiento.setDate(fechaVencimiento.getDate() - Number(regla.dias_vigencia_base));
+                    fechaVencimiento.setFullYear(fechaVencimiento.getFullYear() - Number(regla.dias_vigencia_base));
                     fechaExpedicionInicial = fechaVencimiento.toISOString().slice(0, 10);
                 }
             }

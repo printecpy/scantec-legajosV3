@@ -312,7 +312,7 @@ class Configuracion extends Controllers
         }
 
         if ($tiene_vencimiento && $dias_vigencia_base !== null && $dias_vigencia_base <= 0) {
-            setAlert('warning', "Los días de vigencia deben ser mayores a cero.");
+            setAlert('warning', "Los años de vigencia deben ser mayores a cero.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
             exit();
         }
@@ -359,7 +359,7 @@ class Configuracion extends Controllers
         }
 
         if ($tiene_vencimiento && $dias_vigencia_base !== null && $dias_vigencia_base <= 0) {
-            setAlert('warning', "Los días de vigencia deben ser mayores a cero.");
+            setAlert('warning', "Los años de vigencia deben ser mayores a cero.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo&editar_documento=" . $id_documento_maestro);
             exit();
         }
@@ -569,6 +569,9 @@ class Configuracion extends Controllers
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();
         }
+
+        $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
+        $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
 
         $actual = $this->model->getTipoLegajoById($idTipoLegajo);
         if ($filtrarTiposPorDepartamento && intval($actual['id_departamento'] ?? 0) !== $idDepartamentoActual) {

@@ -86,7 +86,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Días Vigencia</label>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Años Vigencia</label>
                             <input type="number" name="dias_vigencia_base" min="1" value="<?php echo htmlspecialchars($documento_editar['dias_vigencia_base'] ?? ''); ?>"
                                 <?php echo isset($documento_editar) && empty($documento_editar['tiene_vencimiento']) ? 'disabled' : ''; ?>
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
@@ -127,7 +127,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre del Documento</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Código</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">¿Vence?</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Días Vigencia</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Años Vigencia</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Aviso Previo</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                             </tr>
@@ -159,7 +159,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
-                                    <?php echo !empty($documento['dias_vigencia_base']) ? intval($documento['dias_vigencia_base']) . ' días' : '-'; ?>
+                                    <?php echo !empty($documento['dias_vigencia_base']) ? intval($documento['dias_vigencia_base']) . ' años' : '-'; ?>
                                 </td>
                                 <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
                                     <?php echo !empty($documento['dias_alerta_previa']) ? intval($documento['dias_alerta_previa']) . ' días' : '-'; ?>

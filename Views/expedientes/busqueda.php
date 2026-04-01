@@ -101,11 +101,7 @@
                                         title="Abrir Carpeta">
                                         <i class="fas fa-folder-open text-xs"></i>
                                     </a>
-                                    <a href="<?php echo base_url(); ?>legajos/estado_legajo/<?php echo urlencode($busqueda['indice_01']); ?>"
-                                        class="inline-flex items-center px-3 py-1.5 rounded-lg bg-scantec-blue text-white hover:bg-blue-800 shadow-sm hover:shadow-md transition-all text-xs font-bold transform hover:scale-105"
-                                        title="Verificar Legajo">
-                                        <i class="fas fa-shield-check mr-1.5"></i> Verificar Legajo
-                                    </a>
+                                    
                                 </td>
                             </tr>
                         <?php } ?>
