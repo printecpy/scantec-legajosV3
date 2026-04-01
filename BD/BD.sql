@@ -1,8 +1,8 @@
 -- --------------------------------------------------------
 -- Host:                         127.0.0.1
--- VersiÃ³n del servidor:         8.1.0 - MySQL Community Server - GPL
+-- Versión del servidor:         8.1.0 - MySQL Community Server - GPL
 -- SO del servidor:              Win64
--- HeidiSQL VersiÃ³n:             12.15.0.7171
+-- HeidiSQL Versión:             12.15.0.7171
 -- --------------------------------------------------------
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `alerta_destinatarios` (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.alerta_historial
 CREATE TABLE IF NOT EXISTS `alerta_historial` (
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS `alerta_historial` (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.alerta_tipos
 CREATE TABLE IF NOT EXISTS `alerta_tipos` (
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS `alerta_tipos` (
   PRIMARY KEY (`id_tipo`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.api_credenciales
 CREATE TABLE IF NOT EXISTS `api_credenciales` (
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS `api_credenciales` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_catalogo_documentos
 CREATE TABLE IF NOT EXISTS `cfg_catalogo_documentos` (
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS `cfg_catalogo_documentos` (
   PRIMARY KEY (`id_documento_maestro`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_legajo
 CREATE TABLE IF NOT EXISTS `cfg_legajo` (
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS `cfg_legajo` (
   CONSTRAINT `cfg_legajo_ibfk_2` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_legajo_documento
 CREATE TABLE IF NOT EXISTS `cfg_legajo_documento` (
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS `cfg_legajo_documento` (
   CONSTRAINT `cfg_legajo_documento_ibfk_4` FOREIGN KEY (`reemplazado_por`) REFERENCES `cfg_legajo_documento` (`id_legajo_doc`)
 ) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_legajo_documento_log
 CREATE TABLE IF NOT EXISTS `cfg_legajo_documento_log` (
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS `cfg_legajo_documento_log` (
   CONSTRAINT `fk_cfg_legajo_documento_log_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_legajo_log
 CREATE TABLE IF NOT EXISTS `cfg_legajo_log` (
@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS `cfg_legajo_log` (
   CONSTRAINT `fk_cfg_legajo_log_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=87 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_matriz_requisitos
 CREATE TABLE IF NOT EXISTS `cfg_matriz_requisitos` (
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS `cfg_matriz_requisitos` (
   CONSTRAINT `chk_cfg_matriz_politica_actualizacion` CHECK ((`politica_actualizacion` in (_utf8mb4'REEMPLAZAR',_utf8mb4'UNIR_AL_INICIO',_utf8mb4'UNIR_AL_FINAL',_utf8mb4'NO_PERMITIR',_utf8mb4'CONSULTAR')))
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish2_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_politicas_actualizacion
 CREATE TABLE IF NOT EXISTS `cfg_politicas_actualizacion` (
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS `cfg_politicas_actualizacion` (
   UNIQUE KEY `uk_clave` (`clave`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_relaciones
 CREATE TABLE IF NOT EXISTS `cfg_relaciones` (
@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS `cfg_relaciones` (
   UNIQUE KEY `uk_nombre` (`nombre`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.cfg_tipo_legajo
 CREATE TABLE IF NOT EXISTS `cfg_tipo_legajo` (
@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS `cfg_tipo_legajo` (
   UNIQUE KEY `uk_cfg_tipo_legajo_nombre` (`nombre`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.configuracion
 CREATE TABLE IF NOT EXISTS `configuracion` (
@@ -264,7 +264,7 @@ CREATE TABLE IF NOT EXISTS `configuracion` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.detalle_proceso
 CREATE TABLE IF NOT EXISTS `detalle_proceso` (
@@ -275,7 +275,7 @@ CREATE TABLE IF NOT EXISTS `detalle_proceso` (
   PRIMARY KEY (`id_detalle_proceso`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.document_views
 CREATE TABLE IF NOT EXISTS `document_views` (
@@ -290,7 +290,7 @@ CREATE TABLE IF NOT EXISTS `document_views` (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish2_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.expediente
 CREATE TABLE IF NOT EXISTS `expediente` (
@@ -312,11 +312,11 @@ CREATE TABLE IF NOT EXISTS `expediente` (
   `fecha_vencimiento` date DEFAULT NULL,
   `version` varchar(50) DEFAULT NULL,
   `firma_digital` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-  `id_requisito` int DEFAULT NULL COMMENT 'FK a cfg_matriz_requisitos. Define QUÃ‰ ES este archivo',
-  `id_legajo_agrupador` varchar(50) DEFAULT NULL COMMENT 'El Nro de CÃ©dula o Solicitud que agrupa todo el legajo',
-  `rol_persona` varchar(20) DEFAULT NULL COMMENT 'Redundancia Ãºtil: TITULAR, CONYUGE',
+  `id_requisito` int DEFAULT NULL COMMENT 'FK a cfg_matriz_requisitos. Define QUÉ ES este archivo',
+  `id_legajo_agrupador` varchar(50) DEFAULT NULL COMMENT 'El Nro de Cédula o Solicitud que agrupa todo el legajo',
+  `rol_persona` varchar(20) DEFAULT NULL COMMENT 'Redundancia útil: TITULAR, CONYUGE',
   `fecha_emision_doc` date DEFAULT NULL COMMENT 'Fecha impresa en el documento',
-  `fecha_vencimiento_doc` date DEFAULT NULL COMMENT 'Calculada automÃ¡ticamente: emision + dias_vigencia',
+  `fecha_vencimiento_doc` date DEFAULT NULL COMMENT 'Calculada automáticamente: emision + dias_vigencia',
   `estado_validacion` varchar(20) DEFAULT 'PENDIENTE' COMMENT 'VIGENTE, POR_VENCER, VENCIDO, RECHAZADO, HISTORICO',
   PRIMARY KEY (`id_expediente`),
   KEY `id_tipoDoc_FK` (`id_tipoDoc`),
@@ -332,7 +332,7 @@ CREATE TABLE IF NOT EXISTS `expediente` (
   CONSTRAINT `id_tipoDoc_FK` FOREIGN KEY (`id_tipoDoc`) REFERENCES `tipo_documento` (`id_tipoDoc`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.intentos_login_fallidos
 CREATE TABLE IF NOT EXISTS `intentos_login_fallidos` (
@@ -345,7 +345,7 @@ CREATE TABLE IF NOT EXISTS `intentos_login_fallidos` (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish2_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.ldap_datos
 CREATE TABLE IF NOT EXISTS `ldap_datos` (
@@ -361,7 +361,7 @@ CREATE TABLE IF NOT EXISTS `ldap_datos` (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish2_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.logs
 CREATE TABLE IF NOT EXISTS `logs` (
@@ -372,7 +372,7 @@ CREATE TABLE IF NOT EXISTS `logs` (
   PRIMARY KEY (`id_log`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4075 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.logs_umango
 CREATE TABLE IF NOT EXISTS `logs_umango` (
@@ -394,7 +394,7 @@ CREATE TABLE IF NOT EXISTS `logs_umango` (
   PRIMARY KEY (`idlog_umango`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.permisos_documentos
 CREATE TABLE IF NOT EXISTS `permisos_documentos` (
@@ -409,7 +409,7 @@ CREATE TABLE IF NOT EXISTS `permisos_documentos` (
   CONSTRAINT `permisos_documentos_ibfk_2` FOREIGN KEY (`id_tipoDoc`) REFERENCES `tipo_documento` (`id_tipoDoc`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.permisos_legajos
 CREATE TABLE IF NOT EXISTS `permisos_legajos` (
@@ -423,7 +423,7 @@ CREATE TABLE IF NOT EXISTS `permisos_legajos` (
   CONSTRAINT `fk_permisos_legajos_rol` FOREIGN KEY (`id_rol`) REFERENCES `roles` (`id_rol`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.rol_permisos
 CREATE TABLE IF NOT EXISTS `rol_permisos` (
@@ -438,20 +438,16 @@ CREATE TABLE IF NOT EXISTS `rol_permisos` (
   CONSTRAINT `FK_roles` FOREIGN KEY (`id_rol`) REFERENCES `roles` (`id_rol`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.roles
 CREATE TABLE IF NOT EXISTS `roles` (
   `id_rol` int NOT NULL AUTO_INCREMENT,
   `descripcion` varchar(50) NOT NULL,
-  `id_departamento` int DEFAULT NULL,
-  `estado` varchar(20) NOT NULL DEFAULT 'activo',
-  PRIMARY KEY (`id_rol`),
-  KEY `FK_roles_departamentos` (`id_departamento`),
-  CONSTRAINT `FK_roles_departamentos` FOREIGN KEY (`id_departamento`) REFERENCES `departamentos` (`id_departamento`) ON DELETE SET NULL
+  PRIMARY KEY (`id_rol`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.smtp_datos
 CREATE TABLE IF NOT EXISTS `smtp_datos` (
@@ -465,7 +461,7 @@ CREATE TABLE IF NOT EXISTS `smtp_datos` (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish2_ci ROW_FORMAT=DYNAMIC;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.tarea_programada
 CREATE TABLE IF NOT EXISTS `tarea_programada` (
@@ -481,7 +477,7 @@ CREATE TABLE IF NOT EXISTS `tarea_programada` (
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.tipo_documento
 CREATE TABLE IF NOT EXISTS `tipo_documento` (
@@ -498,7 +494,7 @@ CREATE TABLE IF NOT EXISTS `tipo_documento` (
   PRIMARY KEY (`id_tipoDoc`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish2_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.ubicacion
 CREATE TABLE IF NOT EXISTS `ubicacion` (
@@ -507,7 +503,7 @@ CREATE TABLE IF NOT EXISTS `ubicacion` (
   PRIMARY KEY (`id_ubicacion`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.unirpdf
 CREATE TABLE IF NOT EXISTS `unirpdf` (
@@ -522,18 +518,7 @@ CREATE TABLE IF NOT EXISTS `unirpdf` (
   PRIMARY KEY (`id_unir`)
 ) ENGINE=InnoDB AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
-
--- Volcando estructura para tabla scantec_basic.departamentos
-CREATE TABLE IF NOT EXISTS `departamentos` (
-  `id_departamento` int NOT NULL AUTO_INCREMENT,
-  `nombre` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci NOT NULL,
-  `estado` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci NOT NULL DEFAULT 'ACTIVO',
-  PRIMARY KEY (`id_departamento`) USING BTREE,
-  UNIQUE KEY `uk_departamentos_nombre` (`nombre`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
-
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.usu_grupo
 CREATE TABLE IF NOT EXISTS `usu_grupo` (
@@ -543,35 +528,30 @@ CREATE TABLE IF NOT EXISTS `usu_grupo` (
   PRIMARY KEY (`id_grupo`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish2_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para tabla scantec_basic.usuarios
 CREATE TABLE IF NOT EXISTS `usuarios` (
-	`id` int NOT NULL AUTO_INCREMENT,
-	`nombre` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-	`departamento` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-	`id_departamento` int DEFAULT NULL,
-	`usuario` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-	`clave` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `usuario` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `clave` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `ultimo_acceso` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   `cantidad_inicio` int DEFAULT NULL,
   `id_rol` int NOT NULL,
   `estado_usuario` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `id_grupo` int NOT NULL DEFAULT (0),
   `clave_actualizacion` timestamp NULL DEFAULT NULL,
-  `forzar_cambio_clave` tinyint(1) NOT NULL DEFAULT '0',
   `email` varchar(50) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci DEFAULT NULL,
   `fuente_registro` varchar(50) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
-  KEY `FK_usuarios_departamentos` (`id_departamento`),
   KEY `FK_usuarios_roles` (`id_rol`),
   KEY `FK_usuarios_usu_grupo` (`id_grupo`),
-  CONSTRAINT `FK_usuarios_departamentos` FOREIGN KEY (`id_departamento`) REFERENCES `departamentos` (`id_departamento`),
   CONSTRAINT `FK_usuarios_roles` FOREIGN KEY (`id_rol`) REFERENCES `roles` (`id_rol`),
   CONSTRAINT `FK_usuarios_usu_grupo` FOREIGN KEY (`id_grupo`) REFERENCES `usu_grupo` (`id_grupo`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para vista scantec_basic.v_expedientes
 -- Creando tabla temporal para superar errores de dependencia de VIEW
@@ -624,7 +604,7 @@ CREATE TABLE IF NOT EXISTS `visitas` (
   PRIMARY KEY (`id_visita`)
 ) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci;
 
--- La exportaciÃ³n de datos fue deseleccionada.
+-- La exportación de datos fue deseleccionada.
 
 -- Volcando estructura para disparador scantec_basic.after_delete_expedientes
 SET @OLDTMP_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
@@ -784,7 +764,3 @@ CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `v_visitas` AS select `a`.`
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40111 SET SQL_NOTES=IFNULL(@OLD_SQL_NOTES, 1) */;
-
-
-
-
