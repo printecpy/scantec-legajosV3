@@ -189,7 +189,7 @@ class FuncionalidadesModel extends Mysql
                 'etiqueta' => 'Métodos de Actualización de Archivos',
                 'ruta' => 'configuracion/configuracion_legajos',
                 'descripcion' => 'Permite ver y modificar los Métodos de Actualización de Archivos.',
-                'grupo' => 'AdministraciÃ³n',
+                'grupo' => 'Administración',
                 'rutas' => ['configuracion/cambiar_estado_politica*'],
             ],
             'gestion_usuarios' => [

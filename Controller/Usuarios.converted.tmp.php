@@ -153,7 +153,7 @@ class Usuarios extends Controllers
             return;
         }
 
-        setAlert('warning', 'No tienes permiso para acceder a esta sección.');
+        setAlert('warning', 'No tienes permiso para acceder a esta secci?n.');
         if (isset($this->model) && method_exists($this->model, 'bloquarPC_IP')) {
             $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado a monitor de conexiones');
         }
@@ -186,7 +186,7 @@ class Usuarios extends Controllers
             return;
         }
 
-        setAlert('warning', 'No tienes permiso para acceder a la gestión de usuarios.');
+        setAlert('warning', 'No tienes permiso para acceder a la gesti?n de usuarios.');
         if (isset($this->model) && method_exists($this->model, 'bloquarPC_IP')) {
             $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado a gestion de usuarios');
         }
@@ -202,7 +202,7 @@ class Usuarios extends Controllers
 
         $urlActual = strtolower(trim((string) ($_GET['url'] ?? ''), '/'));
         
-        // Si el usuario YA ESTÁ logueado y trata de acceder a la raíz o a /usuarios/login
+        // Si el usuario YA EST? logueado y trata de acceder a la ra?z o a /usuarios/login
         if (!empty($_SESSION['ACTIVO']) && $_SESSION['ACTIVO'] === true) {
             if ($urlActual === '' || $urlActual === 'usuarios/login' || $urlActual === 'usuarios' || $urlActual === 'home') {
                 require_once 'Models/FuncionalidadesModel.php';
@@ -255,7 +255,7 @@ class Usuarios extends Controllers
     {
         if (!Validador::puedeVer($_SESSION, [1, 2])) {
             // Registrar alerta y bloqueo
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
+            setAlert('warning', "No tienes permiso para acceder a esta secci?n");
             $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
             // Redirigir solo una vez
             header('Location: ' . base_url() . 'expedientes/indice_busqueda');
@@ -275,16 +275,16 @@ class Usuarios extends Controllers
 
     public function asignar_permisos()
     {
-        // Verificación del token CSRF
+        // Verificaci?n del token CSRF
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
         if (!Validador::puedeVer($_SESSION, [1, 2])) {
             // Registrar alerta y bloqueo
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
+            setAlert('warning', "No tienes permiso para acceder a esta secci?n");
             $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
             // Redirigir solo una vez
             header('Location: ' . base_url() . 'expedientes/indice_busqueda');
@@ -314,14 +314,14 @@ class Usuarios extends Controllers
     public function eliminar_permiso()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
         if (!Validador::puedeVer($_SESSION, [1, 2])) {
             // Registrar alerta y bloqueo
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
+            setAlert('warning', "No tienes permiso para acceder a esta secci?n");
             $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
             // Redirigir solo una vez
             header('Location: ' . base_url() . 'expedientes/indice_busqueda');
@@ -329,16 +329,16 @@ class Usuarios extends Controllers
         }
         $id_permiso = $_POST['id_permiso'];
         $this->model->eliminarPermiso($id_permiso);
-        // Redirigir de nuevo a la gestión de grupos
+        // Redirigir de nuevo a la gesti?n de grupos
         header("Location: " . base_url() . "usuarios/grupo");
     }
 
-    // Método para reactivar un permiso desactivado
+    // M?todo para reactivar un permiso desactivado
     public function reactivar_permiso()
     {
         // 1. Validar CSRF
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
@@ -346,13 +346,13 @@ class Usuarios extends Controllers
 
         // 2. Validar Permisos de Usuario (Admin)
         if (!Validador::puedeVer($_SESSION, [1, 2])) {
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
+            setAlert('warning', "No tienes permiso para acceder a esta secci?n");
             $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
             header('Location: ' . base_url() . 'expedientes/indice_busqueda');
             exit();
         }
 
-        // 3. Procesar la reactivación
+        // 3. Procesar la reactivaci?n
         if (isset($_POST['id_permiso'])) {
             $id_permiso = intval($_POST['id_permiso']);
 
@@ -385,12 +385,12 @@ class Usuarios extends Controllers
     {
         $this->checkCsrfSafety();
         $this->asegurarAccesoGestionUsuarios();
-        // Verificar límite de usuarios antes de insertar
+        // Verificar l?mite de usuarios antes de insertar
         $usuariosActuales = intval($this->model->contarUsuariosActivos()['total'] ?? 0);
         $limiteUsuarios = defined('LICENCIA_MAX_USUARIOS') ? intval(LICENCIA_MAX_USUARIOS) : (defined('LIMITE_USUARIOS') ? intval(LIMITE_USUARIOS) : 0);
         if ($limiteUsuarios > 0 && $usuariosActuales >= $limiteUsuarios) {
-            // Podés redirigir con mensaje de error o mostrar alerta
-            setAlert('warning', 'No se puede agregar más usuarios. Se alcanzó el límite de la licencia.');
+            // Pod?s redirigir con mensaje de error o mostrar alerta
+            setAlert('warning', 'No se puede agregar m?s usuarios. Se alcanz? el l?mite de la licencia.');
             header('Location: ' . base_url() . 'usuarios/listar');
             exit;
         }
@@ -412,12 +412,12 @@ class Usuarios extends Controllers
         // Verificar usuarios existente antes de insertar
         $usuariosExiste = $this->model->verificarUsuarioExistente($usuario)['total'];
         if ($usuariosExiste > 0) {
-            // Podés redirigir con mensaje de error o mostrar alerta
+            // Pod?s redirigir con mensaje de error o mostrar alerta
             setAlert('warning', 'Este usuario ya existe.');
             header('Location: ' . base_url() . 'usuarios/listar');
             exit;
         }
-        // Encriptar la contraseña con bcrypt y cost de 12
+        // Encriptar la contrase?a con bcrypt y cost de 12
         $hash = password_hash($clave, PASSWORD_BCRYPT, ['cost' => 12]);
         $this->model->insertarUsuarios($nombre, $idDepartamento, $usuario, $hash, $rol, $grupo, $fuente_registro, $email);
         header("location: " . base_url() . "usuarios/listar");
@@ -427,7 +427,7 @@ class Usuarios extends Controllers
     public function registrar_grupo()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
@@ -443,13 +443,13 @@ class Usuarios extends Controllers
     public function registrar_tipoDoc()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
-        // El token CSRF es válido y no ha caducado, proceder con la inserción de datos
-        // Realizar cualquier sanitización adicional de los datos si es necesario
+        // El token CSRF es v?lido y no ha caducado, proceder con la inserci?n de datos
+        // Realizar cualquier sanitizaci?n adicional de los datos si es necesario
         $nombre_tipoDoc = htmlspecialchars($_POST['nombre_tipoDoc']);
         $indice_1 = htmlspecialchars($_POST['indice_1']);
         $indice_2 = htmlspecialchars($_POST['indice_2']);
@@ -552,13 +552,13 @@ class Usuarios extends Controllers
     public function actualizar()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
-        // El token CSRF es válido y no ha caducado, proceder con la actualización de usuario
-        // Realizar cualquier sanitización adicional de los datos si es necesario
+        // El token CSRF es v?lido y no ha caducado, proceder con la actualizaci?n de usuario
+        // Realizar cualquier sanitizaci?n adicional de los datos si es necesario
         $this->asegurarAccesoGestionUsuarios();
         $id = intval($_POST['id'] ?? 0);
         $usuarioActualRaw = $id > 0 ? $this->model->editarUsuarios($id) : [];
@@ -595,7 +595,7 @@ class Usuarios extends Controllers
 
         // Actualizar el usuario en la base de datos
         $actualizar = $this->model->actualizarUsuarios($nombre, $idDepartamento, $usuario, $rol, $grupo, $email, $estadoUsuario, $id, $hashNuevaClave);
-        // Verificar si la actualización fue exitosa
+        // Verificar si la actualizaci?n fue exitosa
         if ($actualizar == 1) {
             $alert = 'modificado';
         } else {
@@ -608,7 +608,7 @@ class Usuarios extends Controllers
     public function eliminar()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
@@ -623,7 +623,7 @@ class Usuarios extends Controllers
     public function bloquear()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
@@ -638,7 +638,7 @@ class Usuarios extends Controllers
     public function reingresar()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
+            setAlert('error', "Token CSRF inv?lido o expirado.");
             session_write_close();
             header("Location: " . base_url() . "?error=csrf");
             exit();
@@ -653,7 +653,7 @@ class Usuarios extends Controllers
 
     // public function login()
     // {
-    //     // Aseguramos que la sesión esté activa para manejar los intentos y las alertas
+    //     // Aseguramos que la sesi?n est? activa para manejar los intentos y las alertas
     //     if (session_status() === PHP_SESSION_NONE) {
     //         session_start();
     //     }
@@ -670,9 +670,9 @@ class Usuarios extends Controllers
     //         $data = $this->model->selectUsuario($usuario);
 
     //         /**
-    //          * VALIDACIÓN UNIFICADA
-    //          * Se comprueba en un solo bloque si el usuario existe, está activo y la clave es correcta.
-    //          * Si cualquiera de estas falla, el flujo va al 'else' genérico.
+    //          * VALIDACI?N UNIFICADA
+    //          * Se comprueba en un solo bloque si el usuario existe, est? activo y la clave es correcta.
+    //          * Si cualquiera de estas falla, el flujo va al 'else' gen?rico.
     //          */
     //         if (!empty($data) && $data['estado_usuario'] == 'ACTIVO' && password_verify($claveIngresada, $data['clave'])) {
 
@@ -691,14 +691,14 @@ class Usuarios extends Controllers
     //             $_SESSION['grupo'] = $data['grupo'];
     //             $_SESSION['PERMISOS'] = $this->model->getPermisosByRol($data['id_rol']);
 
-    //             // Reiniciamos intentos al entrar con éxito
+    //             // Reiniciamos intentos al entrar con ?xito
     //             $_SESSION['login_attempts'] = 0;
 
-    //             // Auditoría
+    //             // Auditor?a
     //             $this->model->registrarVisita($_SESSION['id']);
     //             $this->model->conteoInicioSesion($_SESSION['id']);
 
-    //             // Redirección según rol
+    //             // Redirecci?n seg?n rol
     //             if ($data['id_rol'] == 3 || $data['id_rol'] == 4) {
     //                 header('location: ' . base_url() . 'expedientes/indice_busqueda');
     //             } else {
@@ -707,12 +707,12 @@ class Usuarios extends Controllers
     //             exit();
 
     //         } else {
-    //             // --- CASO 2: LOGIN FALLIDO (Genérico por seguridad) ---
+    //             // --- CASO 2: LOGIN FALLIDO (Gen?rico por seguridad) ---
     //             $_SESSION['login_attempts']++;
 
     //             if ($_SESSION['login_attempts'] >= 3) {
     //                 // Bloqueo de seguridad
-    //                 $motivo = 'Excedió el número de intentos de inicio de sesión (Credenciales inválidas)';
+    //                 $motivo = 'Excedi? el n?mero de intentos de inicio de sesi?n (Credenciales inv?lidas)';
 
     //                 // Solo intentamos bloquear en la DB si el usuario realmente existe
     //                 if (!empty($data)) {
@@ -727,16 +727,16 @@ class Usuarios extends Controllers
     //                 exit();
 
     //             } else {
-    //                 // Mensaje genérico para no revelar si el usuario existe o no
+    //                 // Mensaje gen?rico para no revelar si el usuario existe o no
     //                 $restantes = 3 - $_SESSION['login_attempts'];
-    //                 setAlert('error', "Usuario o contraseña incorrecta. Le quedan $restantes intentos.");
+    //                 setAlert('error', "Usuario o contrase?a incorrecta. Le quedan $restantes intentos.");
 
     //                 header('location: ' . base_url());
     //                 exit();
     //             }
     //         }
     //     } else {
-    //         // CASO 3: CAMPOS VACÍOS
+    //         // CASO 3: CAMPOS VAC?OS
     //         setAlert('warning', "Debe completar todos los campos del formulario.");
     //         header('location: ' . base_url());
     //         exit();
@@ -790,7 +790,7 @@ class Usuarios extends Controllers
         }
 
         if ($data['estado_usuario'] !== 'ACTIVO') {
-            setAlert('error', "Tu usuario está inactivo o bloqueado.");
+            setAlert('error', "Tu usuario est? inactivo o bloqueado.");
             header('location: ' . base_url()); 
             exit();
         }
@@ -798,7 +798,7 @@ class Usuarios extends Controllers
         $auth_success = false;
 
         // =========================================================
-        // 1. MODO DIRECTORIO ACTIVO (Si seleccionó LDAP)
+        // 1. MODO DIRECTORIO ACTIVO (Si seleccion? LDAP)
         // =========================================================
         if ($fuente_registro === 'LDAP') {
             require_once 'Models/ConfiguracionModel.php';
@@ -817,18 +817,18 @@ class Usuarios extends Controllers
                     ldap_set_option($ldap_conn, LDAP_OPT_PROTOCOL_VERSION, 3);
                     ldap_set_option($ldap_conn, LDAP_OPT_REFERRALS, 0);
 
-                    // --- GENERADOR DINÁMICO DE DOMINIO NETBIOS ---
+                    // --- GENERADOR DIN?MICO DE DOMINIO NETBIOS ---
                     // Extrae la empresa desde "OU=printec,DC=printec,DC=local" -> "PRINTEC"
                     $dominio_netbios = 'DOMINIO'; // Valor por defecto
                     if (preg_match('/DC=([^,]+)/i', $configLdap['ldapBaseDn'], $matches)) {
                         $dominio_netbios = strtoupper($matches[1]);
                     }
 
-                    // Arma el formato correcto automáticamente (Ej: PRINTEC\aldo.silva)
+                    // Arma el formato correcto autom?ticamente (Ej: PRINTEC\aldo.silva)
                     $usuario_ad = $dominio_netbios . "\\" . $usuario; 
 
                     if (@ldap_bind($ldap_conn, $usuario_ad, $claveIngresada)) {
-                        $auth_success = true; // ¡El AD aceptó la clave!
+                        $auth_success = true; // ?El AD acept? la clave!
                     }
                 }
             }
@@ -843,11 +843,11 @@ class Usuarios extends Controllers
         }
 
         // =========================================================
-        // 3. RESOLUCIÓN DE ACCESO
+        // 3. RESOLUCI?N DE ACCESO
         // =========================================================
         if ($auth_success) {
 
-            // --- DETECCIÓN DE SESIÓN DUPLICADA ---
+            // --- DETECCI?N DE SESI?N DUPLICADA ---
             if ($this->model->verificarSesionActivaDeUsuario($data['id'])) {
                 $_SESSION['pending_login'] = [
                     'id'       => $data['id'],
@@ -857,14 +857,14 @@ class Usuarios extends Controllers
                     'id_grupo' => $data['id_grupo'] ?? 0,
                     'grupo'    => $data['grupo'] ?? '',
                 ];
-                // Generar token CSRF para el formulario de confirmación
+                // Generar token CSRF para el formulario de confirmaci?n
                 $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
                 $_SESSION['csrf_expiration'] = time() + (5 * 60); // 5 minutos para decidir
                 header('location: ' . base_url() . 'usuarios/sesion_duplicada');
                 exit();
             }
 
-            // --- LOGIN NORMAL (sin sesión duplicada) ---
+            // --- LOGIN NORMAL (sin sesi?n duplicada) ---
             $this->completarLogin($data);
 
         } else {
@@ -872,18 +872,18 @@ class Usuarios extends Controllers
 
             if ($_SESSION['login_attempts'] >= 3) {
                 $this->model->bloquearUsuarios($usuario);
-                $this->model->bloquearPC_IP($usuario, 'Excedió intentos');
+                $this->model->bloquearPC_IP($usuario, 'Excedi? intentos');
             }
 
             $restantes = 3 - $_SESSION['login_attempts'];
-            setAlert('error', "Usuario o contraseña incorrecta. Le quedan $restantes intentos.");
+            setAlert('error', "Usuario o contrase?a incorrecta. Le quedan $restantes intentos.");
             header('location: ' . base_url());
             exit();
         }
     }
 
     // =========================================================
-    // MÉTODO PRIVADO: Finaliza el inicio de sesión (reutilizable)
+    // M?TODO PRIVADO: Finaliza el inicio de sesi?n (reutilizable)
     // =========================================================
     private function completarLogin(array $data): void
     {
@@ -913,7 +913,7 @@ class Usuarios extends Controllers
     }
 
     // =========================================================
-    // Muestra la pantalla de confirmación de sesión duplicada
+    // Muestra la pantalla de confirmaci?n de sesi?n duplicada
     // =========================================================
     public function sesion_duplicada()
     {
@@ -932,7 +932,7 @@ class Usuarios extends Controllers
     }
 
     // =========================================================
-    // Procesa la elección del usuario ante sesión duplicada
+    // Procesa la elecci?n del usuario ante sesi?n duplicada
     // =========================================================
     public function confirmar_sesion()
     {
@@ -940,14 +940,14 @@ class Usuarios extends Controllers
 
         // Validar CSRF
         if (!Validador::csrfValido()) {
-            setAlert('error', 'Token CSRF inválido.');
+            setAlert('error', 'Token CSRF inv?lido.');
             header('location: ' . base_url());
             exit();
         }
 
         // Validar que exista un login pendiente
         if (empty($_SESSION['pending_login'])) {
-            setAlert('warning', 'No hay un inicio de sesión pendiente.');
+            setAlert('warning', 'No hay un inicio de sesi?n pendiente.');
             header('location: ' . base_url());
             exit();
         }
@@ -963,12 +963,12 @@ class Usuarios extends Controllers
             $this->completarLogin($pendingData);
 
         } elseif ($accion === 'cancelar') {
-            setAlert('info', 'Inicio de sesión cancelado.');
+            setAlert('info', 'Inicio de sesi?n cancelado.');
             header('location: ' . base_url());
             exit();
 
         } else {
-            setAlert('error', 'Acción no reconocida.');
+            setAlert('error', 'Acci?n no reconocida.');
             header('location: ' . base_url());
             exit();
         }
@@ -979,8 +979,8 @@ class Usuarios extends Controllers
     // =========================================================
     public function cambiar_pass()
     {
-        $data['page_title'] = "Cambiar Contraseña";
-        // Cargamos tu vista específica: Views/Usuarios/cambiar_pass.php
+        $data['page_title'] = "Cambiar Contrase?a";
+        // Cargamos tu vista espec?fica: Views/Usuarios/cambiar_pass.php
         $this->views->getView($this, "cambiar_pass", $data);
     }
     // =========================================================
@@ -988,9 +988,9 @@ class Usuarios extends Controllers
     // =========================================================
     public function actualizar_password()
     {
-        // Validación CSRF
+        // Validaci?n CSRF
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token inválido.");
+            setAlert('error', "Token inv?lido.");
             header("Location: " . base_url() . "usuarios/cambiar_pass");
             exit();
         }
@@ -1007,11 +1007,11 @@ class Usuarios extends Controllers
                 exit();
             }
             if ($nueva !== $confirmar) {
-                setAlert('error', "Las contraseñas nuevas no coinciden.");
+                setAlert('error', "Las contrase?as nuevas no coinciden.");
                 header("Location: " . base_url() . "usuarios/cambiar_pass");
                 exit();
             }
-            // B. Verificar contraseña actual en BD
+            // B. Verificar contrase?a actual en BD
             $dataDB = $this->model->getPassword($idUser);
             // Ajuste por si el modelo devuelve array [0] o plano
             $passDB = (isset($dataDB[0]['clave'])) ? $dataDB[0]['clave'] : ($dataDB['clave'] ?? '');
@@ -1020,11 +1020,11 @@ class Usuarios extends Controllers
                 $nuevaHash = password_hash($nueva, PASSWORD_BCRYPT, ['cost' => 12]);
                 $request = $this->model->cambiarContra($nuevaHash, $idUser);
                 if ($request) {
-                    setAlert('success', "Contraseña actualizada correctamente.");
+                    setAlert('success', "Contrase?a actualizada correctamente.");
                     if ($_SESSION['id_rol'] == 1 || $_SESSION['id_rol'] == 2) {
                         header("Location: " . base_url() . "usuarios/listar");
                     }
-                    // Si es Usuario normal, NO tiene permiso de ver 'listar', así que va a su perfil o dashboard
+                    // Si es Usuario normal, NO tiene permiso de ver 'listar', as? que va a su perfil o dashboard
                     else {
                         header("Location: " . base_url() . "usuarios/perfil");
                         // O si prefieres que vaya al inicio: "dashboard"
@@ -1035,7 +1035,7 @@ class Usuarios extends Controllers
                     header("Location: " . base_url() . "usuarios/cambiar_pass");
                 }
             } else {
-                setAlert('error', "La contraseña actual es incorrecta.");
+                setAlert('error', "La contrase?a actual es incorrecta.");
                 header("Location: " . base_url() . "usuarios/cambiar_pass");
             }
         }
@@ -1044,19 +1044,19 @@ class Usuarios extends Controllers
 
     public function salir()
     {
-        // 1. Recuperar la sesión existente (CRÍTICO: Esto recupera el session_id)
+        // 1. Recuperar la sesi?n existente (CR?TICO: Esto recupera el session_id)
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
         if (isset($_SESSION['id'])) {
             $idUser = $_SESSION['id'];
-            // Al llamar a estas funciones, el modelo usará session_id() internamente
-            // para saber exactamente qué fila cerrar en la BD.
+            // Al llamar a estas funciones, el modelo usar? session_id() internamente
+            // para saber exactamente qu? fila cerrar en la BD.
             $this->model->actualizarVisita($idUser);
             // Restamos 1 al contador global del usuario
             $this->model->restarInicioSesion($idUser);
         }
-        // 2. Destruir la sesión del servidor
+        // 2. Destruir la sesi?n del servidor
         session_unset();
         session_destroy();
         // 3. Redirigir
@@ -1071,7 +1071,7 @@ class Usuarios extends Controllers
             // Limpieza de datos
             $id_visita = intval($_GET['id_visita']); // Forzamos a entero por seguridad
             $id_usuario = intval($_GET['id']);
-            // 1. Restar inicio de sesión (si tu lógica lo requiere)
+            // 1. Restar inicio de sesi?n (si tu l?gica lo requiere)
             $this->model->restarInicioSesion($id_usuario);
             // 2. ACTUALIZAR VISITA A 'INACTIVO' (Esto es lo que dispara el Kick)
             $this->model->actualizarVisitas($id_visita);
@@ -1132,17 +1132,17 @@ class Usuarios extends Controllers
             'manual_general' => [
                 'titulo' => 'Manual General Scantec',
                 'archivo' => 'SCANTEC_MANUAL.pdf',
-                'descripcion' => 'Versión general del manual integral del sistema.',
+                'descripcion' => 'Versi?n general del manual integral del sistema.',
             ],
             'admin_legajos' => [
                 'titulo' => 'Manual Administrador Legajos',
                 'archivo' => 'Manual Administrador Legajos.pdf',
-                'descripcion' => 'Funciones de armado, verificación y administración de legajos.',
+                'descripcion' => 'Funciones de armado, verificaci?n y administraci?n de legajos.',
             ],
             'admin_sistema' => [
                 'titulo' => 'Manual Administrador Sistema',
                 'archivo' => 'Manual Administrador Sistema.pdf',
-                'descripcion' => 'Configuración general, usuarios, roles, seguridad y mantenimiento.',
+                'descripcion' => 'Configuraci?n general, usuarios, roles, seguridad y mantenimiento.',
             ],
             'operador_legajos' => [
                 'titulo' => 'Manual Operador Legajos',
@@ -1154,13 +1154,13 @@ class Usuarios extends Controllers
 
     /*  public function importar(){
         if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            // Redirigir y mostrar un mensaje de error en caso de token CSRF inválido o caducado
+            // Redirigir y mostrar un mensaje de error en caso de token CSRF inv?lido o caducado
           header("Location: " . base_url() . "?error=csrf");
           die();
           }
          require_once 'Config/Config.php';
 
-        // Conexión a la base de datos
+        // Conexi?n a la base de datos
         try {
             $pdo = new PDO(
             "mysql:host=".HOST.";dbname=".BD.";charset=utf8",
@@ -1190,7 +1190,7 @@ class Usuarios extends Controllers
                         $nombre = htmlspecialchars($row[0]);
                         $usuario = htmlspecialchars($row[1]);
                         $clave = $row[2];
-                        // Encriptar la contraseña con SHA-512
+                        // Encriptar la contrase?a con SHA-512
                         $passwordHash = hash('SHA512', $clave);
                         $id_rol = 3;
                         $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol);
@@ -1221,11 +1221,11 @@ class Usuarios extends Controllers
                         $nombre = htmlspecialchars($value['A']);
                         $usuario = htmlspecialchars($value['B']);
                         $clave = $value['C'];
-                        // Encriptar la contraseña con SHA-512
+                        // Encriptar la contrase?a con SHA-512
                         $passwordHash = hash('SHA512', $clave);
                         $id_rol = 3;
                         $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol);
-                    }catch (Exception $ex){  // Encriptar la contraseña con SHA-512
+                    }catch (Exception $ex){  // Encriptar la contrase?a con SHA-512
                     $passwordHash = hash('SHA512', $clave);
                     $id_rol = 3;
                     $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol);
@@ -1239,7 +1239,7 @@ class Usuarios extends Controllers
         } */
 
     /**
-     * Función para validar que el archivo tenga la estructura correcta.
+     * Funci?n para validar que el archivo tenga la estructura correcta.
      */
     private function validarEstructura($header)
     {
@@ -1248,7 +1248,7 @@ class Usuarios extends Controllers
     }
 
     /**
-     * Función para validar que la contraseña cumpla los requisitos.
+     * Funci?n para validar que la contrase?a cumpla los requisitos.
      */
     private function validarClave($clave)
     {
@@ -1259,14 +1259,14 @@ class Usuarios extends Controllers
 
     public function importar()
     {
-        // 1. Validación de Seguridad (CSRF)
+        // 1. Validaci?n de Seguridad (CSRF)
         if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
             $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad CSRF.'];
             header("Location: " . base_url() . "usuarios/listar");
             die();
         }
 
-        // 2. Verificar que se subió un archivo sin errores
+        // 2. Verificar que se subi? un archivo sin errores
         if (isset($_FILES["file"]) && $_FILES["file"]["error"] === UPLOAD_ERR_OK) {
 
             $file_tmp = $_FILES["file"]["tmp_name"];
@@ -1288,11 +1288,11 @@ class Usuarios extends Controllers
 
                 while (($row = fgetcsv($fh)) !== false) {
                     $fila_actual++;
-                    // Saltar la primera fila si contiene cabeceras (títulos)
+                    // Saltar la primera fila si contiene cabeceras (t?tulos)
                     if ($fila_actual === 1)
                         continue;
 
-                    // Evitar filas vacías
+                    // Evitar filas vac?as
                     if (empty(array_filter($row)))
                         continue;
 
@@ -1310,7 +1310,7 @@ class Usuarios extends Controllers
                     }
 
                     if (empty($clave) || !$this->validarClave($clave)) {
-                        $errores[] = "Fila {$fila_actual}: La contraseña del usuario '{$usuario}' es débil.";
+                        $errores[] = "Fila {$fila_actual}: La contrase?a del usuario '{$usuario}' es d?bil.";
                         continue;
                     }
 
@@ -1333,7 +1333,7 @@ class Usuarios extends Controllers
                     if ($fila_actual === 1)
                         continue;
 
-                    // Evitar filas vacías
+                    // Evitar filas vac?as
                     if (empty(array_filter($row)))
                         continue;
 
@@ -1351,7 +1351,7 @@ class Usuarios extends Controllers
                     }
 
                     if (empty($clave) || !$this->validarClave($clave)) {
-                        $errores[] = "Fila {$fila_actual}: La contraseña del usuario '{$usuario}' es débil.";
+                        $errores[] = "Fila {$fila_actual}: La contrase?a del usuario '{$usuario}' es d?bil.";
                         continue;
                     }
 
@@ -1363,19 +1363,19 @@ class Usuarios extends Controllers
                 die();
             }
 
-            // 5. VALIDACIÓN FINAL: Si hay un solo error, frenar todo para proteger la BD
+            // 5. VALIDACI?N FINAL: Si hay un solo error, frenar todo para proteger la BD
             if (count($errores) > 0) {
                 // Limitamos a mostrar solo los primeros 5 errores para no desbordar la alerta
                 $errores_mostrar = array_slice($errores, 0, 5);
-                $mensaje_error = "<b>La importación fue cancelada por errores de formato:</b><br><br>" . implode("<br>", $errores_mostrar);
+                $mensaje_error = "<b>La importaci?n fue cancelada por errores de formato:</b><br><br>" . implode("<br>", $errores_mostrar);
                 if (count($errores) > 5)
-                    $mensaje_error .= "<br><i>...y " . (count($errores) - 5) . " errores más.</i>";
+                    $mensaje_error .= "<br><i>...y " . (count($errores) - 5) . " errores m?s.</i>";
 
                 $_SESSION['alert'] = ['type' => 'error', 'message' => $mensaje_error];
                 header("Location: " . base_url() . "usuarios/listar");
                 die();
             }
-            // 6. INSERCIÓN SEGURA (Solo llega aquí si el 100% de los usuarios pasaron las validaciones)
+            // 6. INSERCI?N SEGURA (Solo llega aqu? si el 100% de los usuarios pasaron las validaciones)
             $importados = 0;
             foreach ($usuarios as $user) {
                 [$nombre, $usuario, $clave, $id_rol, $id_grupo, $fuente_registro, $email] = $user;
@@ -1388,13 +1388,13 @@ class Usuarios extends Controllers
             }
 
             if ($importados > 0) {
-                $_SESSION['alert'] = ['type' => 'success', 'message' => "¡Éxito! Se importaron correctamente $importados usuarios."];
+                $_SESSION['alert'] = ['type' => 'success', 'message' => "??xito! Se importaron correctamente $importados usuarios."];
             } else {
-                $_SESSION['alert'] = ['type' => 'warning', 'message' => 'El archivo se leyó, pero no se importó ningún usuario (Archivo vacío).'];
+                $_SESSION['alert'] = ['type' => 'warning', 'message' => 'El archivo se ley?, pero no se import? ning?n usuario (Archivo vac?o).'];
             }
 
         } else {
-            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Ocurrió un error al subir el archivo.'];
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Ocurri? un error al subir el archivo.'];
         }
 
         header("Location: " . base_url() . "usuarios/listar");
@@ -1409,12 +1409,12 @@ class Usuarios extends Controllers
 
         // 1. Verificar Token CSRF
         if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad (Token inválido).'];
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad (Token inv?lido).'];
             header("Location: " . base_url() . "configuracion/servidor_AD");
             die();
         }
 
-        // 2. Obtener configuración
+        // 2. Obtener configuraci?n
         $id_config = intval($_POST['id']);
         $ldapConfig = $this->model->getLdapConfigById($id_config);
 
@@ -1424,39 +1424,39 @@ class Usuarios extends Controllers
         }
 
         if (empty($ldapConfig) || !isset($ldapConfig['ldapHost'])) {
-            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error: No se pudieron leer los datos de la configuración (ID: ' . $id_config . ').'];
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error: No se pudieron leer los datos de la configuraci?n (ID: ' . $id_config . ').'];
             header("Location: " . base_url() . "configuracion/servidor_AD");
             die();
         }
 
-        // 3. DESENCRIPTAR CONTRASEÑA
-        // Usamos la función si existe, sino texto plano (para evitar errores fatales)
+        // 3. DESENCRIPTAR CONTRASE?A
+        // Usamos la funci?n si existe, sino texto plano (para evitar errores fatales)
         if (function_exists('stringDecryption')) {
             $password_real = stringDecryption($ldapConfig['ldapPass']);
         } else {
             $password_real = $ldapConfig['ldapPass'];
         }
 
-        // 4. Conexión LDAP
+        // 4. Conexi?n LDAP
         $ldapConn = ldap_connect($ldapConfig['ldapHost'], $ldapConfig['ldapPort']);
         ldap_set_option($ldapConn, LDAP_OPT_PROTOCOL_VERSION, 3);
         ldap_set_option($ldapConn, LDAP_OPT_REFERRALS, 0);
 
         if (!$ldapConn || !@ldap_bind($ldapConn, $ldapConfig['ldapUser'], $password_real)) {
             $err = ldap_error($ldapConn);
-            $_SESSION['alert'] = ['type' => 'error', 'message' => "Fallo de Conexión LDAP: $err"];
+            $_SESSION['alert'] = ['type' => 'error', 'message' => "Fallo de Conexi?n LDAP: $err"];
             header("Location: " . base_url() . "configuracion/servidor_AD");
             die();
         }
 
-        // 5. Búsqueda
+        // 5. B?squeda
         $filter = "(&(objectClass=user)(objectCategory=person)(!(userAccountControl:1.2.840.113556.1.4.803:=2))(mail=*))";
         $attributes = ['samaccountname', 'mail', 'displayname', 'givenname', 'sn'];
 
         $search = ldap_search($ldapConn, $ldapConfig['ldapBaseDn'], $filter, $attributes);
 
         if (!$search) {
-            $_SESSION['alert'] = ['type' => 'warning', 'message' => 'Error en la búsqueda. Verifique el BaseDN configurado.'];
+            $_SESSION['alert'] = ['type' => 'warning', 'message' => 'Error en la b?squeda. Verifique el BaseDN configurado.'];
             header("Location: " . base_url() . "configuracion/servidor_AD");
             die();
         }
@@ -1485,7 +1485,7 @@ class Usuarios extends Controllers
 
                 if (!empty($username) && !empty($email)) {
 
-                    // Contraseña dummy segura
+                    // Contrase?a dummy segura
                     try {
                         $bytes = random_bytes(10);
                     } catch (Exception $e) {
@@ -1505,7 +1505,7 @@ class Usuarios extends Controllers
             }
         } else {
             // MENSAJE MEJORADO: Caso sin resultados
-            $_SESSION['alert'] = ['type' => 'info', 'message' => 'Conexión exitosa, pero no se encontraron usuarios activos con correo en la ruta especificada.'];
+            $_SESSION['alert'] = ['type' => 'info', 'message' => 'Conexi?n exitosa, pero no se encontraron usuarios activos con correo en la ruta especificada.'];
             header("Location: " . base_url() . "configuracion/servidor_AD");
             die();
         }
@@ -1514,7 +1514,7 @@ class Usuarios extends Controllers
 
         // MENSAJE FINAL MEJORADO (Sin HTML)
         if ($contador_nuevos == 0 && $contador_actualizados == 0) {
-            $msg = "Sincronización completada. No se encontraron usuarios nuevos ni cambios en los existentes.";
+            $msg = "Sincronizaci?n completada. No se encontraron usuarios nuevos ni cambios en los existentes.";
             $tipo = "info";
         } else {
             // Ejemplo: "Proceso finalizado. Registrados: 5 | Actualizados: 2"
@@ -1631,14 +1631,14 @@ class Usuarios extends Controllers
         $pdf->SetLeftMargin(16);
         $pdf->setX(16);
 
-        $pdf->Cell($w[0], 7, utf8_decode('N°'), 1, 0, 'C', true);
+        $pdf->Cell($w[0], 7, utf8_decode('N?'), 1, 0, 'C', true);
         $pdf->Cell($w[1], 7, utf8_decode('Nombre'), 1, 0, 'C', true);
         $pdf->Cell($w[2], 7, utf8_decode('Usuario'), 1, 0, 'C', true);
         $pdf->Cell($w[3], 7, 'Grupo', 1, 0, 'C', true);
         $pdf->Cell($w[4], 7, 'Rol', 1, 0, 'C', true);
         $pdf->Cell($w[5], 7, 'Estado', 1, 1, 'C', true);
 
-        // 4. Configurar motor multilínea
+        // 4. Configurar motor multil?nea
         $pdf->SetWidths($w);
         $pdf->SetAligns(array('C', 'L', 'C', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 10);
@@ -1693,19 +1693,19 @@ class Usuarios extends Controllers
         $pdf->SetFillColor(230, 230, 230);
         $pdf->SetTextColor(0, 0, 0);
 
-        // Definir anchos y centrar tabla dinámicamente
+        // Definir anchos y centrar tabla din?micamente
         $w = array(15, 70, 45, 50, 35); // Suma: 215mm
         $margin = ($pdf->GetPageWidth() - array_sum($w)) / 2;
         $pdf->SetLeftMargin($margin);
         $pdf->setX($margin);
 
-        $pdf->Cell($w[0], 7, utf8_decode('N°'), 1, 0, 'C', true);
+        $pdf->Cell($w[0], 7, utf8_decode('N?'), 1, 0, 'C', true);
         $pdf->Cell($w[1], 7, utf8_decode('Nombre'), 1, 0, 'C', true);
         $pdf->Cell($w[2], 7, utf8_decode('Usuario'), 1, 0, 'C', true);
         $pdf->Cell($w[3], 7, 'Rol', 1, 0, 'C', true);
         $pdf->Cell($w[4], 7, 'Estado', 1, 1, 'C', true);
 
-        // 4. Configurar motor multilínea
+        // 4. Configurar motor multil?nea
         $pdf->SetWidths($w);
         $pdf->SetAligns(array('C', 'L', 'C', 'C', 'C'));
         $pdf->SetFont('Arial', '', 10);
@@ -1755,12 +1755,12 @@ class Usuarios extends Controllers
         $pdf->SetLeftMargin($margin);
         $pdf->setX($margin);
 
-        $pdf->Cell($w[0], 7, utf8_decode('N° Grupo'), 1, 0, 'C', true);
-        $pdf->Cell($w[1], 7, utf8_decode('Descripción Grupo'), 1, 0, 'C', true);
-        $pdf->Cell($w[2], 7, utf8_decode('N° Tipo Doc'), 1, 0, 'C', true);
+        $pdf->Cell($w[0], 7, utf8_decode('N? Grupo'), 1, 0, 'C', true);
+        $pdf->Cell($w[1], 7, utf8_decode('Descripci?n Grupo'), 1, 0, 'C', true);
+        $pdf->Cell($w[2], 7, utf8_decode('N? Tipo Doc'), 1, 0, 'C', true);
         $pdf->Cell($w[3], 7, 'Tipo Documento', 1, 1, 'C', true);
 
-        // 4. Configurar motor multilínea
+        // 4. Configurar motor multil?nea
         $pdf->SetWidths($w);
         $pdf->SetAligns(array('C', 'L', 'C', 'L'));
         $pdf->SetFont('Arial', '', 10);
@@ -1897,7 +1897,7 @@ class Usuarios extends Controllers
         // Ajustar columnas
         $excel->setColumnWidths([
             'A' => 'auto',
-            'B' => 45, // Descripción de grupo larga
+            'B' => 45, // Descripci?n de grupo larga
             'C' => 'auto',
             'D' => 45  // Tipo de documento largo
         ]);

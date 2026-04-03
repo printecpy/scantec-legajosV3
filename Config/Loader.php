@@ -23,7 +23,7 @@ class LicenseLoader
         if ($archivos === false || count($archivos) === 0) {
             self::$estado = [
                 'status' => false,
-                'msg' => 'No se encontro ningun archivo de licencia (scantec-*.lic).'
+                'msg' => 'No se encontró ningún archivo de licencia (scantec-*.lic).'
             ];
             return;
         }

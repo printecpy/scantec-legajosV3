@@ -9,49 +9,6 @@ $accesosDisponibles = $data['accesos_disponibles'] ?? [];
 $accesosActuales = $data['accesos_actuales'] ?? [];
 $accesosFinalesEspeciales = [];
 
-if (!function_exists('normalizarTextoAccesosVista')) {
-    function normalizarTextoAccesosVista($valor)
-    {
-        if (!is_string($valor) || $valor === '') {
-            return $valor;
-        }
-
-        $reemplazos = [
-            'MÃ©todos' => 'Métodos',
-            'MÃƒÂ©todos' => 'Métodos',
-            'ActualizaciÃ³n' => 'Actualización',
-            'ActualizaciÃƒÂ³n' => 'Actualización',
-            'AdministraciÃ³n' => 'Administración',
-            'AdministraciÃƒÂ³n' => 'Administración',
-            'AdministraciÃƒÆ’Ã‚Â³n' => 'Administración',
-            'AuditorÃ­a' => 'Auditoría',
-            'AuditorÃƒÂ­a' => 'Auditoría',
-            'AuditorÃƒÆ’Ã‚Â­a' => 'Auditoría',
-            'ConfiguraciÃ³n' => 'Configuración',
-            'ConfiguraciÃƒÂ³n' => 'Configuración',
-            'DescripciÃ³n' => 'Descripción',
-            'DescripciÃƒÂ³n' => 'Descripción',
-            'funciÃ³n' => 'función',
-            'funciÃƒÂ³n' => 'función',
-            'quÃ©' => 'qué',
-            'quÃƒÂ©' => 'qué',
-            'segÃºn' => 'según',
-            'segÃƒÂºn' => 'según',
-            'automÃ¡ticamente' => 'automáticamente',
-            'automÃƒÂ¡ticamente' => 'automáticamente',
-            'mÃ³dulos' => 'módulos',
-            'mÃƒÂ³dulos' => 'módulos',
-            'aquÃ­' => 'aquí',
-            'aquÃƒÂ­' => 'aquí',
-            'tambiÃ©n' => 'también',
-            'tambiÃƒÂ©n' => 'también',
-            'ConfiguraciÃƒÂ³n' => 'Configuración',
-        ];
-
-        return strtr($valor, $reemplazos);
-    }
-}
-
 $grupos = [];
 foreach ($accesosDisponibles as $clave => $info) {
     if ($clave === 'tipos_relacion_archivos') {
@@ -65,7 +22,7 @@ foreach ($accesosDisponibles as $clave => $info) {
         continue;
     }
 
-    $grupo = normalizarTextoAccesosVista($info['grupo'] ?? 'General');
+    $grupo = $info['grupo'] ?? 'General';
     if (!isset($grupos[$grupo])) {
         $grupos[$grupo] = [];
     }
@@ -194,13 +151,13 @@ uksort($grupos, static function ($a, $b) use ($ordenGrupos) {
                                                 <?php echo $habilitado ? 'checked' : ''; ?>>
                                         </td>
                                         <td class="px-6 py-4 font-semibold text-gray-800">
-                                            <?php echo htmlspecialchars(normalizarTextoAccesosVista($info['etiqueta'] ?? $clave)); ?>
+                                            <?php echo htmlspecialchars($info['etiqueta'] ?? $clave); ?>
                                         </td>
                                         <td class="px-6 py-4 text-gray-500 font-mono text-xs">
                                             <?php echo htmlspecialchars($info['ruta'] ?? ''); ?>
                                         </td>
                                         <td class="px-6 py-4 text-gray-600">
-                                            <?php echo htmlspecialchars(normalizarTextoAccesosVista($info['descripcion'] ?? '')); ?>
+                                            <?php echo htmlspecialchars($info['descripcion'] ?? ''); ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -215,7 +172,7 @@ uksort($grupos, static function ($a, $b) use ($ordenGrupos) {
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                     <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue flex items-center justify-between gap-4">
                         <h5 class="font-bold text-white flex items-center">
-                            <i class="fas fa-layer-group mr-2 text-white"></i> <?php echo htmlspecialchars(normalizarTextoAccesosVista($infoEspecial['etiqueta'] ?? $claveEspecial)); ?>
+                            <i class="fas fa-layer-group mr-2 text-white"></i> <?php echo htmlspecialchars($infoEspecial['etiqueta'] ?? $claveEspecial); ?>
                         </h5>
                     </div>
 
@@ -239,13 +196,13 @@ uksort($grupos, static function ($a, $b) use ($ordenGrupos) {
                                             <?php echo $habilitadoEspecial ? 'checked' : ''; ?>>
                                     </td>
                                     <td class="px-6 py-4 font-semibold text-gray-800">
-                                        <?php echo htmlspecialchars(normalizarTextoAccesosVista($infoEspecial['etiqueta'] ?? $claveEspecial)); ?>
+                                        <?php echo htmlspecialchars($infoEspecial['etiqueta'] ?? $claveEspecial); ?>
                                     </td>
                                     <td class="px-6 py-4 text-gray-500 font-mono text-xs">
                                         <?php echo htmlspecialchars($infoEspecial['ruta'] ?? ''); ?>
                                     </td>
                                     <td class="px-6 py-4 text-gray-600">
-                                        <?php echo htmlspecialchars(normalizarTextoAccesosVista($infoEspecial['descripcion'] ?? '')); ?>
+                                        <?php echo htmlspecialchars($infoEspecial['descripcion'] ?? ''); ?>
                                     </td>
                                 </tr>
                             </tbody>

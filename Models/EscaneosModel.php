@@ -104,7 +104,7 @@ class EscaneosModel extends Mysql{
 
     public function reporteEsctotal(string $mes_desde, string $anio_desde, string $mes_hasta, string $anio_hasta)
     {
-        // Convertir las cadenas a valores numÃ©ricos
+        // Convertir las cadenas a valores numéricos
         $mes_desde = (int)$mes_desde;
         $anio_desde = (int)$anio_desde;
         $mes_hasta = (int)$mes_hasta;
@@ -210,12 +210,12 @@ class EscaneosModel extends Mysql{
         return $res;
     }
 
-    // FunciÃ³n para validar el formato de fecha
+    // Función para validar el formato de fecha
     function validarFecha($fecha)
     {
         $fecha_validada = DateTime::createFromFormat('m/d/Y H:i:s', $fecha);
         if (!$fecha_validada) {
-            throw new Exception("El formato de fecha no es vÃ¡lido");
+            throw new Exception("El formato de fecha no es válido");
         }
         return $fecha_validada->format('Y-m-d H:i:s');
     }

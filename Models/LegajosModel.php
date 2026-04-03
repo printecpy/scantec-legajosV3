@@ -146,7 +146,7 @@ class LegajosModel extends Mysql
 
     /**
      * Retorna el fragmento SQL del CASE de estado de legajo a texto legible.
-     * Centraliza la lÃ³gica para no duplicar en mÃºltiples queries.
+     * Centraliza la lógica para no duplicar en múltiples queries.
      */
     private function sqlCaseEstadoTexto(string $alias = 'l'): string
     {
@@ -594,7 +594,7 @@ class LegajosModel extends Mysql
         return $this->select($sql, $params);
     }
 
-    // Nota: usar selectLegajoPorId() directamente. Alias eliminado para evitar confusiÃ³n.
+    // Nota: usar selectLegajoPorId() directamente. Alias eliminado para evitar confusión.
 
     public function existeSolicitudAprobada(string $nroSolicitud, int $idLegajoExcluir = 0): bool
     {
@@ -750,7 +750,7 @@ class LegajosModel extends Mysql
         return is_array($result) ? $result : [];
     }
 
-    // Nota: usar selectLegajoDocumentosPorLegajo() directamente. Alias eliminado para evitar confusiÃ³n.
+    // Nota: usar selectLegajoDocumentosPorLegajo() directamente. Alias eliminado para evitar confusión.
 
     public function existeLegajoDocumento(int $idLegajo, int $idRequisito): bool
     {

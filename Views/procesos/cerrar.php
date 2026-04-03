@@ -18,7 +18,7 @@
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="total_paginas">Total de paginas</label>
+                                            <label for="total_paginas">Total de páginas</label>
                                             <input type="hidden" name="id_registro"
                                                 value="<?php echo $data['lote']['id_registro']; ?>">
                                             <input id="total_paginas" class="form-control" type="number"

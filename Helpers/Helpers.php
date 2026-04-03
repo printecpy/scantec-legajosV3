@@ -59,7 +59,7 @@ function stringEncryption($string)
     
     // Usamos tu clave maestra existente
     $key = hash('sha256', ENCRYPTION_KEY);
-    // Generamos un vector de inicializaciÃ³n basado en tu clave
+    // Generamos un vector de inicialización basado en tu clave
     $iv = substr(hash('sha256', md5(ENCRYPTION_KEY)), 0, 16);
     
     $output = openssl_encrypt($string, 'AES-256-CBC', $key, 0, $iv);

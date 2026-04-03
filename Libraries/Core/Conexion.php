@@ -11,6 +11,7 @@ class Conexion
         try {
             $this->conect = new PDO($conexion, DB_USER, PASS);
             $this->conect->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->conect->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
             $this->conect->exec("SET @@lc_time_names = 'es_ES'");
         } catch (PDOException $e) {
             $this->conect = null;

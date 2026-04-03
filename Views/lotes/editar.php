@@ -48,7 +48,7 @@
                                     </div>
                                     <div class="col-md-5">
                                         <div class="form-group">
-                                            <label for="total_paginas">Total de paginas</label>
+                                            <label for="total_paginas">Total de páginas</label>
                                             <input id="total_paginas" type="text" name="total_paginas"
                                                 class="form-control"
                                                 value="<?php echo $data['total_pag']['total_paginas']; ?>">

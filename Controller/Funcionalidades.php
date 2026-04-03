@@ -8,30 +8,9 @@ class Funcionalidades extends Controllers
             foreach ($valor as $clave => $item) {
                 $valor[$clave] = $this->normalizarTextoFuncionalidades($item);
             }
-            return $valor;
         }
 
-        if (!is_string($valor) || $valor === '') {
-            return $valor;
-        }
-
-        $reemplazos = [
-            'M?dulos' => 'Módulo',
-            'Modulo' => 'Módulo',
-            'Modulos' => 'Módulo',
-            'Gesti?n' => 'Gestión',
-            'm?dulos' => 'módulos',
-            'sesi?n' => 'sesión',
-            'Administraci?n' => 'Administración',
-            'Auditor?a' => 'Auditoría',
-            'configuraci?n' => 'configuración',
-            'b?squeda' => 'búsqueda',
-            'verificaci?n' => 'verificación',
-            'administraci?n' => 'administración',
-            'seg?n' => 'según',
-        ];
-
-        return strtr($valor, $reemplazos);
+        return $valor;
     }
 
     private function filtrarAccesosPorModulosActivos(array $accesosDisponibles): array

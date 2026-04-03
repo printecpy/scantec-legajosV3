@@ -542,7 +542,7 @@ class Configuracion extends Controllers
     public function guardar_tipo_legajo()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF invÃ¡lido o expirado.");
+            setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();
         }
@@ -603,7 +603,7 @@ class Configuracion extends Controllers
     public function actualizar_tipo_legajo()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF invÃ¡lido o expirado.");
+            setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();
         }
@@ -632,7 +632,7 @@ class Configuracion extends Controllers
         $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
 
         if ($idTipoLegajo <= 0 || $nombre === '') {
-            setAlert('warning', "Datos invÃ¡lidos para actualizar el tipo de legajo.");
+            setAlert('warning', "Datos inválidos para actualizar el tipo de legajo.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();
         }
@@ -676,14 +676,14 @@ class Configuracion extends Controllers
     public function eliminar_tipo_legajo()
     {
         if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF invÃ¡lido o expirado.");
+            setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();
         }
 
         $idTipoLegajo = intval($_POST['id_tipo_legajo'] ?? 0);
         if ($idTipoLegajo <= 0) {
-            setAlert('warning', "Tipo de legajo invÃ¡lido.");
+            setAlert('warning', "Tipo de legajo inválido.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();
         }

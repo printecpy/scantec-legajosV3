@@ -8,46 +8,6 @@ $itemsModuloActual = $data['items_modulo_actual'] ?? [];
 $grupos = $data['grupos'] ?? [];
 $claveGrupoModulo = null;
 
-if (!function_exists('normalizarTextoFuncionalidadesVista')) {
-    function normalizarTextoFuncionalidadesVista($valor)
-    {
-        if (!is_string($valor) || $valor === '') {
-            return $valor;
-        }
-
-        $reemplazos = [
-            'M?dulos' => 'Módulo',
-            'MÃ³dulo' => 'Módulo',
-            'Mòdulo' => 'Módulo',
-            'Módulos' => 'Módulo',
-            'Modulo' => 'Módulo',
-            'Modulos' => 'Módulo',
-            'Gesti?n' => 'Gestión',
-            'GestiÃ³n' => 'Gestión',
-            'm?dulos' => 'módulos',
-            'mÃ³dulos' => 'módulos',
-            'sesi?n' => 'sesión',
-            'sesiÃ³n' => 'sesión',
-            'Administraci?n' => 'Administración',
-            'AdministraciÃ³n' => 'Administración',
-            'Auditor?a' => 'Auditoría',
-            'AuditorÃ­a' => 'Auditoría',
-            'configuraci?n' => 'configuración',
-            'configuraciÃ³n' => 'configuración',
-            'b?squeda' => 'búsqueda',
-            'bÃºsqueda' => 'búsqueda',
-            'verificaci?n' => 'verificación',
-            'verificaciÃ³n' => 'verificación',
-            'administraci?n' => 'administración',
-            'administraciÃ³n' => 'administración',
-            'seg?n' => 'según',
-            'segÃºn' => 'según',
-        ];
-
-        return strtr($valor, $reemplazos);
-    }
-}
-
 if (empty($grupos) && !empty($data['secciones']) && is_array($data['secciones'])) {
     foreach ($data['secciones'] as $claveSeccion => $infoSeccion) {
         $nombreGrupo = $infoSeccion['grupo'] ?? 'General';
@@ -58,7 +18,7 @@ if (empty($grupos) && !empty($data['secciones']) && is_array($data['secciones'])
     }
 }
 
-foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos', 'M?dulos', 'MÃ³dulo', 'Mòdulo'] as $claveModuloGrupo) {
+foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos'] as $claveModuloGrupo) {
     if (isset($grupos[$claveModuloGrupo]) && is_array($grupos[$claveModuloGrupo])) {
         $claveGrupoModulo = $claveModuloGrupo;
         break;
@@ -97,11 +57,11 @@ foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos', 'M?dulos', 'MÃ³dulo', 'M
                                                 <div class="w-10 h-10 rounded-full bg-blue-50 text-scantec-blue flex items-center justify-center border border-blue-100">
                                                     <i class="<?php echo htmlspecialchars($info['icono'] ?? 'fas fa-puzzle-piece'); ?>"></i>
                                                 </div>
-                                                <div class="font-semibold text-gray-800"><?php echo htmlspecialchars(normalizarTextoFuncionalidadesVista($info['etiqueta'] ?? $clave)); ?></div>
+                                                <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($info['etiqueta'] ?? $clave); ?></div>
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 text-gray-600">
-                                            <?php echo htmlspecialchars(normalizarTextoFuncionalidadesVista($info['descripcion'] ?? '')); ?>
+                                            <?php echo htmlspecialchars($info['descripcion'] ?? ''); ?>
                                         </td>
                                         <td class="px-6 py-4">
                                             <select
@@ -143,7 +103,7 @@ foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos', 'M?dulos', 'MÃ³dulo', 'M
                                 <?php $moduloActual = $itemsModuloActual[$claveItem] ?? ($itemInfo['modulo'] ?? 'sistema'); ?>
                                 <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 font-semibold text-gray-800">
-                                        <?php echo htmlspecialchars(normalizarTextoFuncionalidadesVista($itemInfo['etiqueta'] ?? $claveItem)); ?>
+                                        <?php echo htmlspecialchars($itemInfo['etiqueta'] ?? $claveItem); ?>
                                     </td>
                                     <td class="px-6 py-4 text-gray-500 font-mono text-xs">
                                         <?php echo htmlspecialchars($itemInfo['ruta'] ?? ''); ?>
@@ -154,7 +114,7 @@ foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos', 'M?dulos', 'MÃ³dulo', 'M
                                             class="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none">
                                             <?php foreach ($modulosItems as $claveModulo => $etiquetaModulo): ?>
                                                 <option value="<?php echo htmlspecialchars($claveModulo); ?>" <?php echo $moduloActual === $claveModulo ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars(normalizarTextoFuncionalidadesVista($etiquetaModulo)); ?>
+                                                    <?php echo htmlspecialchars($etiquetaModulo); ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
@@ -171,7 +131,7 @@ foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos', 'M?dulos', 'MÃ³dulo', 'M
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                     <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
                         <h5 class="font-bold text-white flex items-center">
-                            <i class="fas fa-layer-group mr-2 text-white"></i> <?php echo htmlspecialchars(normalizarTextoFuncionalidadesVista($grupo)); ?>
+                            <i class="fas fa-layer-group mr-2 text-white"></i> <?php echo htmlspecialchars($grupo); ?>
                         </h5>
                     </div>
 
@@ -193,11 +153,11 @@ foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos', 'M?dulos', 'MÃ³dulo', 'M
                                                 <div class="w-10 h-10 rounded-full bg-blue-50 text-scantec-blue flex items-center justify-center border border-blue-100">
                                                     <i class="<?php echo htmlspecialchars($info['icono'] ?? 'fas fa-puzzle-piece'); ?>"></i>
                                                 </div>
-                                                <div class="font-semibold text-gray-800"><?php echo htmlspecialchars(normalizarTextoFuncionalidadesVista($info['etiqueta'] ?? $clave)); ?></div>
+                                                <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($info['etiqueta'] ?? $clave); ?></div>
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 text-gray-600">
-                                            <?php echo htmlspecialchars(normalizarTextoFuncionalidadesVista($info['descripcion'] ?? '')); ?>
+                                            <?php echo htmlspecialchars($info['descripcion'] ?? ''); ?>
                                         </td>
                                         <td class="px-6 py-4">
                                             <select

@@ -97,7 +97,7 @@ class IndexarModel extends Mysql{
 
     public function reporteIndextotal(string $mes_desde, string $anio_desde, string $mes_hasta, string $anio_hasta)
     {
-        // Convertir las cadenas a valores numÃ©ricos
+        // Convertir las cadenas a valores numéricos
         $mes_desde = (int)$mes_desde;
         $anio_desde = (int)$anio_desde;
         $mes_hasta = (int)$mes_hasta;
@@ -175,12 +175,12 @@ class IndexarModel extends Mysql{
 metodo que sirve para saber cantidad de indexado de un usuario seleccionado y una fecha cualquiera partir de los logs de umango
 $fecha_deseada = '2024-05-20'; // o $fecha_actual para la fecha de hoy
 
-// Crear la conexiÃ³n a la base de datos
-$mysqli = new mysqli("localhost", "usuario", "contraseÃ±a", "nombre_de_la_bd");
+// Crear la conexión a la base de datos
+$mysqli = new mysqli("localhost", "usuario", "contraseña", "nombre_de_la_bd");
 
-// Verificar la conexiÃ³n
+// Verificar la conexión
 if ($mysqli->connect_error) {
-    die("Error de conexiÃ³n: " . $mysqli->connect_error);
+    die("Error de conexión: " . $mysqli->connect_error);
 }
 
 // Preparar la consulta SQL
@@ -191,17 +191,17 @@ $sql = "
       AND fecha_finalizacion >= ?
       AND fecha_finalizacion < ?";
 
-// Preparar la declaraciÃ³n
+// Preparar la declaración
 $stmt = $mysqli->prepare($sql);
 
 // Calcular el rango de fechas
 $fecha_inicio = $fecha_deseada . ' 00:00:00';
 $fecha_fin = date('Y-m-d H:i:s', strtotime($fecha_deseada . ' +1 day'));
 
-// Enlazar los parÃ¡metros
+// Enlazar los parámetros
 $stmt->bind_param("ss", $fecha_inicio, $fecha_fin);
 
-// Ejecutar la declaraciÃ³n
+// Ejecutar la declaración
 $stmt->execute();
 
 // Obtener el resultado
@@ -209,9 +209,9 @@ $result = $stmt->get_result();
 $row = $result->fetch_assoc();
 
 // Mostrar el resultado
-echo "PÃ¡ginas exportadas: " . $row['paginas_exportadas'];
+echo "Páginas exportadas: " . $row['paginas_exportadas'];
 
-// Cerrar la declaraciÃ³n y la conexiÃ³n
+// Cerrar la declaración y la conexión
 $stmt->close();
 $mysqli->close(); */
 

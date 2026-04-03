@@ -55,8 +55,8 @@
                 contentShell.classList.add('content-expanded');
             }
             if (toggleButton) {
-                toggleButton.setAttribute('aria-label', 'Mostrar menÃº');
-                toggleButton.setAttribute('title', 'Mostrar menÃº');
+                toggleButton.setAttribute('aria-label', 'Mostrar menú');
+                toggleButton.setAttribute('title', 'Mostrar menú');
             }
         } else {
             sidebar.classList.remove('sidebar-collapsed');
@@ -67,8 +67,8 @@
                 contentShell.classList.remove('content-expanded');
             }
             if (toggleButton) {
-                toggleButton.setAttribute('aria-label', 'Ocultar menÃº');
-                toggleButton.setAttribute('title', 'Ocultar menÃº');
+                toggleButton.setAttribute('aria-label', 'Ocultar menú');
+                toggleButton.setAttribute('title', 'Ocultar menú');
             }
         }
 
@@ -116,8 +116,8 @@
             if (typeof Swal !== 'undefined') {
                 let timerInterval;
                 Swal.fire({
-                    title: 'SesiÃ³n expirada',
-                    html: 'Su sesiÃ³n se cerrarÃ¡ automÃ¡ticamente en <b></b> milisegundos.',
+                    title: 'Sesión expirada',
+                    html: 'Su sesión se cerrará automáticamente en <b></b> milisegundos.',
                     timer: 3000,
                     timerProgressBar: true,
                     icon: 'warning',
@@ -144,7 +144,7 @@
         }
 
         if (remainingSeconds > 0) {
-            console.log('SesiÃ³n expira en: ' + remainingSeconds + ' segundos.');
+            console.log('Sesión expira en: ' + remainingSeconds + ' segundos.');
             setTimeout(function() {
                 forceLogoutExpired();
             }, remainingSeconds * 1000);

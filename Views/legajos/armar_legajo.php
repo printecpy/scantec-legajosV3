@@ -838,7 +838,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 : '';
             const nombreArchivoHtml = nombreArchivoActual
                 ? `<div class="mt-1 text-xs text-gray-600 truncate" data-file-name-label>${nombreArchivoActual}</div>`
-                : '<div class="mt-1 text-xs text-gray-400 truncate" data-file-name-label>Ningun archivo seleccionado</div>';
+                : '<div class="mt-1 text-xs text-gray-400 truncate" data-file-name-label>Ningún archivo seleccionado</div>';
             const urlVerArchivo = `${baseUrlLegajos}legajos/ver_documento_checklist?id_legajo=<?php echo $id_legajo_actual; ?>&id_requisito=${regla.id_requisito}`;
             const botonVerArchivoHtml = documentoGuardado.ruta_archivo
                 ? `<a href="${urlVerArchivo}"
@@ -941,7 +941,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             alert('Solo se permiten archivos PDF o imagenes JPG, JPEG, PNG o JFIF.');
                         }
                         this.value = '';
-                        label.textContent = 'Ningun archivo seleccionado';
+                        label.textContent = 'Ningún archivo seleccionado';
                         label.className = 'mt-1 text-xs text-gray-400 truncate';
                         return;
                     }
@@ -1020,7 +1020,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         }
                     }
                 } else {
-                    label.textContent = 'Ningun archivo seleccionado';
+                    label.textContent = 'Ningún archivo seleccionado';
                     label.className = 'mt-1 text-xs text-gray-400 truncate';
                     if (fila) {
                         const enlaceActual = fila.querySelector('[data-view-file-link]');
@@ -1069,7 +1069,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                     inputArchivo.value = '';
                 }
                 if (label) {
-                    label.textContent = 'Ningun archivo seleccionado';
+                    label.textContent = 'Ningún archivo seleccionado';
                     label.className = 'mt-1 text-xs text-gray-400 truncate';
                 }
                 if (hiddenRuta) {

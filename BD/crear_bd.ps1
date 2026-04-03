@@ -73,7 +73,7 @@ function Get-MysqlExecutable {
         return $command.Source
     }
 
-    throw "No se encontro mysql.exe. Verifique XAMPP/MySQL o agregue mysql.exe al PATH."
+    throw "No se encontró mysql.exe. Verifique XAMPP/MySQL o agregue mysql.exe al PATH."
 }
 
 function Get-PhpExecutable {
@@ -93,7 +93,7 @@ function Get-PhpExecutable {
         return $command.Source
     }
 
-    throw "No se encontro php.exe. Verifique XAMPP/PHP o agregue php.exe al PATH."
+    throw "No se encontró php.exe. Verifique XAMPP/PHP o agregue php.exe al PATH."
 }
 
 function Get-PhpDefineValue {
@@ -103,7 +103,7 @@ function Get-PhpDefineValue {
     )
 
     if (-not (Test-Path $PhpFilePath)) {
-        throw "No se encontro el archivo de configuracion: $PhpFilePath"
+        throw "No se encontró el archivo de configuracion: $PhpFilePath"
     }
 
     $content = Get-Content -Path $PhpFilePath -Raw -Encoding UTF8
@@ -315,7 +315,7 @@ function Save-DbConnectionEntry {
     $pattern = '(?s)// <db-connections>\s*.*?\s*// </db-connections>'
     $match = [regex]::Match($content, $pattern)
     if (-not $match.Success) {
-        throw "No se encontro el bloque <db-connections> en Config/DB_Config.php."
+        throw "No se encontró el bloque <db-connections> en Config/DB_Config.php."
     }
 
     $updated = $content.Substring(0, $match.Index) + $replacement + $content.Substring($match.Index + $match.Length)

@@ -108,7 +108,7 @@ class ConfiguracionModel extends Mysql
         }
     }
 
-    // Insertar nueva configuraciÃ³n y desactivar las anteriores
+    // Insertar nueva configuración y desactivar las anteriores
     public function insertarServSMTP(string $host, string $username, string $password, string $smtpsecure, string $port, string $remitente, string $nombre_remitente) 
     {
         // 1. Primero ponemos TODO en 'inactivo' para evitar duplicidad
@@ -124,14 +124,14 @@ class ConfiguracionModel extends Mysql
         return $request;
     }
 
-    // Obtener la configuraciÃ³n activa
+    // Obtener la configuración activa
     public function getActiveSMTP()
     {
         $sql = "SELECT * FROM smtp_datos WHERE estado = 'activo' ORDER BY id DESC LIMIT 1";
         return $this->select($sql);
     }
 
-    // MÃ©todo para apagar el servicio SMTP
+    // Método para apagar el servicio SMTP
     public function desactivarSMTP()
     {
         $sql = "UPDATE smtp_datos SET estado = 'inactivo'";
@@ -270,7 +270,7 @@ class ConfiguracionModel extends Mysql
                 $this->update("ALTER TABLE configuracion ADD COLUMN legajo_sello_posicion VARCHAR(20) NOT NULL DEFAULT 'derecha' AFTER legajo_sello_activo", []);
             }
         } catch (Throwable $e) {
-            // No interrumpimos la carga si la base aÃºn no estÃ¡ alineada.
+            // No interrumpimos la carga si la base aún no está alineada.
         }
     }
 
@@ -999,7 +999,7 @@ class ConfiguracionModel extends Mysql
         if ($result_code === 0) {
             return ['status' => true, 'msg' => "Respaldo creado correctamente.", 'file' => $filename];
         } else {
-            return ['status' => false, 'msg' => "Error al crear respaldo (CÃ³digo: $result_code)."];
+            return ['status' => false, 'msg' => "Error al crear respaldo (Código: $result_code)."];
         }
     }
 
@@ -1034,7 +1034,7 @@ class ConfiguracionModel extends Mysql
         if ($result_code === 0) {
             return ['status' => true, 'msg' => "Base de datos restaurada exitosamente."];
         } else {
-            return ['status' => false, 'msg' => "Error crÃ­tico al restaurar. CÃ³digo: $result_code."];
+            return ['status' => false, 'msg' => "Error crí­tico al restaurar. Código: $result_code."];
         }
     }
 
@@ -1049,7 +1049,7 @@ class ConfiguracionModel extends Mysql
             }
 
             if (!defined('RUTA_BASE')) {
-                return ['status' => false, 'msg' => 'La constante RUTA_BASE no estÃ¡ definida.'];
+                return ['status' => false, 'msg' => 'La constante RUTA_BASE no está definida.'];
             }
 
             // 2. Dividir la ruta para que Windows Explorer lea bien el ZIP
@@ -1066,13 +1066,13 @@ class ConfiguracionModel extends Mysql
             $fecha = date('Ymd_His');
             $archivo_zip = rtrim($ruta_destino, '/\\') . DIRECTORY_SEPARATOR . "backup_documentos_{$fecha}.zip";
 
-            // tar comprimirÃ¡ la carpeta completa desde afuera
+            // tar comprimirá la carpeta completa desde afuera
             $comando = 'tar -a -c -f ' . escapeshellarg($archivo_zip) . ' -C ' . escapeshellarg($directorio_padre) . ' ' . escapeshellarg($nombre_carpeta);
 
             // 4. Ejecutar en segundo plano
             exec('start "" /B ' . $comando);
             
-            return ['status' => true, 'msg' => 'El respaldo fÃ­sico se iniciÃ³. Archivo: backup_documentos_' . $fecha . '.zip'];
+            return ['status' => true, 'msg' => 'El respaldo f��sico se inició. Archivo: backup_documentos_' . $fecha . '.zip'];
 
         } catch (Throwable $e) {
             return ['status' => false, 'msg' => 'Error en el modelo: ' . $e->getMessage()];
@@ -1080,7 +1080,7 @@ class ConfiguracionModel extends Mysql
     }
 
     // ============================================================
-    // CRUD para cfg_relaciones (Tipos de relaciÃ³n en legajos)
+    // CRUD para cfg_relaciones (Tipos de relación en legajos)
     // ============================================================
 
     private function asegurarRelacionesBase(): void
@@ -1125,7 +1125,7 @@ class ConfiguracionModel extends Mysql
     {
         $this->asegurarRelacionesBase();
         if (!$this->existeTabla('cfg_relaciones')) {
-            // Fallback: devolver las opciones clÃ¡sicas hardcodeadas
+            // Fallback: devolver las opciones clásicas hardcodeadas
             return [
                 ['nombre' => 'TITULAR'],
                 ['nombre' => 'CONYUGE'],
@@ -1300,7 +1300,7 @@ class ConfiguracionModel extends Mysql
             ('UNIR_AL_INICIO', 'Solo agregar al inicio', 'El archivo nuevo se agrega al inicio del existente', 1, 2),
             ('UNIR_AL_FINAL', 'Solo agregar al final', 'El archivo nuevo se agrega al final del existente', 1, 3),
             ('NO_PERMITIR', 'No permitir actualizar', 'Una vez cargado, no se permite modificar', 1, 4),
-            ('CONSULTAR', 'Consultar en cada archivo', 'Pregunta al usuario quÃ© hacer en cada carga', 1, 5)";
+            ('CONSULTAR', 'Consultar en cada archivo', 'Pregunta al usuario que hacer en cada carga', 1, 5)";
         $this->update($insert, []);
     }
 

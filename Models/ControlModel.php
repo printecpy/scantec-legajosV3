@@ -113,7 +113,7 @@ class ControlModel extends Mysql{
 
     public function reporteControltotal(string $mes_desde, string $anio_desde, string $mes_hasta, string $anio_hasta)
     {
-        // Convertir las cadenas a valores numÃ©ricos
+        // Convertir las cadenas a valores numéricos
         $mes_desde = (int)$mes_desde;
         $anio_desde = (int)$anio_desde;
         $mes_hasta = (int)$mes_hasta;

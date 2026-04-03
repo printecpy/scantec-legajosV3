@@ -87,7 +87,7 @@ class DashboardModel extends Mysql
 
     public function selectCantArchivosDoc()
     {
-        // Obtener legajos agrupados por fecha y usuario (ÃƒÂºltimos 15 dÃƒÂ­as)
+        // Obtener legajos agrupados por fecha y usuario (Últimos 15 días)
         $sql = "SELECT DATE_FORMAT(cl.fecha_creacion, '%Y-%m-%d') AS fecha_indexado,
                        u.nombre AS nombre_usuario,
                        COUNT(*) AS total_archivos

@@ -1,4 +1,7 @@
 <?php
+header('Content-Type: text/html; charset=utf-8');
+mb_internal_encoding('UTF-8');
+
 ob_start();
 /* ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);

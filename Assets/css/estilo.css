@@ -69,7 +69,7 @@ body {
   background-color: #f9fafb;
 }
 
-/* --- AJUSTE DE POSICIÓN DE PAGINACIÓN Y DATA INFO --- */
+/* --- AJUSTE DE POSICIÓN DE páginaCIÓN Y DATA INFO --- */
 .dataTables_wrapper {
   padding: 20px; /* Padding general para que respire */
 }
@@ -88,7 +88,7 @@ body {
   /* Evita que se aplaste */
 }
 
-/* 1. ELIMINAR EL ESTILO DE "LISTA" DE LA PAGINACIÓN */
+/* 1. ELIMINAR EL ESTILO DE "LISTA" DE LA páginaCIÓN */
 .dataTables_wrapper .pagination {
   display: flex !important;
   padding-left: 0;
@@ -162,7 +162,7 @@ body {
 .dataTables_info,
 .dataTables_paginate {
   margin-top: 0.5rem !important;
-  /* EMPUJA LA PAGINACIÓN HACIA ABAJO */
+  /* EMPUJA LA páginaCIÓN HACIA ABAJO */
   padding-top: 0.5rem !important;
   border-top: 1px solid #f3f4f6;
   /* Opcional: Línea sutil separadora */
@@ -181,7 +181,7 @@ body {
   clear: both;
 }
 
-/* 2. FORZAR LOS ICONOS EN LA PAGINACIÓN */
+/* 2. FORZAR LOS ICONOS EN LA páginaCIÓN */
 .page-item.previous .page-link,
 .page-item.next .page-link {
   font-family: "Font Awesome 6 Free" !important;
@@ -192,7 +192,7 @@ body {
   min-width: 40px;
 }
 
-/* 3. BOTONES DE PAGINACIÓN MODERNOS (Estilo Scantec) */
+/* 3. BOTONES DE páginaCIÓN MODERNOS (Estilo Scantec) */
 .pagination {
   gap: 5px;
 }

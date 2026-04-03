@@ -1521,19 +1521,19 @@ class Legajos extends Controllers
 
     public function __construct()
     {
-        // CORRECCIÃ“N: verificar antes de iniciar para evitar "session already started"
+        // CORRECCIÓN: verificar antes de iniciar para evitar "session already started"
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
         if (empty($_SESSION['ACTIVO']) && !$this->esAccionPublicaFormularioExterno()) {
             header("location: " . base_url());
-            exit(); // CORRECCIÃ“N: agregar exit() para detener la ejecuciÃ³n tras redirigir
+            exit(); // CORRECCIÓN: agregar exit() para detener la ejecución tras redirigir
         }
         parent::__construct();
     }
 
     /**
-     * Verifica si el usuario actual tiene permiso de grupo para una acciÃ³n de legajos.
+     * Verifica si el usuario actual tiene permiso de grupo para una acción de legajos.
      * Solo el rol 1 (Administrador del sistema) siempre tiene acceso total.
      */
     private function checkLegajoGroupPermission(string $accion)
@@ -2202,7 +2202,7 @@ class Legajos extends Controllers
 
             if (!class_exists('ZipArchive')) {
                 if (function_exists('setAlert')) {
-                    setAlert('error', 'El servidor no tiene disponible la extensiÃ³n ZipArchive para generar la descarga por lotes.');
+                    setAlert('error', 'El servidor no tiene disponible la extensión ZipArchive para generar la descarga por lotes.');
                 }
                 header('Location: ' . $redirect);
                 exit();
@@ -3282,7 +3282,7 @@ class Legajos extends Controllers
         $idLegajo = intval($_GET['id_legajo'] ?? 0);
         $idRequisito = intval($_GET['id_requisito'] ?? 0);
         if ($idLegajo <= 0 || $idRequisito <= 0) {
-            setAlert('warning', 'No se encontro el documento solicitado.');
+            setAlert('warning', 'No se encontró el documento solicitado.');
             header('Location: ' . base_url() . 'legajos/armar_legajo');
             exit();
         }
@@ -3299,7 +3299,7 @@ class Legajos extends Controllers
 
         $rutaRelativa = trim((string)($documento['ruta_archivo'] ?? ''));
         if ($rutaRelativa === '') {
-            setAlert('warning', 'No se encontro el archivo cargado para este documento.');
+            setAlert('warning', 'No se encontró el archivo cargado para este documento.');
             header('Location: ' . base_url() . 'legajos/armar_legajo?id_legajo=' . $idLegajo);
             exit();
         }

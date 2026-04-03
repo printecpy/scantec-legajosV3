@@ -108,7 +108,7 @@ class SeguridadLegajosModel extends Mysql
 
     /**
      * Lista fija de acciones/vistas configurables para legajos y seguridad.
-     * Se divide en dos categorÃ­as: vistas (sidebar) y acciones internas.
+     * Se divide en dos categorías: vistas (sidebar) y acciones internas.
      */
     public static function getAccionesDisponibles(): array
     {
@@ -218,7 +218,7 @@ class SeguridadLegajosModel extends Mysql
             'dashboard_card_docs_vencidos' => ['etiqueta' => 'Documentos vencidos / faltantes', 'icono' => 'fas fa-circle-exclamation'],
             'dashboard_card_legajos_por_tipo' => ['etiqueta' => 'Legajos completados por tipo', 'icono' => 'fas fa-table-list'],
             'dashboard_card_legajos_por_usuario' => ['etiqueta' => 'Legajos verificados por usuario', 'icono' => 'fas fa-users'],
-            'dashboard_card_grafico_productividad' => ['etiqueta' => 'GrÃ¡fico de productividad', 'icono' => 'fas fa-chart-line'],
+            'dashboard_card_grafico_productividad' => ['etiqueta' => 'Gráfico de productividad', 'icono' => 'fas fa-chart-line'],
         ];
     }
 
@@ -307,7 +307,7 @@ class SeguridadLegajosModel extends Mysql
         $presets = self::getPresetsPermisos();
 
         if (!isset($presets[$preset])) {
-            return false; // Preset no vÃ¡lido
+            return false; // Preset no válido
         }
 
         $permisosPreset = $presets[$preset]['permisos'];
@@ -438,7 +438,7 @@ class SeguridadLegajosModel extends Mysql
         return intval($res['total'] ?? 0) > 0;
     }
 
-    // insertarRol() eliminado â€” usar insertarRolConPermisos() que tambiÃ©n asigna el preset.
+    // insertarRol() eliminado — usar insertarRolConPermisos() que también asigna el preset.
 
     /**
      * Inserta un nuevo rol y asigna permisos por defecto.
@@ -504,7 +504,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Cuenta cuÃ¡ntos usuarios tienen asignado este rol.
+     * Cuenta cuántos usuarios tienen asignado este rol.
      */
     public function contarUsuariosPorRol(int $id_rol): int
     {
@@ -568,7 +568,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Obtiene los permisos de legajos de un rol especÃ­fico.
+     * Obtiene los permisos de legajos de un rol específico.
      * Retorna array: [accion => permitido]
      */
     public function selectPermisosLegajosPorRol(int $id_rol): array
@@ -590,7 +590,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Verifica si un rol tiene un permiso especÃ­fico.
+     * Verifica si un rol tiene un permiso específico.
      * Retorna true si tiene el permiso, false en caso contrario.
      */
     public function tienePermisoLegajo(int $id_rol, string $accion): bool
@@ -642,7 +642,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Obtiene la configuraciÃ³n de visibilidad de legajos ajenos por rol.
+     * Obtiene la configuración de visibilidad de legajos ajenos por rol.
      * Retorna array indexado: [id_rol] => 0|1
      */
     public function selectVisibilidadLegajosOtrosPorRol(): array
@@ -692,7 +692,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Guarda la configuraciÃ³n de visibilidad de legajos ajenos por rol.
+     * Guarda la configuración de visibilidad de legajos ajenos por rol.
      */
     public function guardarVisibilidadLegajosOtros(int $id_rol, bool $permitido): bool
     {
