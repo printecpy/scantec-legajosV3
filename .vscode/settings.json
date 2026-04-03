@@ -1,5 +1,7 @@
 {
     "php.version": "8.1",
+    "files.encoding": "utf8",
+    "files.autoGuessEncoding": false,
     "css.validate": false,
     "less.validate": false,
     "scss.validate": false,

@@ -51,10 +51,25 @@ if (isset($_SESSION['alert'])) {
         .swal2-container:not(.swal2-backdrop-show):not(.swal2-noanimation) {
             display: none !important;
         }
-        .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .rotate-icon { transition: transform 0.2s ease-in-out; }
         .rotate-180 { transform: rotate(180deg); }
+        .sidebar-collapsed {
+            width: 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            transform: translateX(-0.5rem);
+            box-shadow: none !important;
+        }
+        .content-expanded {
+            width: 100%;
+        }
+        .sidebar-restore-visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
         .menu-item-active {
             border-left: 4px solid var(--scantec-red);
             background: rgba(255,255,255,0.08);
@@ -243,6 +258,7 @@ if (isset($_SESSION['alert'])) {
                 <div id="menu-legajos" class="hidden pl-11 space-y-1 mt-1">
                     <?php if ($__puedeVerLegajo('armar_legajo')): ?>
                     <a href="<?php echo base_url(); ?>legajos/armar_legajo" class="block py-2 text-xs text-white/60 hover:text-white transition-colors">Armar legajo</a>
+                    <a href="<?php echo base_url(); ?>legajos/solicitar_documentos" class="block py-2 text-xs text-white/60 hover:text-white transition-colors">Solicitar documentos</a>
                     <?php endif; ?>
                     <?php if ($__puedeVerLegajo('buscar_legajos')): ?>
                     <a href="<?php echo base_url(); ?>legajos/buscar_legajos" class="block py-2 text-xs text-white/60 hover:text-white transition-colors">Buscar legajos</a>
@@ -279,7 +295,7 @@ if (isset($_SESSION['alert'])) {
                 $__accesoItem('alertas_programadas');
 
             $__mostrarUsuariosAccesos = $__accesoItem('backup') ||
-                ($__seccionHabilitada('legajos') && $__accesoItem('permisos_legajos'));
+                ($__seccionHabilitada('legajos') && $__puedeVerLegajo('permisos_legajos'));
 
             $__mostrarAuditoria = ($__seccionHabilitada('archivos') && $__accesoItem('log_documentos')) ||
                 ($__seccionHabilitada('archivos') && $__accesoItem('visitas_archivos')) ||
@@ -337,7 +353,7 @@ if (isset($_SESSION['alert'])) {
                     <?php if ($__accesoItem('backup')): ?>
                     <a href="<?php echo base_url(); ?>configuracion/mantenimiento" class="block py-2 text-xs text-white/60 hover:text-white">Backup</a>
                     <?php endif; ?>
-                    <?php if ($__seccionHabilitada('legajos') && $__accesoItem('permisos_legajos')): ?>
+                    <?php if ($__seccionHabilitada('legajos') && $__puedeVerLegajo('permisos_legajos')): ?>
                     <a href="<?php echo base_url(); ?>seguridad/permisos_legajos" class="block py-2 text-xs text-white/60 hover:text-white">Permisos Legajos</a>
                     <?php endif; ?>
                 </div>
@@ -399,9 +415,9 @@ if (isset($_SESSION['alert'])) {
         </nav>
     </aside>
 
-    <div class="flex-1 flex flex-col min-w-0">
+    <div id="app-shell-content" class="flex-1 flex flex-col min-w-0">
         <header class="h-16 bg-white border-b flex items-center justify-between px-6 shadow-sm z-40">
-            <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-gray-100 text-scantec-blue transition-colors outline-none">
+            <button id="sidebar-toggle-button" onclick="toggleSidebar()" class="inline-flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 text-scantec-blue transition-colors outline-none">
                 <i class="fas fa-bars fa-lg"></i>
             </button>
 
@@ -434,6 +450,14 @@ if (isset($_SESSION['alert'])) {
                 </div>
             </div>
         </header>
+
+        <button id="sidebar-restore-button"
+            type="button"
+            onclick="toggleSidebar(true)"
+            class="fixed left-4 top-24 z-50 inline-flex items-center justify-center rounded-full bg-scantec-blue p-3 text-white shadow-xl transition-all opacity-0 pointer-events-none -translate-x-3 hover:bg-blue-800"
+            title="Mostrar menú">
+            <i class="fas fa-angles-right"></i>
+        </button>
 
         <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
 

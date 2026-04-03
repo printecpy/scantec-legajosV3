@@ -1,19 +1,6 @@
 <?php
 class Home extends Controllers
 {
-    private function obtenerBasesDisponibles(): array
-    {
-        $basesConfiguradas = function_exists('obtenerConfiguracionesBases')
-            ? array_keys(obtenerConfiguracionesBases())
-            : [defined('BD') ? BD : 'scantec_basic'];
-
-        if (empty($basesConfiguradas)) {
-            return [defined('BD') ? BD : 'scantec_basic'];
-        }
-
-        return array_values($basesConfiguradas);
-    }
-
     private function obtenerUsuariosModelPublico(): UsuariosModel
     {
         if (!class_exists('UsuariosModel')) {
@@ -50,17 +37,13 @@ class Home extends Controllers
     }
     public function home($params)
     {
-        $basesDisponibles = $this->obtenerBasesDisponibles();
-        $baseActual = $_SESSION['selected_db'] ?? ($_COOKIE['selected_db'] ?? (defined('BD') ? BD : 'scantec_basic'));
-        if (!in_array($baseActual, $basesDisponibles, true) && !empty($basesDisponibles)) {
-            $baseActual = $basesDisponibles[0];
-            $_SESSION['selected_db'] = $baseActual;
-            setcookie('selected_db', $baseActual, time() + (365 * 24 * 60 * 60), '/');
-        }
+        $licenciaEstado = class_exists('LicenseLoader')
+            ? LicenseLoader::verificarEstado()
+            : ['status' => true, 'msg' => ''];
 
         $data = [
-            'bases_disponibles' => $basesDisponibles,
-            'base_actual' => $baseActual
+            'base_actual' => defined('BD') ? BD : BD_DEFAULT,
+            'licencia_estado' => $licenciaEstado
         ];
         $this->views->getView($this, "home", $data);
     }
@@ -188,18 +171,6 @@ class Home extends Controllers
 
     public function seleccionar_bd()
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        $db = preg_replace('/[^A-Za-z0-9_]/', '', (string) ($_POST['selected_db'] ?? $_GET['db'] ?? ''));
-        $basesDisponibles = $this->obtenerBasesDisponibles();
-
-        if ($db !== '' && in_array($db, $basesDisponibles, true)) {
-            $_SESSION['selected_db'] = $db;
-            setcookie('selected_db', $db, time() + (365 * 24 * 60 * 60), '/');
-        }
-
         header("Location: " . base_url());
         exit();
     }

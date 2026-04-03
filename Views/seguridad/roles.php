@@ -141,13 +141,26 @@
                     require_once 'Models/SeguridadLegajosModel.php';
                     $presets = SeguridadLegajosModel::getPresetsPermisos();
                     foreach ($presets as $clave => $info):
+                        if ($clave === 'vacio') {
+                            $nombrePreset = 'Sin permisos';
+                        } elseif ($clave === 'solo_lectura') {
+                            $nombrePreset = 'Solo lectura';
+                        } elseif ($clave === 'basico') {
+                            $nombrePreset = 'Basico';
+                        } elseif ($clave === 'total') {
+                            $nombrePreset = 'Total';
+                        } elseif ($clave === 'avanzado') {
+                            $nombrePreset = 'Avanzado';
+                        } else {
+                            $nombrePreset = $info['nombre'];
+                        }
                     ?>
                         <option value="<?php echo $clave; ?>" <?php echo $clave === 'basico' ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($info['nombre']); ?>
+                            <?php echo htmlspecialchars($nombrePreset); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <p id="descripcion-preset" class="text-xs text-gray-500 mt-2 italic">Acceso completo a legajos con operaciones basicas</p>
+                <p id="descripcion-preset" class="text-xs text-gray-500 mt-2 italic">Puede armar, buscar, ver y editar legajos, sin tareas administrativas.</p>
             </div>
 
             <div class="flex justify-end gap-3 mt-8">
@@ -207,9 +220,10 @@
 <script>
 function actualizarDescripcionPreset() {
     const presets = {
-        'solo_lectura': 'Acceso a vistas de consulta, sin capacidad de modificación',
-        'basico': 'Acceso completo a legajos con operaciones basicas',
-        'avanzado': 'Acceso completo a legajos incluyendo administracion y logs',
+        'solo_lectura': 'Puede buscar y ver legajos, sin modificar nada.',
+        'basico': 'Puede armar, buscar, ver y editar legajos, sin tareas administrativas.',
+        'total': 'Puede hacer toda la operativa de legajos, incluyendo verificar, administrar, cerrar y eliminar.',
+        'avanzado': 'Incluye control total de legajos y administracion de seguridad y permisos.',
         'vacio': 'Sin permisos (se asignaran manualmente)'
     };
 

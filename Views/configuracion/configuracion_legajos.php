@@ -3,6 +3,8 @@
 <?php
 $catalogo_documentos = $data['catalogo_documentos'] ?? [];
 $tipos_documento = $data['tipos_documento'] ?? [];
+$tipos_documento_departamento = $data['tipos_documento_departamento'] ?? [];
+$tipos_documento_matriz = $data['tipos_documento_matriz'] ?? $tipos_documento;
 $matriz_requisitos = $data['matriz_requisitos'] ?? [];
 $id_tipoDoc_actual = $data['id_tipoDoc_actual'] ?? 0;
 $tipo_documento_actual = $data['tipo_documento_actual'] ?? null;
@@ -15,6 +17,9 @@ $relaciones = $data['relaciones'] ?? [];
 $politicas_actualizacion = $data['politicas_actualizacion'] ?? [];
 $todas_relaciones = $data['todas_relaciones'] ?? [];
 $todas_politicas = $data['todas_politicas'] ?? [];
+$puede_ver_datos_generales = !empty($data['puede_ver_datos_generales']);
+$puede_ver_tipos_relacion_archivos = !empty($data['puede_ver_tipos_relacion_archivos']);
+$puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actualizacion_archivos']);
 ?>
 
 <main class="app-content bg-gray-50 min-h-screen py-8 font-sans">
@@ -23,10 +28,10 @@ $todas_politicas = $data['todas_politicas'] ?? [];
         <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-scantec-blue uppercase tracking-wide flex items-center">
-                    <i class="fas fa-cogs mr-3"></i> Configuración del Motor de Legajos
+                    <i class="fas fa-cogs mr-3"></i> Configuraci&oacute;n del Motor de Legajos
                 </h1>
                 <p class="text-sm text-gray-500 mt-1 ml-1">
-                    Administre el catálogo global de documentos y las reglas de los checklists.
+                    Administre el cat&aacute;logo global de documentos y las reglas de los checklists.
                 </p>
             </div>
         </div>
@@ -34,7 +39,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
         <div class="border-b border-gray-200 mb-6 overflow-x-auto">
             <nav class="flex space-x-6 min-w-max" aria-label="Tabs">
                 <button onclick="cambiarPestana('catalogo')" id="tab-catalogo" class="border-scantec-blue text-scantec-blue border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
-                    <i class="fas fa-book mr-2"></i> 1. Catálogo Maestro de Documentos
+                    <i class="fas fa-book mr-2"></i> 1. Cat&aacute;logo Maestro de Documentos
                 </button>
                 <button onclick="cambiarPestana('tipos')" id="tab-tipos" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
                     <i class="fas fa-folder-tree mr-2"></i> 2. Tipos de Legajos
@@ -42,9 +47,11 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                 <button onclick="cambiarPestana('matriz')" id="tab-matriz" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
                     <i class="fas fa-project-diagram mr-2"></i> 3. Matriz de Requisitos
                 </button>
+                <?php if ($puede_ver_datos_generales): ?>
                 <button onclick="cambiarPestana('datos')" id="tab-datos" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
                     <i class="fas fa-database mr-2"></i> 4. Datos generales
                 </button>
+                <?php endif; ?>
             </nav>
         </div>
 
@@ -185,6 +192,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                     </table>
                 </div>
             </div>
+
         </div>
 
         <div id="seccion-tipos" class="<?php echo $tab_actual === 'tipos' ? 'block' : 'hidden'; ?> animate-fade-in-down">
@@ -202,26 +210,26 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                 <div id="panel-tipo-legajo" class="<?php echo !empty($tipo_legajo_editar) ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
                     <?php if (!empty($filtrar_tipos_por_departamento) && intval($id_departamento_actual ?? 0) > 0): ?>
                     <div class="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
-                        Se muestran solo los tipos de legajo del departamento asociado a este usuario.
+                        Se muestran los tipos de legajo visibles para este rol. La edición y eliminación siguen limitadas a los tipos del departamento asociado a este usuario.
                     </div>
                     <?php endif; ?>
                     <form method="POST" action="<?php echo !empty($tipo_legajo_editar) ? base_url() . 'configuracion/actualizar_tipo_legajo' : base_url() . 'configuracion/guardar_tipo_legajo'; ?>"
-                        class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                        class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                         <?php if (!empty($tipo_legajo_editar)): ?>
                         <input type="hidden" name="id_tipo_legajo" value="<?php echo intval($tipo_legajo_editar['id_tipo_legajo']); ?>">
                         <?php endif; ?>
-                        <div class="md:col-span-2">
+                        <div class="md:col-span-3">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del tipo de legajo</label>
                             <input type="text" name="nombre_tipo_legajo" required value="<?php echo htmlspecialchars($tipo_legajo_editar['nombre'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
-                        <div class="md:col-span-2">
+                        <div class="md:col-span-3">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
                             <input type="text" name="descripcion_tipo_legajo" value="<?php echo htmlspecialchars($tipo_legajo_editar['descripcion'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
-                        <div>
+                        <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Requiere Nro de solicitud</label>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" name="requiere_nro_solicitud" value="1" <?php echo !empty($tipo_legajo_editar['requiere_nro_solicitud']) ? 'checked' : ''; ?> class="sr-only peer">
@@ -229,12 +237,45 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                 <span class="ml-3 text-sm font-bold text-gray-700"><?php echo !empty($tipo_legajo_editar['requiere_nro_solicitud']) ? 'Si' : 'No'; ?></span>
                             </label>
                         </div>
-                        <div>
+                        <div class="md:col-span-2">
                             <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                                 <?php echo !empty($tipo_legajo_editar) ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
-                        <div class="md:col-span-5 flex gap-6 text-sm">
+                        <div class="md:col-span-6">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sello de carátula</label>
+                            <input type="text" name="sello_caratula_texto" value="<?php echo htmlspecialchars($tipo_legajo_editar['sello_caratula_texto'] ?? ''); ?>"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none"
+                                placeholder="Ej: USO INTERNO">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición carátula</label>
+                            <?php $posicionCaratulaTipo = trim((string)($tipo_legajo_editar['sello_caratula_posicion'] ?? 'arriba')); ?>
+                            <?php if ($posicionCaratulaTipo === 'cruzado') { $posicionCaratulaTipo = 'arriba'; } ?>
+                            <select name="sello_caratula_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                                <option value="arriba" <?php echo $posicionCaratulaTipo === 'arriba' ? 'selected' : ''; ?>>Arriba</option>
+                                <option value="abajo" <?php echo $posicionCaratulaTipo === 'abajo' ? 'selected' : ''; ?>>Abajo</option>
+                                <option value="derecha" <?php echo $posicionCaratulaTipo === 'derecha' ? 'selected' : ''; ?>>Derecha</option>
+                                <option value="izquierda" <?php echo $posicionCaratulaTipo === 'izquierda' ? 'selected' : ''; ?>>Izquierda</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-6">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sello de anexos</label>
+                            <input type="text" name="sello_anexos_texto" value="<?php echo htmlspecialchars($tipo_legajo_editar['sello_anexos_texto'] ?? ''); ?>"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none"
+                                placeholder="Ej: COPIA CONTROLADA">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición anexos</label>
+                            <?php $posicionAnexosTipo = trim((string)($tipo_legajo_editar['sello_anexos_posicion'] ?? 'derecha')); ?>
+                            <select name="sello_anexos_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                                <option value="arriba" <?php echo $posicionAnexosTipo === 'arriba' ? 'selected' : ''; ?>>Arriba</option>
+                                <option value="abajo" <?php echo $posicionAnexosTipo === 'abajo' ? 'selected' : ''; ?>>Abajo</option>
+                                <option value="derecha" <?php echo $posicionAnexosTipo === 'derecha' ? 'selected' : ''; ?>>Derecha</option>
+                                <option value="izquierda" <?php echo $posicionAnexosTipo === 'izquierda' ? 'selected' : ''; ?>>Izquierda</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-12 flex gap-6 text-sm">
                             <label class="inline-flex items-center gap-2">
                                 <input type="checkbox" name="activo_tipo_legajo" value="1" <?php echo !isset($tipo_legajo_editar) || !empty($tipo_legajo_editar['activo']) ? 'checked' : ''; ?>>
                                 Activo
@@ -268,12 +309,19 @@ $todas_politicas = $data['todas_politicas'] ?? [];
 
                             <?php foreach ($tipos_documento as $tipo_documento): ?>
                             <?php $tipoActivo = !isset($tipo_documento['activo']) || !empty($tipo_documento['activo']); ?>
+                            <?php $tipoEditableDepartamento = true; ?>
+                            <?php if (!empty($filtrar_tipos_por_departamento) && intval($id_departamento_actual ?? 0) > 0): ?>
+                            <?php $tipoEditableDepartamento = intval($tipo_documento['id_departamento'] ?? 0) === intval($id_departamento_actual ?? 0); ?>
+                            <?php endif; ?>
                             <tr class="<?php echo $tipoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
                                 <td class="px-6 py-4 text-sm font-bold <?php echo $tipoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
                                     <div class="flex items-center gap-2">
                                         <span><?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?></span>
                                         <?php if (!$tipoActivo): ?>
                                         <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                        <?php endif; ?>
+                                        <?php if (!$tipoEditableDepartamento): ?>
+                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-amber-100 text-amber-700 uppercase tracking-wide">Solo lectura</span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -294,6 +342,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex justify-end gap-2 <?php echo $tipoActivo ? '' : 'opacity-75'; ?>">
+                                    <?php if ($tipoEditableDepartamento): ?>
                                     <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=<?php echo intval($tipo_documento['id_tipoDoc']); ?>" title="Editar">
                                         <i class="fas fa-pen"></i>
                                     </a>
@@ -305,6 +354,11 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    <?php else: ?>
+                                    <span class="inline-flex items-center px-3 py-2 text-xs font-bold text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
+                                        Visible por rol
+                                    </span>
+                                    <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -324,7 +378,7 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Seleccione el Tipo de Legajo a Configurar</label>
                         <select name="id_tipoDoc" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none font-bold text-gray-700 cursor-pointer shadow-sm">
                             <option value="">Seleccione un tipo de expediente...</option>
-                            <?php foreach ($tipos_documento as $tipo_documento): ?>
+                            <?php foreach ($tipos_documento_matriz as $tipo_documento): ?>
                             <option value="<?php echo intval($tipo_documento['id_tipoDoc']); ?>" <?php echo intval($tipo_documento['id_tipoDoc']) === intval($id_tipoDoc_actual) ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?>
                             </option>
@@ -342,19 +396,47 @@ $todas_politicas = $data['todas_politicas'] ?? [];
             </div>
 
             <div id="panel-nuevo-tipo-legajo" class="hidden bg-white p-5 rounded-xl shadow-sm border border-gray-200 mb-6">
-                <form method="POST" action="<?php echo base_url(); ?>configuracion/guardar_tipo_legajo" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <form method="POST" action="<?php echo base_url(); ?>configuracion/guardar_tipo_legajo" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                     <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-3">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del tipo de legajo</label>
                         <input type="text" name="nombre_tipo_legajo" required
                             class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-3">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
                         <input type="text" name="descripcion_tipo_legajo"
                             class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                     </div>
-                    <div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sello de carátula</label>
+                        <input type="text" name="sello_caratula_texto"
+                            class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición carátula</label>
+                        <select name="sello_caratula_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                            <option value="arriba">Arriba</option>
+                            <option value="abajo">Abajo</option>
+                            <option value="derecha">Derecha</option>
+                            <option value="izquierda">Izquierda</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sello de anexos</label>
+                        <input type="text" name="sello_anexos_texto"
+                            class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición anexos</label>
+                        <select name="sello_anexos_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                            <option value="derecha" selected>Derecha</option>
+                            <option value="arriba">Arriba</option>
+                            <option value="abajo">Abajo</option>
+                            <option value="izquierda">Izquierda</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
                         <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                             Guardar
                         </button>
@@ -531,7 +613,9 @@ $todas_politicas = $data['todas_politicas'] ?? [];
             </div>
         </div>
 
-        <div id="seccion-datos" class="<?php echo $tab_actual === 'datos' ? 'block' : 'hidden'; ?> animate-fade-in-down">
+        <div id="seccion-datos" class="<?php echo ($puede_ver_datos_generales && $tab_actual === 'datos') ? 'block' : 'hidden'; ?> animate-fade-in-down">
+            <?php if ($puede_ver_datos_generales): ?>
+            <?php if ($puede_ver_tipos_relacion_archivos): ?>
             <!-- ============================================ -->
             <!-- SECCIÓN: TIPOS DE RELACIÓN                   -->
             <!-- ============================================ -->
@@ -653,6 +737,8 @@ $todas_politicas = $data['todas_politicas'] ?? [];
             <!-- ============================================ -->
             <!-- SECCIÓN: MÉTODOS DE ACTUALIZACIÓN            -->
             <!-- ============================================ -->
+            <?php endif; ?>
+            <?php if ($puede_ver_metodos_actualizacion_archivos): ?>
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="bg-gray-800 px-6 py-4 border-b border-gray-700">
                     <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
@@ -712,8 +798,9 @@ $todas_politicas = $data['todas_politicas'] ?? [];
                         </tbody>
                     </table>
                 </div>
-            </div>
-            
+
+            <?php endif; ?>
+            <?php endif; ?>
         </div>
 
     </div>
@@ -724,15 +811,24 @@ $todas_politicas = $data['todas_politicas'] ?? [];
         document.getElementById('seccion-catalogo').classList.add('hidden');
         document.getElementById('seccion-tipos').classList.add('hidden');
         document.getElementById('seccion-matriz').classList.add('hidden');
-        document.getElementById('seccion-datos').classList.add('hidden');
+        const seccionDatos = document.getElementById('seccion-datos');
+        if (seccionDatos) {
+            seccionDatos.classList.add('hidden');
+        }
         
         document.getElementById('tab-catalogo').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
         document.getElementById('tab-tipos').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
         document.getElementById('tab-matriz').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
-        document.getElementById('tab-datos').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
+        const tabDatos = document.getElementById('tab-datos');
+        if (tabDatos) {
+            tabDatos.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
+        }
 
         document.getElementById('seccion-' + id).classList.remove('hidden');
-        document.getElementById('tab-' + id).className = "border-scantec-blue text-scantec-blue border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
+        const tabActual = document.getElementById('tab-' + id);
+        if (tabActual) {
+            tabActual.className = "border-scantec-blue text-scantec-blue border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
+        }
     }
 
     function togglePanel(id) {
@@ -884,11 +980,3 @@ $todas_politicas = $data['todas_politicas'] ?? [];
 </style>
 
 <?php pie() ?>
-
-
-
-
-
-
-
-

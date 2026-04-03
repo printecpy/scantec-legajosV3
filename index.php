@@ -8,19 +8,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_GET['url']) &&
-    strtolower(trim((string) $_GET['url'], '/')) === 'usuarios/login' &&
-    isset($_POST['selected_db'])
-) {
-    $requestedDb = preg_replace('/[^A-Za-z0-9_]/', '', (string) $_POST['selected_db']);
-    if ($requestedDb !== '') {
-        $_SESSION['selected_db'] = $requestedDb;
-        setcookie('selected_db', $requestedDb, time() + (365 * 24 * 60 * 60), '/');
-    }
-}
-
 require_once("Config/Config.php");
 require_once("Helpers/Helpers.php");
 

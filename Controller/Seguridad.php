@@ -2,6 +2,28 @@
 
 class Seguridad extends Controllers
 {
+    private function puedeAccederItemSeguridad(string $itemKey, string $permisoLegajo): bool
+    {
+        require_once 'Models/SeguridadLegajosModel.php';
+        $seguridadModel = new SeguridadLegajosModel();
+
+        if ($seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), $permisoLegajo)) {
+            return true;
+        }
+
+        try {
+            require_once 'Models/FuncionalidadesModel.php';
+            $funcionalidadesModel = new FuncionalidadesModel();
+            return $funcionalidadesModel->puedeAccederItemPorContexto(
+                $itemKey,
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
     private function tokenValidoGetOPost(): bool
     {
         $token = $_POST['token'] ?? $_GET['token'] ?? '';
@@ -34,7 +56,7 @@ class Seguridad extends Controllers
         $usuariosModel = new UsuariosModel();
 
         // Verificar permiso para gestionar permisos
-        if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'permisos_legajos')) {
+        if (!$this->puedeAccederItemSeguridad('permisos_legajos', 'permisos_legajos')) {
             setAlert('warning', 'No tienes permiso para gestionar permisos de legajos.');
             header('Location: ' . base_url() . 'dashboard/listar');
             exit();
@@ -88,7 +110,7 @@ class Seguridad extends Controllers
         $seguridadModel = new SeguridadLegajosModel();
 
         // Verificar permiso para gestionar permisos
-        if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'gestionar_permisos')) {
+        if (!$this->puedeAccederItemSeguridad('permisos_legajos', 'gestionar_permisos')) {
             setAlert('warning', 'No tienes permiso para gestionar permisos.');
             session_write_close();
             header("Location: " . base_url() . "seguridad/permisos_legajos");
@@ -144,7 +166,7 @@ class Seguridad extends Controllers
                 exit();
             }
 
-            $permiteVerOtros = ($idRol === 1) ? true : (($visibilidadPost[$idRol] ?? '1') === '1');
+            $permiteVerOtros = ($idRol === 1) ? true : (($visibilidadPost[$idRol] ?? '0') === '1');
             if (!$seguridadModel->guardarVisibilidadLegajosOtros($idRol, $permiteVerOtros)) {
                 setAlert('error', 'Error al guardar visibilidad de legajos para el rol: ' . htmlspecialchars($rol['descripcion']));
                 session_write_close();
@@ -204,7 +226,7 @@ class Seguridad extends Controllers
         $usuariosModel = new UsuariosModel();
 
         // Verificar permiso para gestionar roles
-        if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'gestionar_roles')) {
+        if (!$this->puedeAccederItemSeguridad('roles', 'gestionar_roles')) {
             setAlert('warning', 'No tienes permiso para gestionar roles.');
             header('Location: ' . base_url() . 'dashboard/listar');
             exit();
@@ -252,7 +274,7 @@ class Seguridad extends Controllers
         $seguridadModel = new SeguridadLegajosModel();
 
         // Verificar permiso para crear rol
-        if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'crear_rol')) {
+        if (!$this->puedeAccederItemSeguridad('roles', 'crear_rol')) {
             setAlert('warning', 'No tienes permiso para crear roles.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();
@@ -298,7 +320,7 @@ class Seguridad extends Controllers
         require_once 'Models/SeguridadLegajosModel.php';
         $seguridadModel = new SeguridadLegajosModel();
 
-        if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'editar_rol')) {
+        if (!$this->puedeAccederItemSeguridad('roles', 'editar_rol')) {
             setAlert('warning', 'No tienes permiso para editar roles.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();
@@ -351,7 +373,7 @@ class Seguridad extends Controllers
         $seguridadModel = new SeguridadLegajosModel();
 
         // Verificar permiso para eliminar rol
-        if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'eliminar_rol')) {
+        if (!$this->puedeAccederItemSeguridad('roles', 'eliminar_rol')) {
             setAlert('warning', 'No tienes permiso para eliminar roles.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();
@@ -399,7 +421,7 @@ class Seguridad extends Controllers
         $seguridadModel = new SeguridadLegajosModel();
 
         // Verificar permiso para cambiar estado rol
-        if (!$seguridadModel->tienePermisoLegajo(intval($_SESSION['id_rol'] ?? 0), 'cambiar_estado_rol')) {
+        if (!$this->puedeAccederItemSeguridad('roles', 'cambiar_estado_rol')) {
             setAlert('warning', 'No tienes permiso para cambiar el estado de roles.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();

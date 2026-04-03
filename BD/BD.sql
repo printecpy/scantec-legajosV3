@@ -246,6 +246,10 @@ CREATE TABLE IF NOT EXISTS `cfg_tipo_legajo` (
   `nombre` varchar(120) COLLATE utf8mb4_spanish_ci NOT NULL,
   `descripcion` varchar(255) COLLATE utf8mb4_spanish_ci DEFAULT NULL,
   `requiere_nro_solicitud` tinyint(1) NOT NULL DEFAULT '0',
+  `sello_caratula_texto` varchar(255) COLLATE utf8mb4_spanish_ci DEFAULT NULL,
+  `sello_caratula_posicion` varchar(20) COLLATE utf8mb4_spanish_ci NOT NULL DEFAULT 'cruzado',
+  `sello_anexos_texto` varchar(120) COLLATE utf8mb4_spanish_ci DEFAULT NULL,
+  `sello_anexos_posicion` varchar(20) COLLATE utf8mb4_spanish_ci NOT NULL DEFAULT 'derecha',
   `activo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_tipo_legajo`),
   UNIQUE KEY `uk_cfg_tipo_legajo_nombre` (`nombre`)
@@ -261,6 +265,12 @@ CREATE TABLE IF NOT EXISTS `configuracion` (
   `direccion` text NOT NULL,
   `correo` varchar(100) NOT NULL,
   `total_pag` int DEFAULT NULL,
+  `legajo_marca_agua_texto` varchar(255) DEFAULT NULL,
+  `legajo_marca_agua_activa` tinyint(1) NOT NULL DEFAULT '0',
+  `legajo_marca_agua_posicion` varchar(20) NOT NULL DEFAULT 'cruzado',
+  `legajo_sello_texto` varchar(120) DEFAULT NULL,
+  `legajo_sello_activo` tinyint(1) NOT NULL DEFAULT '0',
+  `legajo_sello_posicion` varchar(20) NOT NULL DEFAULT 'derecha',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

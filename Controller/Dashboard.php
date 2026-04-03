@@ -50,13 +50,7 @@
             $tiposDisponibles = $legajosModel->selectTiposLegajo();
             $esAdministradorDashboard = ($idRol === 1);
             $esAdministradorTotalDashboard = ($idRol === 1);
-            $omitirFiltroDepartamentoDashboard = in_array($idRol, [1, 5], true);
             $esAdministradorSinRestriccionPropios = in_array($idRol, [1, 2], true);
-            if (!$omitirFiltroDepartamentoDashboard && $idDepartamento > 0) {
-                $tiposDisponibles = array_values(array_filter($tiposDisponibles, static function ($tipo) use ($idDepartamento) {
-                    return intval($tipo['id_departamento'] ?? 0) === $idDepartamento;
-                }));
-            }
             $puedeVerOtrosUsuarios = $esAdministradorSinRestriccionPropios || $segModel->puedeVerLegajosOtrosUsuarios($idRol);
             $tiposPermitidos = $esAdministradorDashboard
                 ? []
@@ -64,6 +58,7 @@
             $cardsPermitidas = $esAdministradorDashboard
                 ? array_fill_keys(array_keys(SeguridadLegajosModel::getDashboardCardsDisponibles()), 1)
                 : $segModel->selectDashboardCardsPorRol($idRol);
+            $puedeVerificarLegajos = $esAdministradorDashboard || $segModel->tienePermisoLegajo($idRol, 'verificar_legajos');
 
             return [
                 'id_rol' => $idRol,
@@ -72,6 +67,7 @@
                 'solo_propios' => !$puedeVerOtrosUsuarios,
                 'tipos_permitidos' => $tiposPermitidos,
                 'cards' => $cardsPermitidas,
+                'puede_verificar_legajos' => $puedeVerificarLegajos,
             ];
         }
 
@@ -141,6 +137,7 @@
             'exp_consultados' => $exp_consultados, 'legajos_por_tipo' => $legajos_por_tipo, 'legajos_por_usuario' => $legajos_por_usuario, 'productividad_solicitudes' => $productividad_solicitudes, 'periodo_productividad' => $periodo_productividad, 'docs_vigentes' => $docs_vigentes, 'docs_por_vencer' => $docs_por_vencer, 'docs_vencidos' => $docs_vencidos, 'archiv_tipoDoc' => $archiv_tipoDoc, 'archiv_tipoDoc2' => $archiv_tipoDoc2, 'legajos_armados' => $legajos_armados];
             $data['dashboard_cards'] = $scope['cards'];
             $data['dashboard_scope_solo_propios'] = $scope['solo_propios'];
+            $data['puede_verificar_legajos'] = !empty($scope['puede_verificar_legajos']);
             $data['tipos_legajo_disponibles_dashboard'] = $tiposDisponiblesFiltro;
             $data['tipos_legajo_seleccionados_dashboard'] = $tiposSeleccionados;
             $this->views->getView($this, "dashboard_legajos", $data);

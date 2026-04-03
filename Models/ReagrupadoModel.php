@@ -91,7 +91,7 @@ class ReagrupadoModel extends Mysql{
 
     public function reporteReagrupadototal(string $mes_desde, string $anio_desde, string $mes_hasta, string $anio_hasta)
     {
-        // Convertir las cadenas a valores numéricos
+        // Convertir las cadenas a valores numÃ©ricos
         $mes_desde = (int)$mes_desde;
         $anio_desde = (int)$anio_desde;
         $mes_hasta = (int)$mes_hasta;
@@ -106,14 +106,15 @@ class ReagrupadoModel extends Mysql{
                     mes_anio
                     FROM (
                         SELECT SUM(solicitado) AS solicitados, SUM(cant_cajas) AS cajas_totales,
-                                CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio
+                                CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio,
+                                MIN(fecha) AS fecha_orden
                         FROM v_reagrupado
                         WHERE (YEAR(fecha) = $anio_desde AND MONTH(fecha) >= $mes_desde)
                     OR (YEAR(fecha) = $anio_hasta AND MONTH(fecha) <= $mes_hasta)
                     OR (YEAR(fecha) > $anio_desde AND YEAR(fecha) < $anio_hasta)
                         GROUP BY YEAR(fecha), MONTH(fecha), mes_anio
                     ) AS derived_table
-                    ORDER BY mes_anio ASC;";
+                    ORDER BY fecha_orden ASC;";
         $res = $this->select_all($sql);
         return $res;
     }
@@ -127,7 +128,7 @@ class ReagrupadoModel extends Mysql{
         FROM (
             SELECT SUM(solicitado) AS solicitados, SUM(cant_cajas) AS cajas_totales, 
                     MIN(fecha) AS fecha,
-                    YEAR(MIN(fecha)) AS month_number, 
+                    (YEAR(MIN(fecha)) * 100 + MONTH(MIN(fecha))) AS month_number, 
                     operador
             FROM v_reagrupado 
             WHERE id_operador = $id_operador

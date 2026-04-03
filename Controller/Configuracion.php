@@ -25,6 +25,66 @@ class Configuracion extends Controllers
         return $this->esAdministradorScantec() ? 0 : intval($_SESSION['id_departamento'] ?? 0);
     }
 
+    private function obtenerTiposLegajoVisiblesParaMatriz(): array
+    {
+        $tiposDisponibles = $this->model->getTiposDocumentoLegajo(0, false);
+        if ($this->esAdministradorScantec()) {
+            return $tiposDisponibles;
+        }
+
+        $idRol = intval($_SESSION['id_rol'] ?? 0);
+        if ($idRol <= 0 || empty($tiposDisponibles)) {
+            return [];
+        }
+
+        try {
+            if (!class_exists('SeguridadLegajosModel')) {
+                require_once 'Models/SeguridadLegajosModel.php';
+            }
+
+            $seguridadModel = new SeguridadLegajosModel();
+            $tiposNormalizados = array_map(static function ($tipo) {
+                $idTipo = intval($tipo['id_tipo_legajo'] ?? ($tipo['id_tipoDoc'] ?? 0));
+                $tipo['id_tipo_legajo'] = $idTipo;
+                return $tipo;
+            }, $tiposDisponibles);
+
+            $idsPermitidos = $seguridadModel->obtenerTiposLegajoPermitidosPorRol($idRol, $tiposNormalizados);
+            if (empty($idsPermitidos)) {
+                return [];
+            }
+
+            return array_values(array_filter($tiposDisponibles, static function ($tipo) use ($idsPermitidos) {
+                $idTipo = intval($tipo['id_tipoDoc'] ?? 0);
+                return in_array($idTipo, $idsPermitidos, true);
+            }));
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    private function puedeAccederItemConfiguracion(string $itemKey): bool
+    {
+        if ($this->esAdministradorScantec()) {
+            return true;
+        }
+
+        try {
+            if (!class_exists('FuncionalidadesModel')) {
+                require_once 'Models/FuncionalidadesModel.php';
+            }
+
+            $funcionalidadesModel = new FuncionalidadesModel();
+            return $funcionalidadesModel->puedeAccederItemPorContexto(
+                $itemKey,
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
     private function obtenerDirectorioBranding(): string
     {
         return rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, dirname(__DIR__)), DIRECTORY_SEPARATOR)
@@ -97,6 +157,11 @@ class Configuracion extends Controllers
 
     public function listar()
     {
+        if (empty($_SESSION['csrf_token']) || intval($_SESSION['csrf_expiration'] ?? 0) < time()) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            $_SESSION['csrf_expiration'] = time() + 3600;
+        }
+
         $data = $this->model->selectConfiguracion();
         if (isset($data[0]) && is_array($data[0])) {
             $data[0]['logo_empresa_url'] = $this->obtenerLogoBrandingUrl('logo_empresa');
@@ -109,6 +174,11 @@ class Configuracion extends Controllers
 
     public function mantenimiento()
     {
+        if (empty($_SESSION['csrf_token']) || intval($_SESSION['csrf_expiration'] ?? 0) < time()) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            $_SESSION['csrf_expiration'] = time() + 3600;
+        }
+
         $data = $this->model->selectConfiguracion();
         if (isset($data[0]) && is_array($data[0])) {
             $data[0]['logo_empresa_url'] = $this->obtenerLogoBrandingUrl('logo_empresa');
@@ -215,7 +285,9 @@ class Configuracion extends Controllers
         $catalogo_documentos = $this->model->getCatalogoDocumentosLegajo();
         $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
         $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
-        $tipos_documento = $this->model->getTiposDocumentoLegajo($idDepartamentoActual, $filtrarTiposPorDepartamento);
+        $tipos_documento_departamento = $this->model->getTiposDocumentoLegajo($idDepartamentoActual, $filtrarTiposPorDepartamento);
+        $tipos_documento = $this->obtenerTiposLegajoVisiblesParaMatriz();
+        $tipos_documento_matriz = $tipos_documento;
         $tab_actual = isset($_GET['tab']) ? $_GET['tab'] : 'catalogo';
         $id_documento_editar = isset($_GET['editar_documento']) ? intval($_GET['editar_documento']) : 0;
         $id_tipo_legajo_editar = isset($_GET['editar_tipo_legajo']) ? intval($_GET['editar_tipo_legajo']) : 0;
@@ -231,8 +303,8 @@ class Configuracion extends Controllers
         }
 
         $id_tipoDoc = isset($_GET['id_tipoDoc']) ? intval($_GET['id_tipoDoc']) : 0;
-        if ($id_tipoDoc <= 0 && !empty($tipos_documento)) {
-            $id_tipoDoc = intval($tipos_documento[0]['id_tipoDoc']);
+        if ($id_tipoDoc <= 0 && !empty($tipos_documento_matriz)) {
+            $id_tipoDoc = intval($tipos_documento_matriz[0]['id_tipoDoc']);
         }
 
         $matriz_requisitos = $id_tipoDoc > 0
@@ -240,7 +312,7 @@ class Configuracion extends Controllers
             : [];
 
         $tipo_documento_actual = null;
-        foreach ($tipos_documento as $tipo_documento) {
+        foreach ($tipos_documento_matriz as $tipo_documento) {
             if (intval($tipo_documento['id_tipoDoc']) === $id_tipoDoc) {
                 $tipo_documento_actual = $tipo_documento;
                 break;
@@ -255,7 +327,7 @@ class Configuracion extends Controllers
                     ? $this->model->getMatrizRequisitosLegajo($id_tipoDoc)
                     : [];
 
-                foreach ($tipos_documento as $tipo_documento) {
+                foreach ($tipos_documento_matriz as $tipo_documento) {
                     if (intval($tipo_documento['id_tipoDoc']) === $id_tipoDoc) {
                         $tipo_documento_actual = $tipo_documento;
                         break;
@@ -269,10 +341,19 @@ class Configuracion extends Controllers
         
         $todas_relaciones = $this->model->getRelaciones();
         $todas_politicas = $this->model->getPoliticasActualizacion();
+        $puedeVerTiposRelacionArchivos = $this->puedeAccederItemConfiguracion('tipos_relacion_archivos');
+        $puedeVerMetodosActualizacionArchivos = $this->puedeAccederItemConfiguracion('metodos_actualizacion_archivos');
+        $puedeVerDatosGenerales = $puedeVerTiposRelacionArchivos || $puedeVerMetodosActualizacionArchivos;
+
+        if ($tab_actual === 'datos' && !$puedeVerDatosGenerales) {
+            $tab_actual = 'matriz';
+        }
 
         $data = [
             'catalogo_documentos' => $catalogo_documentos,
             'tipos_documento' => $tipos_documento,
+            'tipos_documento_departamento' => $tipos_documento_departamento,
+            'tipos_documento_matriz' => $tipos_documento_matriz,
             'matriz_requisitos' => $matriz_requisitos,
             'id_tipoDoc_actual' => $id_tipoDoc,
             'tipo_documento_actual' => $tipo_documento_actual,
@@ -285,7 +366,10 @@ class Configuracion extends Controllers
             'relaciones' => $relaciones,
             'politicas_actualizacion' => $politicas_actualizacion,
             'todas_relaciones' => $todas_relaciones,
-            'todas_politicas' => $todas_politicas
+            'todas_politicas' => $todas_politicas,
+            'puede_ver_datos_generales' => $puedeVerDatosGenerales,
+            'puede_ver_tipos_relacion_archivos' => $puedeVerTiposRelacionArchivos,
+            'puede_ver_metodos_actualizacion_archivos' => $puedeVerMetodosActualizacionArchivos
         ];
         $this->views->getView($this, "configuracion_legajos", $data);
     }
@@ -466,6 +550,19 @@ class Configuracion extends Controllers
         $nombre = trim($_POST['nombre_tipo_legajo'] ?? '');
         $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
         $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
+        $selloCaratulaTexto = trim((string)($_POST['sello_caratula_texto'] ?? ''));
+        $selloCaratulaPosicion = trim((string)($_POST['sello_caratula_posicion'] ?? 'arriba'));
+        $selloAnexosTexto = trim((string)($_POST['sello_anexos_texto'] ?? ''));
+        $selloAnexosPosicion = trim((string)($_POST['sello_anexos_posicion'] ?? 'derecha'));
+        if ($selloCaratulaPosicion === 'cruzado') {
+            $selloCaratulaPosicion = 'arriba';
+        }
+        if (!in_array($selloCaratulaPosicion, ['arriba', 'abajo', 'derecha', 'izquierda'], true)) {
+            $selloCaratulaPosicion = 'arriba';
+        }
+        if (!in_array($selloAnexosPosicion, ['arriba', 'abajo', 'derecha', 'izquierda'], true)) {
+            $selloAnexosPosicion = 'derecha';
+        }
         $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
         $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
 
@@ -481,6 +578,10 @@ class Configuracion extends Controllers
             exit();
         }
 
+        $this->model->sello_caratula_texto = $selloCaratulaTexto;
+        $this->model->sello_caratula_posicion = $selloCaratulaPosicion;
+        $this->model->sello_anexos_texto = $selloAnexosTexto;
+        $this->model->sello_anexos_posicion = $selloAnexosPosicion;
         $insert = $this->model->insertarTipoLegajo(
             $nombre,
             $descripcion !== '' ? $descripcion : null,
@@ -514,6 +615,19 @@ class Configuracion extends Controllers
         $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
         $activo = isset($_POST['activo_tipo_legajo']) ? 1 : 0;
         $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
+        $selloCaratulaTexto = trim((string)($_POST['sello_caratula_texto'] ?? ''));
+        $selloCaratulaPosicion = trim((string)($_POST['sello_caratula_posicion'] ?? 'arriba'));
+        $selloAnexosTexto = trim((string)($_POST['sello_anexos_texto'] ?? ''));
+        $selloAnexosPosicion = trim((string)($_POST['sello_anexos_posicion'] ?? 'derecha'));
+        if ($selloCaratulaPosicion === 'cruzado') {
+            $selloCaratulaPosicion = 'arriba';
+        }
+        if (!in_array($selloCaratulaPosicion, ['arriba', 'abajo', 'derecha', 'izquierda'], true)) {
+            $selloCaratulaPosicion = 'arriba';
+        }
+        if (!in_array($selloAnexosPosicion, ['arriba', 'abajo', 'derecha', 'izquierda'], true)) {
+            $selloAnexosPosicion = 'derecha';
+        }
         $idDepartamentoActual = $this->getDepartamentoActualParaTiposLegajo();
         $filtrarTiposPorDepartamento = !$this->esAdministradorScantec() && $idDepartamentoActual > 0;
 
@@ -542,6 +656,10 @@ class Configuracion extends Controllers
             exit();
         }
 
+        $this->model->sello_caratula_texto = $selloCaratulaTexto;
+        $this->model->sello_caratula_posicion = $selloCaratulaPosicion;
+        $this->model->sello_anexos_texto = $selloAnexosTexto;
+        $this->model->sello_anexos_posicion = $selloAnexosPosicion;
         $ok = $this->model->actualizarTipoLegajo(
             $idTipoLegajo,
             $nombre,
@@ -734,6 +852,12 @@ class Configuracion extends Controllers
 
     public function guardar_relacion()
     {
+        if (!$this->puedeAccederItemConfiguracion('tipos_relacion_archivos')) {
+            setAlert('error', "No tienes permiso para gestionar los tipos de relacion.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
@@ -763,6 +887,12 @@ class Configuracion extends Controllers
 
     public function cambiar_estado_relacion()
     {
+        if (!$this->puedeAccederItemConfiguracion('tipos_relacion_archivos')) {
+            setAlert('error', "No tienes permiso para gestionar los tipos de relacion.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
@@ -786,6 +916,12 @@ class Configuracion extends Controllers
 
     public function eliminar_relacion()
     {
+        if (!$this->puedeAccederItemConfiguracion('tipos_relacion_archivos')) {
+            setAlert('error', "No tienes permiso para gestionar los tipos de relacion.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
@@ -818,6 +954,12 @@ class Configuracion extends Controllers
     {
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
+            exit();
+        }
+
+        if (!$this->puedeAccederItemConfiguracion('metodos_actualizacion_archivos')) {
+            setAlert('error', "No tienes permiso para modificar los metodos de actualizacion de archivos.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=datos");
             exit();
         }
@@ -882,6 +1024,20 @@ class Configuracion extends Controllers
             $direccion = htmlspecialchars(trim($_POST['direccion']), ENT_QUOTES, 'UTF-8');
             $correo = filter_var($_POST['correo'], FILTER_SANITIZE_EMAIL);
             $total_pag = intval($_POST['total_pag']);
+            $legajoMarcaAguaTexto = htmlspecialchars(trim((string)($_POST['legajo_marca_agua_texto'] ?? '')), ENT_QUOTES, 'UTF-8');
+            $legajoMarcaAguaPosicion = trim((string)($_POST['legajo_marca_agua_posicion'] ?? 'cruzado'));
+            $legajoSelloTexto = htmlspecialchars(trim((string)($_POST['legajo_sello_texto'] ?? '')), ENT_QUOTES, 'UTF-8');
+            $legajoSelloPosicion = trim((string)($_POST['legajo_sello_posicion'] ?? 'derecha'));
+            $legajoMarcaAguaActiva = $legajoMarcaAguaTexto !== '' ? 1 : 0;
+            $legajoSelloActivo = $legajoSelloTexto !== '' ? 1 : 0;
+            $posicionesMarcaPermitidas = ['cruzado', 'arriba', 'abajo', 'derecha', 'izquierda'];
+            if (!in_array($legajoMarcaAguaPosicion, $posicionesMarcaPermitidas, true)) {
+                $legajoMarcaAguaPosicion = 'cruzado';
+            }
+            $posicionesSelloPermitidas = ['arriba', 'abajo', 'derecha', 'izquierda'];
+            if (!in_array($legajoSelloPosicion, $posicionesSelloPermitidas, true)) {
+                $legajoSelloPosicion = 'derecha';
+            }
 
             $logoPrincipalOk = $this->guardarLogoBranding('logo_empresa', 'logo_empresa');
             $logoReducidoOk = $this->guardarLogoBranding('logo_empresa_reducido', 'logo_empresa_reducido');
@@ -891,7 +1047,20 @@ class Configuracion extends Controllers
                 die();
             }
 
-            $actualizar = $this->model->actualizarConfiguracion($nombre, $telefono, $direccion, $correo, $total_pag, $id);
+            $actualizar = $this->model->actualizarConfiguracion(
+                $nombre,
+                $telefono,
+                $direccion,
+                $correo,
+                $total_pag,
+                $id,
+                $legajoMarcaAguaTexto,
+                $legajoMarcaAguaActiva,
+                $legajoMarcaAguaPosicion,
+                $legajoSelloTexto,
+                $legajoSelloActivo,
+                $legajoSelloPosicion
+            );
 
             if ($actualizar) {
                 $_SESSION['alert'] = ['type' => 'success', 'message' => 'Datos de la empresa actualizados.'];

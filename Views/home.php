@@ -39,11 +39,15 @@
                 Acceso al Sistema</h2>
             <p class="text-scantec-gray text-center text-sm mb-8">Por favor, ingrese sus credenciales para continuar.</p>
 
+            <?php if (!empty($data['licencia_estado']) && empty($data['licencia_estado']['status'])): ?>
+                <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-amber-800">Estado de licencia</p>
+                    <p><?php echo htmlspecialchars((string) ($data['licencia_estado']['msg'] ?? 'No se pudo validar la licencia.'), ENT_QUOTES, 'UTF-8'); ?></p>
+                    <p class="mt-1 text-[12px] text-amber-700">La pagina de acceso sigue disponible, pero el ingreso al sistema permanece bloqueado hasta corregir la licencia.</p>
+                </div>
+            <?php endif; ?>
+
             <form id="loginForm" action="<?php echo base_url(); ?>Usuarios/login" method="POST" class="space-y-6">
-                <?php
-                $basesDisponibles = isset($data['bases_disponibles']) && is_array($data['bases_disponibles']) ? $data['bases_disponibles'] : [defined('BD') ? BD : 'scantec_basic'];
-                $baseActual = isset($data['base_actual']) && $data['base_actual'] !== '' ? $data['base_actual'] : (defined('BD') ? BD : 'scantec_basic');
-                ?>
                 <input type="hidden" name="fuente_registro" value="scantec">
 
                 <div>
@@ -73,17 +77,6 @@
                     class="w-full bg-scantec-blue hover:bg-scantec-red text-white font-montserrat font-bold py-4 rounded-xl transition-all shadow-lg tracking-widest mt-2">
                     ACCEDER
                 </button>
-
-                <div class="pt-1">
-                    <label class="block text-center text-[11px] text-scantec-gray mb-1">Base de datos</label>
-                    <select name="selected_db" onchange="window.location.href='<?php echo base_url(); ?>home/seleccionar_bd?db=' + encodeURIComponent(this.value);" class="mx-auto block w-full max-w-[220px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-center text-[11px] font-semibold text-scantec-blue focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all">
-                        <?php foreach ($basesDisponibles as $base): ?>
-                            <option value="<?php echo htmlspecialchars($base, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $base === $baseActual ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($base, ENT_QUOTES, 'UTF-8'); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
             </form>
         </div>
 

@@ -113,7 +113,7 @@ class ControlModel extends Mysql{
 
     public function reporteControltotal(string $mes_desde, string $anio_desde, string $mes_hasta, string $anio_hasta)
     {
-        // Convertir las cadenas a valores numéricos
+        // Convertir las cadenas a valores numÃ©ricos
         $mes_desde = (int)$mes_desde;
         $anio_desde = (int)$anio_desde;
         $mes_hasta = (int)$mes_hasta;
@@ -134,14 +134,15 @@ class ControlModel extends Mysql{
                         SUM(exp_control) AS exp_controladas,
                         SUM(solicitado) as solicitados, 
                                 SUM(exp_reescaneo) as reescaneos,
-                        CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio
+                        CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio,
+                                MIN(fecha) AS fecha_orden
                 FROM v_control
                 WHERE (YEAR(fecha) = $anio_desde AND MONTH(fecha) >= $mes_desde)
                     OR (YEAR(fecha) = $anio_hasta AND MONTH(fecha) <= $mes_hasta)
                     OR (YEAR(fecha) > $anio_desde AND YEAR(fecha) < $anio_hasta)
                 GROUP BY YEAR(fecha), MONTH(fecha), mes_anio
             ) AS derived_table
-            ORDER BY mes_anio ASC;";
+            ORDER BY fecha_orden ASC;";
         // Ejecutar la consulta y devolver el resultado
         $res = $this->select_all($sql);
         return $res;
@@ -158,7 +159,7 @@ class ControlModel extends Mysql{
             SELECT SUM(pag_control) AS pag_controladas, 
                     SUM(exp_control) AS exp_controladas,
                     MIN(fecha) AS fecha,
-                    YEAR(MIN(fecha)) AS month_number, 
+                    (YEAR(MIN(fecha)) * 100 + MONTH(MIN(fecha))) AS month_number, 
                     operador,
                     SUM(solicitado) as solicitados, 
         					SUM(exp_reescaneo) as reescaneos
@@ -182,7 +183,7 @@ class ControlModel extends Mysql{
             SELECT SUM(pag_control) AS pag_controladas, 
                     SUM(exp_control) AS exp_controladas,
                     MIN(fecha) AS fecha,
-                    YEAR(MIN(fecha)) AS month_number, 
+                    (YEAR(MIN(fecha)) * 100 + MONTH(MIN(fecha))) AS month_number, 
                     id_est, nombre_pc,
                     SUM(solicitado) as solicitados, 
         			SUM(exp_reescaneo) as reescaneos

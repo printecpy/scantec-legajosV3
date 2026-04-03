@@ -171,7 +171,7 @@
                             foreach ($roles as $rol):
                                 $idRol = intval($rol['id_rol']);
                                 $esAdmin = $idRol === 1;
-                                $valorVisibilidad = $esAdmin ? '1' : strval(intval($visibilidadLegajosOtros[$idRol] ?? 1));
+                                $valorVisibilidad = $esAdmin ? '1' : strval(intval($visibilidadLegajosOtros[$idRol] ?? 0));
                             ?>
                                 <tr class="border-b border-gray-100 role-filter-row" data-rol="<?php echo $idRol; ?>">
                                     <td class="py-2.5 pr-4 align-middle sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
@@ -242,7 +242,7 @@
                                     <?php foreach (($data['tipos_legajo'] ?? []) as $tipoLegajo): ?>
                                         <?php
                                         $idTipoLegajo = intval($tipoLegajo['id_tipo_legajo'] ?? 0);
-                                        $checkedTipo = $esAdminRol ? true : intval($tiposRol[$idTipoLegajo] ?? 1) === 1;
+                                        $checkedTipo = $esAdminRol ? true : intval($tiposRol[$idTipoLegajo] ?? 0) === 1;
                                         ?>
                                         <td class="text-center px-3 py-3">
                                             <input type="checkbox"

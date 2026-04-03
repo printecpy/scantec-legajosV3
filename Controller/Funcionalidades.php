@@ -2,6 +2,38 @@
 
 class Funcionalidades extends Controllers
 {
+    private function normalizarTextoFuncionalidades($valor)
+    {
+        if (is_array($valor)) {
+            foreach ($valor as $clave => $item) {
+                $valor[$clave] = $this->normalizarTextoFuncionalidades($item);
+            }
+            return $valor;
+        }
+
+        if (!is_string($valor) || $valor === '') {
+            return $valor;
+        }
+
+        $reemplazos = [
+            'M?dulos' => 'Módulo',
+            'Modulo' => 'Módulo',
+            'Modulos' => 'Módulo',
+            'Gesti?n' => 'Gestión',
+            'm?dulos' => 'módulos',
+            'sesi?n' => 'sesión',
+            'Administraci?n' => 'Administración',
+            'Auditor?a' => 'Auditoría',
+            'configuraci?n' => 'configuración',
+            'b?squeda' => 'búsqueda',
+            'verificaci?n' => 'verificación',
+            'administraci?n' => 'administración',
+            'seg?n' => 'según',
+        ];
+
+        return strtr($valor, $reemplazos);
+    }
+
     private function filtrarAccesosPorModulosActivos(array $accesosDisponibles): array
     {
         $estados = $this->model->selectEstadosSecciones();
@@ -36,6 +68,24 @@ class Funcionalidades extends Controllers
         return $accesosDisponibles;
     }
 
+    private function filtrarAccesosGestionablesPorUsuarioActual(array $accesosDisponibles): array
+    {
+        if ($this->esAdministradorScantec()) {
+            return $accesosDisponibles;
+        }
+
+        $idRolSesion = intval($_SESSION['id_rol'] ?? 0);
+        $idDepartamentoSesion = intval($_SESSION['id_departamento'] ?? 0);
+
+        foreach ($accesosDisponibles as $clave => $info) {
+            if (!$this->model->puedeAccederItemPorContexto($clave, $idRolSesion, $idDepartamentoSesion)) {
+                unset($accesosDisponibles[$clave]);
+            }
+        }
+
+        return $accesosDisponibles;
+    }
+
     private function esAdministradorScantec(): bool
     {
         return intval($_SESSION['id_rol'] ?? 0) === 1
@@ -54,12 +104,6 @@ class Funcionalidades extends Controllers
         }
         if (empty($_SESSION['ACTIVO'])) {
             header('Location: ' . base_url());
-            exit();
-        }
-        if (!$this->esAdministradorSistemaOGlobal()) {
-            require_once 'Models/FuncionalidadesModel.php';
-            setAlert('warning', 'No tienes permiso para acceder a funcionalidades.');
-            header('Location: ' . base_url() . FuncionalidadesModel::obtenerRutaRedireccionSegura(intval($_SESSION['id_rol'] ?? 0), intval($_SESSION['id_departamento'] ?? 0)));
             exit();
         }
 
@@ -94,7 +138,7 @@ class Funcionalidades extends Controllers
             exit();
         }
 
-        $secciones = FuncionalidadesModel::getSeccionesDisponibles();
+        $secciones = $this->normalizarTextoFuncionalidades(FuncionalidadesModel::getSeccionesDisponibles());
         $grupos = [];
         foreach ($secciones as $claveSeccion => $infoSeccion) {
             $grupo = $infoSeccion['grupo'] ?? 'General';
@@ -108,8 +152,8 @@ class Funcionalidades extends Controllers
             'secciones' => $secciones,
             'grupos' => $grupos,
             'estados' => $this->model->selectEstadosSecciones(),
-            'modulos_items' => FuncionalidadesModel::getModulosItemsDisponibles(),
-            'items_agrupacion' => FuncionalidadesModel::getItemsAgrupacionDisponibles(),
+            'modulos_items' => $this->normalizarTextoFuncionalidades(FuncionalidadesModel::getModulosItemsDisponibles()),
+            'items_agrupacion' => $this->normalizarTextoFuncionalidades(FuncionalidadesModel::getItemsAgrupacionDisponibles()),
             'items_modulo_actual' => $this->model->selectModulosItems(),
             'items_agrupados' => $this->model->selectItemsAgrupadosPorModulo(),
         ];
@@ -122,7 +166,7 @@ class Funcionalidades extends Controllers
         require_once 'Models/SeguridadLegajosModel.php';
 
         $seguridadModel = new SeguridadLegajosModel();
-        $roles = $seguridadModel->selectRoles();
+        $roles = $seguridadModel->selectRolesVisiblesPara(intval($_SESSION['id_rol'] ?? 0));
 
         $idRol = intval($_GET['id_rol'] ?? ($roles[0]['id_rol'] ?? 0));
         $rolActual = [];
@@ -138,7 +182,9 @@ class Funcionalidades extends Controllers
         }
 
         $idDepartamento = intval($rolActual['id_departamento'] ?? 0);
-        $accesosDisponibles = $this->filtrarAccesosPorModulosActivos(FuncionalidadesModel::getAccesosDisponibles());
+        $accesosDisponibles = $this->filtrarAccesosGestionablesPorUsuarioActual(
+            $this->filtrarAccesosPorModulosActivos(FuncionalidadesModel::getAccesosDisponibles())
+        );
 
         $data = [
             'roles' => $roles,
@@ -166,7 +212,7 @@ class Funcionalidades extends Controllers
         }
 
         if (!Validador::csrfValido()) {
-            setAlert('error', 'Token CSRF invalido o expirado.');
+            setAlert('error', 'Token CSRF inválido o expirado.');
             header('Location: ' . base_url() . 'funcionalidades/listar');
             exit();
         }
@@ -196,7 +242,7 @@ class Funcionalidades extends Controllers
         }
 
         if (!Validador::csrfValido()) {
-            setAlert('error', 'Token CSRF invalido o expirado.');
+            setAlert('error', 'Token CSRF inválido o expirado.');
             header('Location: ' . base_url() . 'funcionalidades/accesos');
             exit();
         }
@@ -209,12 +255,17 @@ class Funcionalidades extends Controllers
         $idUsuario = intval($_SESSION['id'] ?? 0);
         $rolActual = $seguridadModel->selectRolPorId($idRol);
         $idDepartamento = intval($rolActual['id_departamento'] ?? 0);
+        $accesosPermitidos = array_keys($this->filtrarAccesosGestionablesPorUsuarioActual(
+            $this->filtrarAccesosPorModulosActivos(FuncionalidadesModel::getAccesosDisponibles())
+        ));
 
         if ($idRol <= 0 || $idDepartamento <= 0) {
             setAlert('warning', 'El rol seleccionado debe tener un departamento asociado para configurar accesos.');
             header('Location: ' . base_url() . 'funcionalidades/accesos');
             exit();
         }
+
+        $items = array_intersect_key($items, array_flip($accesosPermitidos));
 
         $guardado = $this->model->guardarAccesosRolDepartamento($idRol, $idDepartamento, $items, $idUsuario);
 

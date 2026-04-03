@@ -6,14 +6,19 @@ class ConfiguracionModel extends Mysql
     {
         parent::__construct();
         $this->db = new Mysql();
+        $this->ensureConfiguracionRow();
         $this->ensureMatrizActivoColumn();
         $this->ensureTipoLegajoDepartamentoColumn();
+        $this->ensureTipoLegajoBrandingColumns();
+        $this->ensureWatermarkColumns();
     }
 
     public function selectConfiguracion()
     {
         $sql = "SELECT 
                 c.id, c.nombre, c.telefono, c.direccion, c.correo, c.total_pag,
+                c.legajo_marca_agua_texto, c.legajo_marca_agua_activa, c.legajo_marca_agua_posicion,
+                c.legajo_sello_texto, c.legajo_sello_activo, c.legajo_sello_posicion,
                 (SELECT COUNT(*) FROM usuarios WHERE estado_usuario != 'Activo') as total_usuarios
             FROM configuracion c 
             LIMIT 1;";
@@ -34,7 +39,20 @@ class ConfiguracionModel extends Mysql
         return $this->select_all($sql);
     }
 
-    public function actualizarConfiguracion(string $nombre, string $telefono, string $direccion, string $correo, int $total_pag, int $id)
+    public function actualizarConfiguracion(
+        string $nombre,
+        string $telefono,
+        string $direccion,
+        string $correo,
+        int $total_pag,
+        int $id,
+        string $legajoMarcaAguaTexto,
+        int $legajoMarcaAguaActiva,
+        string $legajoMarcaAguaPosicion,
+        string $legajoSelloTexto,
+        int $legajoSelloActivo,
+        string $legajoSelloPosicion
+    )
     {
         $this->nombre = $nombre;
         $this->telefono = $telefono;
@@ -42,9 +60,52 @@ class ConfiguracionModel extends Mysql
         $this->correo = $correo;
         $this->total_pag = $total_pag;
         $this->id = $id;
-        $query = "UPDATE configuracion SET nombre=?, telefono=?, direccion=?, correo=?, total_pag=? WHERE id=?";
-        $data = array($this->nombre, $this->telefono, $this->direccion, $this->correo, $this->total_pag, $this->id);
+        $this->legajo_marca_agua_texto = $legajoMarcaAguaTexto;
+        $this->legajo_marca_agua_activa = $legajoMarcaAguaActiva;
+        $this->legajo_marca_agua_posicion = $legajoMarcaAguaPosicion;
+        $this->legajo_sello_texto = $legajoSelloTexto;
+        $this->legajo_sello_activo = $legajoSelloActivo;
+        $this->legajo_sello_posicion = $legajoSelloPosicion;
+        $query = "UPDATE configuracion
+                  SET nombre=?, telefono=?, direccion=?, correo=?, total_pag=?, legajo_marca_agua_texto=?, legajo_marca_agua_activa=?, legajo_marca_agua_posicion=?, legajo_sello_texto=?, legajo_sello_activo=?, legajo_sello_posicion=?
+                  WHERE id=?";
+        $data = array(
+            $this->nombre,
+            $this->telefono,
+            $this->direccion,
+            $this->correo,
+            $this->total_pag,
+            $this->legajo_marca_agua_texto,
+            $this->legajo_marca_agua_activa,
+            $this->legajo_marca_agua_posicion,
+            $this->legajo_sello_texto,
+            $this->legajo_sello_activo,
+            $this->legajo_sello_posicion,
+            $this->id
+        );
         return $this->update($query, $data);
+    }
+
+    private function ensureConfiguracionRow(): void
+    {
+        try {
+            if (!$this->existeTabla('configuracion')) {
+                return;
+            }
+
+            $row = $this->select("SELECT id FROM configuracion ORDER BY id ASC LIMIT 1");
+            if (!empty($row['id'])) {
+                return;
+            }
+
+            $this->insert(
+                "INSERT INTO configuracion (nombre, telefono, direccion, correo, total_pag)
+                 VALUES (?, ?, ?, ?, ?)",
+                ['Scantec', '', '', '', 0]
+            );
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si aun no se puede sembrar la configuracion base.
+        }
     }
 
     // Insertar nueva configuraciÃ³n y desactivar las anteriores
@@ -162,6 +223,57 @@ class ConfiguracionModel extends Mysql
         }
     }
 
+    private function ensureTipoLegajoBrandingColumns(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_caratula_texto VARCHAR(255) NULL DEFAULT NULL AFTER requiere_nro_solicitud", []);
+            }
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_caratula_posicion VARCHAR(20) NOT NULL DEFAULT 'cruzado' AFTER sello_caratula_texto", []);
+            }
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_anexos_texto VARCHAR(120) NULL DEFAULT NULL AFTER sello_caratula_posicion", []);
+            }
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_anexos_posicion VARCHAR(20) NOT NULL DEFAULT 'derecha' AFTER sello_anexos_texto", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aun no esta alineada.
+        }
+    }
+
+    private function ensureWatermarkColumns(): void
+    {
+        try {
+            if ($this->existeTabla('configuracion') && !$this->existeColumna('configuracion', 'legajo_marca_agua_texto')) {
+                $this->update("ALTER TABLE configuracion ADD COLUMN legajo_marca_agua_texto VARCHAR(255) NULL DEFAULT NULL AFTER total_pag", []);
+            }
+
+            if ($this->existeTabla('configuracion') && !$this->existeColumna('configuracion', 'legajo_marca_agua_activa')) {
+                $this->update("ALTER TABLE configuracion ADD COLUMN legajo_marca_agua_activa TINYINT(1) NOT NULL DEFAULT 0 AFTER legajo_marca_agua_texto", []);
+            }
+
+            if ($this->existeTabla('configuracion') && !$this->existeColumna('configuracion', 'legajo_marca_agua_posicion')) {
+                $this->update("ALTER TABLE configuracion ADD COLUMN legajo_marca_agua_posicion VARCHAR(20) NOT NULL DEFAULT 'cruzado' AFTER legajo_marca_agua_activa", []);
+            }
+
+            if ($this->existeTabla('configuracion') && !$this->existeColumna('configuracion', 'legajo_sello_texto')) {
+                $this->update("ALTER TABLE configuracion ADD COLUMN legajo_sello_texto VARCHAR(120) NULL DEFAULT NULL AFTER legajo_marca_agua_posicion", []);
+            }
+
+            if ($this->existeTabla('configuracion') && !$this->existeColumna('configuracion', 'legajo_sello_activo')) {
+                $this->update("ALTER TABLE configuracion ADD COLUMN legajo_sello_activo TINYINT(1) NOT NULL DEFAULT 0 AFTER legajo_sello_texto", []);
+            }
+
+            if ($this->existeTabla('configuracion') && !$this->existeColumna('configuracion', 'legajo_sello_posicion')) {
+                $this->update("ALTER TABLE configuracion ADD COLUMN legajo_sello_posicion VARCHAR(20) NOT NULL DEFAULT 'derecha' AFTER legajo_sello_activo", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aÃºn no estÃ¡ alineada.
+        }
+    }
+
     private function getCampoRelacionTipoLegajo(): string
     {
         return $this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo') ? 'id_tipo_legajo' : 'id_tipoDoc';
@@ -192,7 +304,20 @@ class ConfiguracionModel extends Mysql
             $campoDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento')
                 ? 'id_departamento'
                 : '0 AS id_departamento';
+            $campoSelloCaratulaTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')
+                ? 'sello_caratula_texto'
+                : 'NULL AS sello_caratula_texto';
+            $campoSelloCaratulaPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion')
+                ? 'sello_caratula_posicion'
+                : "'cruzado' AS sello_caratula_posicion";
+            $campoSelloAnexosTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto')
+                ? 'sello_anexos_texto'
+                : 'NULL AS sello_anexos_texto';
+            $campoSelloAnexosPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')
+                ? 'sello_anexos_posicion'
+                : "'derecha' AS sello_anexos_posicion";
             $sql = "SELECT id_tipo_legajo AS id_tipoDoc, nombre AS nombre_tipoDoc, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud
+                    , $campoSelloCaratulaTexto, $campoSelloCaratulaPosicion, $campoSelloAnexosTexto, $campoSelloAnexosPosicion
                     FROM cfg_tipo_legajo";
             $params = [];
 
@@ -238,10 +363,23 @@ class ConfiguracionModel extends Mysql
         $idDepartamento = intval($idDepartamento ?? 0);
 
         $tieneDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento');
+        $selloCaratulaTexto = trim((string)($this->sello_caratula_texto ?? ''));
+        $selloCaratulaPosicion = trim((string)($this->sello_caratula_posicion ?? 'cruzado'));
+        $selloAnexosTexto = trim((string)($this->sello_anexos_texto ?? ''));
+        $selloAnexosPosicion = trim((string)($this->sello_anexos_posicion ?? 'derecha'));
+
         if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')) {
             if ($tieneDepartamento) {
+                if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+                    $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, id_departamento, activo, requiere_nro_solicitud, sello_caratula_texto, sello_caratula_posicion, sello_anexos_texto, sello_anexos_posicion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    return $this->insert($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion]);
+                }
                 $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, id_departamento, activo, requiere_nro_solicitud) VALUES (?, ?, ?, ?, ?)";
                 return $this->insert($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud]);
+            }
+            if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+                $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, activo, requiere_nro_solicitud, sello_caratula_texto, sello_caratula_posicion, sello_anexos_texto, sello_anexos_posicion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                return $this->insert($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion]);
             }
             $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, activo, requiere_nro_solicitud) VALUES (?, ?, ?, ?)";
             return $this->insert($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud]);
@@ -268,7 +406,20 @@ class ConfiguracionModel extends Mysql
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
-        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud
+        $campoSelloCaratulaTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')
+            ? 'sello_caratula_texto'
+            : 'NULL AS sello_caratula_texto';
+        $campoSelloCaratulaPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion')
+            ? 'sello_caratula_posicion'
+            : "'cruzado' AS sello_caratula_posicion";
+        $campoSelloAnexosTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto')
+            ? 'sello_anexos_texto'
+            : 'NULL AS sello_anexos_texto';
+        $campoSelloAnexosPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')
+            ? 'sello_anexos_posicion'
+            : "'derecha' AS sello_anexos_posicion";
+        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud,
+                $campoSelloCaratulaTexto, $campoSelloCaratulaPosicion, $campoSelloAnexosTexto, $campoSelloAnexosPosicion
                 FROM cfg_tipo_legajo
                 WHERE id_tipo_legajo = ?";
         $result = $this->select($sql, [$idTipoLegajo]);
@@ -287,12 +438,29 @@ class ConfiguracionModel extends Mysql
         $idDepartamento = intval($idDepartamento ?? 0);
 
         $tieneDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento');
+        $selloCaratulaTexto = trim((string)($this->sello_caratula_texto ?? ''));
+        $selloCaratulaPosicion = trim((string)($this->sello_caratula_posicion ?? 'cruzado'));
+        $selloAnexosTexto = trim((string)($this->sello_anexos_texto ?? ''));
+        $selloAnexosPosicion = trim((string)($this->sello_anexos_posicion ?? 'derecha'));
+
         if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')) {
             if ($tieneDepartamento) {
+                if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+                    $query = "UPDATE cfg_tipo_legajo
+                            SET nombre = ?, descripcion = ?, id_departamento = ?, activo = ?, requiere_nro_solicitud = ?, sello_caratula_texto = ?, sello_caratula_posicion = ?, sello_anexos_texto = ?, sello_anexos_posicion = ?
+                            WHERE id_tipo_legajo = ?";
+                    return $this->update($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion, $idTipoLegajo]);
+                }
                 $query = "UPDATE cfg_tipo_legajo
                         SET nombre = ?, descripcion = ?, id_departamento = ?, activo = ?, requiere_nro_solicitud = ?
                         WHERE id_tipo_legajo = ?";
                 return $this->update($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud, $idTipoLegajo]);
+            }
+            if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+                $query = "UPDATE cfg_tipo_legajo
+                        SET nombre = ?, descripcion = ?, activo = ?, requiere_nro_solicitud = ?, sello_caratula_texto = ?, sello_caratula_posicion = ?, sello_anexos_texto = ?, sello_anexos_posicion = ?
+                        WHERE id_tipo_legajo = ?";
+                return $this->update($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion, $idTipoLegajo]);
             }
             $query = "UPDATE cfg_tipo_legajo
                     SET nombre = ?, descripcion = ?, activo = ?, requiere_nro_solicitud = ?
@@ -413,6 +581,13 @@ class ConfiguracionModel extends Mysql
         $this->ensureMatrizActivoColumn();
         $campoRelacion = $this->getCampoRelacionTipoLegajo();
         $campoPoliticaActualizacion = $this->getCampoPoliticaActualizacionSql();
+        $condicionTipo = "mr.$campoRelacion = ?";
+        $params = [$idTipoDoc];
+
+        if ($campoRelacion === 'id_tipo_legajo' && $this->existeColumna('cfg_matriz_requisitos', 'id_tipoDoc')) {
+            $condicionTipo = "(mr.id_tipo_legajo = ? OR (mr.id_tipo_legajo IS NULL AND mr.id_tipoDoc = ?) OR (mr.id_tipo_legajo = 0 AND mr.id_tipoDoc = ?))";
+            $params = [$idTipoDoc, $idTipoDoc, $idTipoDoc];
+        }
 
         if ($this->existeTabla('cfg_tipo_legajo')) {
             $sql = "SELECT mr.id_requisito, mr.$campoRelacion AS id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
@@ -422,9 +597,9 @@ class ConfiguracionModel extends Mysql
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
                     INNER JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = mr.$campoRelacion
-                    WHERE mr.$campoRelacion = $idTipoDoc
+                    WHERE $condicionTipo
                     ORDER BY mr.activo DESC, mr.orden_visual ASC, mr.id_requisito ASC";
-            return $this->select_all($sql);
+            return $this->select_all($sql, $params);
         }
 
         $sql = "SELECT mr.id_requisito, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
@@ -565,10 +740,18 @@ class ConfiguracionModel extends Mysql
     public function existeOtroMatrizRequisitoLegajo(int $idRequisito, int $idTipoDoc, int $idDocumentoMaestro, string $rolVinculado)
     {
         $campoRelacion = $this->getCampoRelacionTipoLegajo();
+        $condicionTipo = "$campoRelacion = ?";
+        $params = [$idRequisito, $idTipoDoc, $idDocumentoMaestro, $rolVinculado];
+
+        if ($campoRelacion === 'id_tipo_legajo' && $this->existeColumna('cfg_matriz_requisitos', 'id_tipoDoc')) {
+            $condicionTipo = "(id_tipo_legajo = ? OR (id_tipo_legajo IS NULL AND id_tipoDoc = ?) OR (id_tipo_legajo = 0 AND id_tipoDoc = ?))";
+            $params = [$idRequisito, $idTipoDoc, $idTipoDoc, $idTipoDoc, $idDocumentoMaestro, $rolVinculado];
+        }
+
         $sql = "SELECT COUNT(*) AS total
                 FROM cfg_matriz_requisitos
-                WHERE id_requisito != ? AND $campoRelacion = ? AND id_documento_maestro = ? AND rol_vinculado = ?";
-        $result = $this->select($sql, [$idRequisito, $idTipoDoc, $idDocumentoMaestro, $rolVinculado]);
+                WHERE id_requisito != ? AND $condicionTipo AND id_documento_maestro = ? AND rol_vinculado = ?";
+        $result = $this->select($sql, $params);
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
@@ -787,10 +970,9 @@ class ConfiguracionModel extends Mysql
         $user = DB_USER;
         $pass = PASS;
         $dbname = BD;
-        
-        // CORRECCIÃ“N: Usar constante o ruta por defecto, pero asegurarse que exista
-        $backup_dir = defined('BACKUP_PATH') ? BACKUP_PATH : dirname(__DIR__) . "\\backups\\";
-        
+
+        $backup_dir = defined('BACKUP_PATH') ? BACKUP_PATH : dirname(__DIR__) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR;
+
         if (!file_exists($backup_dir)) {
             mkdir($backup_dir, 0777, true);
         }
@@ -799,13 +981,16 @@ class ConfiguracionModel extends Mysql
         $filename = $dbname . "_" . $date . ".sql";
         $backup_file = $backup_dir . $filename;
 
-        // CORRECCIÃ“N: Ruta de mysqldump con comillas por si hay espacios
-        // NOTA: Verifica que esta ruta exista en tu servidor. 
-        // Idealmente deberÃ­a estar en una constante en Config.php
-        $mysqldumpPath = '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysqldump.exe"';
+        $mysqldumpPath = defined('APP_ENV') && APP_ENV === 'hosting'
+            ? 'mysqldump'
+            : '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysqldump.exe"';
 
-        // Comando con manejo de errores y comillas en rutas
-        $command = "$mysqldumpPath --opt --host=$host --user=$user --password=$pass $dbname > \"$backup_file\"";
+        $command = $mysqldumpPath
+            . " --opt --host=" . escapeshellarg($host)
+            . " --user=" . escapeshellarg($user)
+            . " --password=" . escapeshellarg($pass)
+            . " " . escapeshellarg($dbname)
+            . " > " . escapeshellarg($backup_file);
 
         $output = null;
         $result_code = null;
@@ -826,16 +1011,21 @@ class ConfiguracionModel extends Mysql
         $pass = PASS;
         $dbname = BD;
 
-        // CORRECCIÃ“N: Ruta de mysql.exe con comillas
-        $mysqlPath = '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysql.exe"';
+        $mysqlPath = defined('APP_ENV') && APP_ENV === 'hosting'
+            ? 'mysql'
+            : '"C:\\Program Files\\MySQL\\MySQL Server 8.1\\bin\\mysql.exe"';
 
         // Validar que el archivo existe antes de intentar
         if (!file_exists($backup_file_path)) {
              return ['status' => false, 'msg' => "El archivo temporal no se encuentra."];
         }
 
-        // Comando seguro: comillas alrededor del archivo de entrada
-        $command = "$mysqlPath --host=$host --user=$user --password=$pass $dbname < \"$backup_file_path\"";
+        $command = $mysqlPath
+            . " --host=" . escapeshellarg($host)
+            . " --user=" . escapeshellarg($user)
+            . " --password=" . escapeshellarg($pass)
+            . " " . escapeshellarg($dbname)
+            . " < " . escapeshellarg($backup_file_path);
 
         $output = null;
         $result_code = null;
@@ -893,8 +1083,22 @@ class ConfiguracionModel extends Mysql
     // CRUD para cfg_relaciones (Tipos de relaciÃ³n en legajos)
     // ============================================================
 
+    private function asegurarRelacionesBase(): void
+    {
+        if (!$this->existeTabla('cfg_relaciones')) {
+            return;
+        }
+
+        $query = "INSERT IGNORE INTO cfg_relaciones (nombre, activo, orden) VALUES
+            ('TITULAR', 1, 1),
+            ('CONYUGE', 1, 2),
+            ('CODEUDOR', 1, 3)";
+        $this->update($query, []);
+    }
+
     public function getRelaciones()
     {
+        $this->asegurarRelacionesBase();
         if (!$this->existeTabla('cfg_relaciones')) {
             return [];
         }
@@ -919,6 +1123,7 @@ class ConfiguracionModel extends Mysql
 
     public function getRelacionesActivas()
     {
+        $this->asegurarRelacionesBase();
         if (!$this->existeTabla('cfg_relaciones')) {
             // Fallback: devolver las opciones clÃ¡sicas hardcodeadas
             return [
@@ -1077,19 +1282,18 @@ class ConfiguracionModel extends Mysql
 
     private function asegurarTablaPoliticas(): void
     {
-        if ($this->existeTabla('cfg_politicas_actualizacion')) {
-            return;
+        if (!$this->existeTabla('cfg_politicas_actualizacion')) {
+            $sql = "CREATE TABLE IF NOT EXISTS cfg_politicas_actualizacion (
+                id_politica INT AUTO_INCREMENT PRIMARY KEY,
+                clave VARCHAR(30) NOT NULL,
+                etiqueta VARCHAR(60) NOT NULL,
+                descripcion VARCHAR(150) DEFAULT NULL,
+                activo TINYINT(1) NOT NULL DEFAULT 1,
+                orden INT NOT NULL DEFAULT 0,
+                UNIQUE KEY uk_clave (clave)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+            $this->update($sql, []);
         }
-        $sql = "CREATE TABLE IF NOT EXISTS cfg_politicas_actualizacion (
-            id_politica INT AUTO_INCREMENT PRIMARY KEY,
-            clave VARCHAR(30) NOT NULL,
-            etiqueta VARCHAR(60) NOT NULL,
-            descripcion VARCHAR(150) DEFAULT NULL,
-            activo TINYINT(1) NOT NULL DEFAULT 1,
-            orden INT NOT NULL DEFAULT 0,
-            UNIQUE KEY uk_clave (clave)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-        $this->update($sql, []);
 
         $insert = "INSERT IGNORE INTO cfg_politicas_actualizacion (clave, etiqueta, descripcion, activo, orden) VALUES
             ('REEMPLAZAR', 'Solo reemplazar', 'El archivo nuevo reemplaza al anterior', 1, 1),

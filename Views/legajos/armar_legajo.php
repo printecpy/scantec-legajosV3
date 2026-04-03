@@ -99,7 +99,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             </div>
             <a href="#" onclick="window.history.back(); return false;"
                 class="group px-4 h-10 rounded-xl bg-gray-600 text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm"
-                    title="Volver atrÃ¡s">
+                    title="Volver atrás">
                 <i class="fas fa-arrow-left mr-2"></i> Volver
             </a>
         </div>
@@ -140,7 +140,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nro. Solicitud</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
-                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">AcciÃ³n</th>
+                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 bg-white">
@@ -183,7 +183,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 </div>
                 <?php else: ?>
                 <div class="mt-3 px-4 py-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl text-sm font-semibold">
-                    No se encontraron legajos para la bÃºsqueda realizada.
+                    No se encontraron legajos para la búsqueda realizada.
                 </div>
                 <?php endif; ?>
             </div>
@@ -563,8 +563,8 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         };
 
         const filas = Array.from(body.querySelectorAll('[data-checklist-row]'));
-        const legajoVerificadoFueModificado = () => {
-            if (estadoLegajoActual !== 'verificado') {
+        const legajoTieneCambiosPendientes = () => {
+            if (!['verificado', 'finalizado', 'activo', 'borrador', 'verificacion_rechazada', 'generado'].includes(estadoLegajoActual) && estadoLegajoActual !== 'completado') {
                 return false;
             }
 
@@ -616,7 +616,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         const totalObligatorios = filasObligatorias.length;
         const porcentaje = totalObligatorios > 0 ? Math.round((obligatoriosCargados / totalObligatorios) * 100) : 0;
         const hayVencidos = filas.some((fila) => (fila.dataset.estadoActual || 'pendiente') === 'vencido');
-        const verificadoModificado = legajoVerificadoFueModificado();
+        const hayCambiosPendientes = legajoTieneCambiosPendientes();
 
         progresoTexto.textContent = obligatoriosCargados + '/' + totalObligatorios;
         progresoBarra.style.width = porcentaje + '%';
@@ -626,7 +626,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             badge.textContent = 'Cerrado';
             aplicarEstadoBotonFinalizar(false);
             alternarBotonesPdfFinal(true);
-        } else if (estadoLegajoActual === 'verificado' && !verificadoModificado) {
+        } else if (estadoLegajoActual === 'verificado' && !hayCambiosPendientes) {
             badge.className = 'px-3 py-1 bg-cyan-100 text-cyan-800 rounded-full text-xs font-bold';
             badge.textContent = 'Verificado';
             aplicarEstadoBotonFinalizar(false);
@@ -635,6 +635,11 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             badge.className = 'px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold';
             badge.textContent = 'Verificación rechazada';
             aplicarEstadoBotonFinalizar(false);
+        } else if (estadoLegajoActual === 'generado' && !hayCambiosPendientes) {
+            badge.className = 'px-3 py-1 bg-sky-100 text-sky-800 rounded-full text-xs font-bold';
+            badge.textContent = 'Generado';
+            aplicarEstadoBotonFinalizar(false);
+            alternarBotonesPdfFinal(true);
         } else if (hayVencidos) {
             badge.className = 'px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold';
             badge.textContent = 'Vencido';
@@ -649,7 +654,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             badge.className = 'px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold';
             badge.textContent = 'Completado';
             aplicarEstadoBotonFinalizar(true);
-            alternarBotonesPdfFinal(pdfFinalDisponible);
+            alternarBotonesPdfFinal(pdfFinalDisponible && !hayCambiosPendientes);
         }
     }
 
@@ -667,8 +672,8 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
 
     async function mostrarAvisoAccionArchivo(accion) {
         const accionNormalizada = String(accion || '').toUpperCase();
-        let titulo = 'AcciÃ³n seleccionada';
-        let texto = 'Se aplicarÃ¡ la acciÃ³n elegida al guardar el legajo.';
+        let titulo = 'Acción seleccionada';
+        let texto = 'Se aplicará la acción elegida al guardar el legajo.';
         let icono = 'info';
 
         if (accionNormalizada === 'REEMPLAZAR') {
@@ -893,7 +898,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         <input type="hidden" name="ruta_existente_${regla.id_requisito}" value="${String(documentoGuardado.ruta_archivo || '').replace(/"/g, '&quot;')}">
                         <input type="hidden" name="eliminar_archivo_${regla.id_requisito}" value="0" data-remove-file-flag>
                         <input type="hidden" name="accion_archivo_${regla.id_requisito}" value="${politicaInicial}" data-file-action>
-                        <input type="file" name="${inputName}[]" multiple accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-scantec-blue hover:file:bg-scantec-blue hover:file:text-white transition-all cursor-pointer" data-file-input data-policy-default="${politicaInicial}" ${legajoBloqueado ? 'disabled' : ''}>
+                        <input type="file" name="${inputName}[]" multiple accept=".pdf,.jpg,.jpeg,.png,.jfif,image/jpeg,image/png,application/pdf" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-scantec-blue hover:file:bg-scantec-blue hover:file:text-white transition-all cursor-pointer" data-file-input data-policy-default="${politicaInicial}" ${legajoBloqueado ? 'disabled' : ''}>
                         ${nombreArchivoHtml}
                         ${botonVerArchivoHtml}
                         ${botonEliminarArchivoHtml}
@@ -922,18 +927,18 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             const partes = nombre.split('.');
                             return partes.length > 1 ? partes.pop().toLowerCase() : '';
                         })
-                        .filter((extension) => extension && !['pdf', 'jpg', 'jpeg', 'png'].includes(extension));
+                        .filter((extension) => extension && !['pdf', 'jpg', 'jpeg', 'png', 'jfif'].includes(extension));
 
                     if (extensionesInvalidas.length > 0) {
                         if (typeof Swal !== 'undefined') {
                             await Swal.fire({
                                 title: 'Formato no permitido',
-                                text: 'No se permiten archivos JFIF ni otros formatos distintos de PDF, JPG, JPEG o PNG.',
+                                text: 'Solo se permiten archivos PDF o imagenes JPG, JPEG, PNG o JFIF.',
                                 icon: 'warning',
                                 confirmButtonText: 'Aceptar'
                             });
                         } else {
-                            alert('No se permiten archivos JFIF ni otros formatos distintos de PDF, JPG, JPEG o PNG.');
+                            alert('Solo se permiten archivos PDF o imagenes JPG, JPEG, PNG o JFIF.');
                         }
                         this.value = '';
                         label.textContent = 'Ningun archivo seleccionado';

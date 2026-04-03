@@ -4,8 +4,34 @@ class LegajosModel extends Mysql
     public function __construct()
     {
         parent::__construct();
+        $this->ensureLegajoEstadoColumn();
         $this->ensureMatrizActivoColumn();
         $this->ensureTipoLegajoDepartamentoColumn();
+        $this->ensureTipoLegajoBrandingColumns();
+        $this->ensureFormulariosExternosTables();
+    }
+
+    private function ensureLegajoEstadoColumn(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_legajo')) {
+                $sql = "ALTER TABLE cfg_legajo
+                        MODIFY COLUMN estado ENUM(
+                            'borrador',
+                            'activo',
+                            'completado',
+                            'generado',
+                            'finalizado',
+                            'verificado',
+                            'verificacion_rechazada',
+                            'cerrado',
+                            'aprobado'
+                        ) NOT NULL DEFAULT 'borrador'";
+                $this->update($sql, []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga.
+        }
     }
 
     private function existeTabla(string $tabla): bool
@@ -48,6 +74,76 @@ class LegajosModel extends Mysql
         }
     }
 
+    private function ensureTipoLegajoBrandingColumns(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_caratula_texto VARCHAR(255) NULL DEFAULT NULL AFTER requiere_nro_solicitud", []);
+            }
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_caratula_posicion VARCHAR(20) NOT NULL DEFAULT 'cruzado' AFTER sello_caratula_texto", []);
+            }
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_anexos_texto VARCHAR(120) NULL DEFAULT NULL AFTER sello_caratula_posicion", []);
+            }
+            if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')) {
+                $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_anexos_posicion VARCHAR(20) NOT NULL DEFAULT 'derecha' AFTER sello_anexos_texto", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga.
+        }
+    }
+
+    private function ensureFormulariosExternosTables(): void
+    {
+        try {
+            $sqlFormulario = "CREATE TABLE IF NOT EXISTS legajos_formularios_externos (
+                id_formulario INT NOT NULL AUTO_INCREMENT,
+                token VARCHAR(80) NOT NULL,
+                tipo_destinatario VARCHAR(20) NOT NULL DEFAULT 'cliente',
+                modo_carga VARCHAR(20) NOT NULL DEFAULT 'nuevo',
+                id_tipo_legajo INT NOT NULL,
+                id_legajo_base INT NULL DEFAULT NULL,
+                ci_validacion VARCHAR(30) NOT NULL,
+                nombre_referencia VARCHAR(150) NULL DEFAULT NULL,
+                nro_solicitud_referencia VARCHAR(100) NULL DEFAULT NULL,
+                estado VARCHAR(20) NOT NULL DEFAULT 'activo',
+                horas_vigencia INT NOT NULL DEFAULT 1,
+                vence_en DATETIME NOT NULL,
+                borrador_hasta DATETIME NULL DEFAULT NULL,
+                ultimo_acceso DATETIME NULL DEFAULT NULL,
+                enviado_en DATETIME NULL DEFAULT NULL,
+                creado_por INT NULL DEFAULT NULL,
+                creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id_formulario),
+                UNIQUE KEY uk_legajos_formularios_externos_token (token),
+                KEY idx_legajos_formularios_externos_tipo (id_tipo_legajo),
+                KEY idx_legajos_formularios_externos_legajo (id_legajo_base),
+                KEY idx_legajos_formularios_externos_estado (estado),
+                KEY idx_legajos_formularios_externos_creado_por (creado_por)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci";
+            $this->update($sqlFormulario, []);
+
+            $sqlDocumentos = "CREATE TABLE IF NOT EXISTS legajos_formularios_externos_documentos (
+                id_formulario_doc INT NOT NULL AUTO_INCREMENT,
+                id_formulario INT NOT NULL,
+                id_requisito INT NOT NULL,
+                ruta_archivo VARCHAR(255) NULL DEFAULT NULL,
+                fecha_expedicion DATE NULL DEFAULT NULL,
+                fecha_vencimiento DATE NULL DEFAULT NULL,
+                observacion VARCHAR(255) NULL DEFAULT NULL,
+                actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id_formulario_doc),
+                UNIQUE KEY uk_legajos_formularios_externos_doc (id_formulario, id_requisito),
+                KEY idx_legajos_formularios_externos_doc_formulario (id_formulario)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci";
+            $this->update($sqlDocumentos, []);
+        } catch (Throwable $e) {
+            // No interrumpimos la carga.
+        }
+    }
+
     /**
      * Retorna el fragmento SQL del CASE de estado de legajo a texto legible.
      * Centraliza la lÃ³gica para no duplicar en mÃºltiples queries.
@@ -59,10 +155,23 @@ class LegajosModel extends Mysql
                     WHEN {$alias}.estado = 'aprobado' THEN 'Cerrado'
                     WHEN {$alias}.estado = 'verificacion_rechazada' THEN 'Verificación rechazada'
                     WHEN {$alias}.estado = 'verificado' THEN 'Verificado'
+                    WHEN {$alias}.estado = 'generado' THEN 'Generado'
+                    WHEN {$alias}.estado = 'completado' THEN 'Completado'
                     WHEN {$alias}.estado = 'finalizado' THEN 'Completado'
                     WHEN {$alias}.estado = 'activo' THEN 'Vencido'
                     ELSE 'Incompleto'
                 END";
+    }
+
+    private function sqlCondicionLegajoEnProceso(string $alias = 'l'): string
+    {
+        return "(({$alias}.estado NOT IN ('generado', 'verificado', 'cerrado', 'aprobado', 'verificacion_rechazada')
+                    AND (" . $this->sqlCaseEstadoTexto($alias) . ") = 'Incompleto')
+                OR ({$alias}.estado IN ('completado', 'finalizado') AND NOT EXISTS (
+                    SELECT 1
+                    FROM unirpdf up
+                    WHERE up.ruta_creacion = CONCAT('Legajos/', $alias.id_legajo)
+                )))";
     }
 
     private function construirDetalleAccion(?string $detalle, ?string $observacion = null): ?string
@@ -122,8 +231,21 @@ class LegajosModel extends Mysql
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
+        $campoSelloCaratulaTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')
+            ? 'sello_caratula_texto'
+            : 'NULL AS sello_caratula_texto';
+        $campoSelloCaratulaPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion')
+            ? 'sello_caratula_posicion'
+            : "'cruzado' AS sello_caratula_posicion";
+        $campoSelloAnexosTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto')
+            ? 'sello_anexos_texto'
+            : 'NULL AS sello_anexos_texto';
+        $campoSelloAnexosPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')
+            ? 'sello_anexos_posicion'
+            : "'derecha' AS sello_anexos_posicion";
 
-        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud
+        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud,
+                $campoSelloCaratulaTexto, $campoSelloCaratulaPosicion, $campoSelloAnexosTexto, $campoSelloAnexosPosicion
                 FROM cfg_tipo_legajo
                 WHERE activo = 1
                 ORDER BY nombre ASC";
@@ -139,8 +261,21 @@ class LegajosModel extends Mysql
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
+        $campoSelloCaratulaTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')
+            ? 'sello_caratula_texto'
+            : 'NULL AS sello_caratula_texto';
+        $campoSelloCaratulaPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion')
+            ? 'sello_caratula_posicion'
+            : "'cruzado' AS sello_caratula_posicion";
+        $campoSelloAnexosTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto')
+            ? 'sello_anexos_texto'
+            : 'NULL AS sello_anexos_texto';
+        $campoSelloAnexosPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')
+            ? 'sello_anexos_posicion'
+            : "'derecha' AS sello_anexos_posicion";
 
-        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoRequiereSolicitud
+        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoRequiereSolicitud,
+                $campoSelloCaratulaTexto, $campoSelloCaratulaPosicion, $campoSelloAnexosTexto, $campoSelloAnexosPosicion
                 FROM cfg_tipo_legajo
                 WHERE id_tipo_legajo = ?";
         $rows = $this->select($sql, [$idTipoLegajo]);
@@ -188,17 +323,29 @@ class LegajosModel extends Mysql
             ? 'mr.politica_actualizacion'
             : "CASE WHEN mr.permite_reemplazo = 1 THEN 'REEMPLAZAR' ELSE 'NO_PERMITIR' END AS politica_actualizacion";
 
-        if ($this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo')) {
+        $tieneIdTipoLegajo = $this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo');
+        $tieneIdTipoDoc = $this->existeColumna('cfg_matriz_requisitos', 'id_tipoDoc');
+
+        if ($tieneIdTipoLegajo) {
             $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
             $filtroActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? ' AND mr.activo = 1' : '';
+            $filtroTipo = 'mr.id_tipo_legajo = ?';
+            $params = [$idTipoLegajo];
+
+            // Compatibilidad: algunas bases heredadas conservaron reglas solo en id_tipoDoc.
+            if ($tieneIdTipoDoc) {
+                $filtroTipo = '(mr.id_tipo_legajo = ? OR (mr.id_tipo_legajo IS NULL AND mr.id_tipoDoc = ?) OR (mr.id_tipo_legajo = 0 AND mr.id_tipoDoc = ?))';
+                $params = [$idTipoLegajo, $idTipoLegajo, $idTipoLegajo];
+            }
+
             $sql = "SELECT mr.id_requisito, mr.id_documento_maestro, mr.rol_vinculado,
                     mr.es_obligatorio, mr.permite_reemplazo, mr.orden_visual, $campoPoliticaActualizacion, $campoActivo,
                     cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
-                    WHERE mr.id_tipo_legajo = ?$filtroActivo
+                    WHERE $filtroTipo$filtroActivo
                     ORDER BY mr.orden_visual ASC, mr.id_requisito ASC";
-            return $this->select_all($sql, [$idTipoLegajo]);
+            return $this->select_all($sql, $params);
         }
 
         $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
@@ -309,9 +456,17 @@ class LegajosModel extends Mysql
             ? 'l.observacion'
             : 'NULL AS observacion';
         $caseEstado = $this->sqlCaseEstadoTexto('l');
+        $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
+            ? 'tl.requiere_nro_solicitud'
+            : '0 AS requiere_nro_solicitud';
         $sql = "SELECT l.id_legajo, l.ci_socio, l.nombre_completo, l.nro_solicitud, l.estado, $campoObservacion,
                 $caseEstado AS estado_legajo_texto,
-                l.fecha_creacion, tl.nombre AS nombre_tipo_legajo
+                EXISTS (
+                    SELECT 1
+                    FROM unirpdf up
+                    WHERE up.ruta_creacion = CONCAT('Legajos/', l.id_legajo)
+                ) AS pdf_legajo_armado,
+                l.fecha_creacion, tl.nombre AS nombre_tipo_legajo, $campoRequiereSolicitud
                 FROM cfg_legajo l
                 LEFT JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = l.id_tipo_legajo
                 WHERE 1=1";
@@ -323,7 +478,9 @@ class LegajosModel extends Mysql
             $params = [$like, $like, $like];
         }
 
-        if ($estadoFiltro !== '') {
+        if ($estadoFiltro === 'Proceso') {
+            $sql .= " AND (($caseEstado) = 'Incompleto' OR l.estado = 'finalizado')";
+        } elseif ($estadoFiltro !== '') {
             $sql .= " AND ($caseEstado) = ?";
             $params[] = $estadoFiltro;
         }
@@ -373,7 +530,10 @@ class LegajosModel extends Mysql
                       )";
         }
 
-        $sql .= " ORDER BY l.fecha_creacion DESC, l.id_legajo DESC LIMIT 50";
+        $sql .= " ORDER BY l.fecha_creacion DESC, l.id_legajo DESC";
+        if ($termino === '' && $estadoFiltro === '' && $idTipoLegajo <= 0 && $filtroDocumentos === '') {
+            $sql .= " LIMIT 50";
+        }
         return $this->select($sql, $params);
     }
 
@@ -568,6 +728,26 @@ class LegajosModel extends Mysql
                 WHERE id_legajo = ?
                 ORDER BY id_requisito ASC, id_legajo_doc ASC";
         return $this->select($sql, [$idLegajo]);
+    }
+
+    public function selectRegistroPdfFinalLegajo(int $idLegajo)
+    {
+        if ($idLegajo <= 0 || !$this->existeTabla('unirpdf')) {
+            return [];
+        }
+
+        $sql = "SELECT ruta_creacion, nombre_archivo, fecha_creacion
+                FROM unirpdf
+                WHERE ruta_creacion = ?
+                ORDER BY fecha_creacion DESC
+                LIMIT 1";
+        $result = $this->select($sql, ['Legajos/' . $idLegajo]);
+
+        if (is_array($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return is_array($result) ? $result : [];
     }
 
     // Nota: usar selectLegajoDocumentosPorLegajo() directamente. Alias eliminado para evitar confusiÃ³n.
@@ -902,6 +1082,244 @@ class LegajosModel extends Mysql
 
         $sql = implode(" UNION ALL ", $consultas) . " ORDER BY fecha_evento DESC, id_log DESC";
         return $this->select($sql, $params);
+    }
+
+    public function limpiarEstadosFormulariosExternos(): void
+    {
+        try {
+            $this->update(
+                "UPDATE legajos_formularios_externos
+                 SET estado = 'vencido', actualizado_en = NOW()
+                 WHERE estado IN ('activo', 'borrador')
+                   AND vence_en < NOW()",
+                []
+            );
+        } catch (Throwable $e) {
+            // No interrumpimos la carga.
+        }
+    }
+
+    public function insertarFormularioExterno(
+        string $token,
+        string $tipoDestinatario,
+        string $modoCarga,
+        int $idTipoLegajo,
+        ?int $idLegajoBase,
+        string $ciValidacion,
+        ?string $nombreReferencia,
+        ?string $nroSolicitudReferencia,
+        int $horasVigencia,
+        string $venceEn,
+        int $creadoPor
+    ) {
+        $query = "INSERT INTO legajos_formularios_externos
+                (token, tipo_destinatario, modo_carga, id_tipo_legajo, id_legajo_base, ci_validacion,
+                 nombre_referencia, nro_solicitud_referencia, horas_vigencia, vence_en, creado_por)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        return $this->insert($query, [
+            $token,
+            $tipoDestinatario,
+            $modoCarga,
+            $idTipoLegajo,
+            $idLegajoBase > 0 ? $idLegajoBase : null,
+            $ciValidacion,
+            trim((string)$nombreReferencia) !== '' ? trim((string)$nombreReferencia) : null,
+            trim((string)$nroSolicitudReferencia) !== '' ? trim((string)$nroSolicitudReferencia) : null,
+            $horasVigencia,
+            $venceEn,
+            $creadoPor > 0 ? $creadoPor : null
+        ]);
+    }
+
+    public function obtenerFormularioExternoPorToken(string $token)
+    {
+        $this->limpiarEstadosFormulariosExternos();
+
+        $sql = "SELECT fe.*,
+                tl.nombre AS nombre_tipo_legajo,
+                tl.descripcion AS descripcion_tipo_legajo,
+                " . ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud') ? 'tl.requiere_nro_solicitud' : '0 AS requiere_nro_solicitud') . ",
+                l.nombre_completo AS nombre_legajo_base,
+                l.ci_socio AS ci_legajo_base,
+                l.nro_solicitud AS solicitud_legajo_base
+                FROM legajos_formularios_externos fe
+                INNER JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = fe.id_tipo_legajo
+                LEFT JOIN cfg_legajo l ON l.id_legajo = fe.id_legajo_base
+                WHERE fe.token = ?
+                LIMIT 1";
+        $result = $this->select($sql, [$token]);
+
+        if (is_array($result) && isset($result[0]) && is_array($result[0])) {
+            return $result[0];
+        }
+
+        return is_array($result) ? $result : [];
+    }
+
+    public function listarFormulariosExternos(int $idUsuario = 0, int $idLegajoBase = 0)
+    {
+        $this->limpiarEstadosFormulariosExternos();
+
+        $sql = "SELECT fe.*, tl.nombre AS nombre_tipo_legajo
+                FROM legajos_formularios_externos fe
+                INNER JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = fe.id_tipo_legajo
+                WHERE 1=1";
+        $params = [];
+
+        if ($idUsuario > 0) {
+            $sql .= " AND fe.creado_por = ?";
+            $params[] = $idUsuario;
+        }
+
+        if ($idLegajoBase > 0) {
+            $sql .= " AND fe.id_legajo_base = ?";
+            $params[] = $idLegajoBase;
+        }
+
+        $sql .= " ORDER BY fe.creado_en DESC, fe.id_formulario DESC LIMIT 50";
+        return $this->select_all($sql, $params);
+    }
+
+    public function actualizarFormularioExternoEstado(int $idFormulario, string $estado): bool
+    {
+        if ($idFormulario <= 0) {
+            return false;
+        }
+
+        return $this->update(
+            "UPDATE legajos_formularios_externos
+             SET estado = ?, actualizado_en = NOW()
+             WHERE id_formulario = ?",
+            [$estado, $idFormulario]
+        );
+    }
+
+    public function marcarAccesoFormularioExterno(int $idFormulario): bool
+    {
+        if ($idFormulario <= 0) {
+            return false;
+        }
+
+        return $this->update(
+            "UPDATE legajos_formularios_externos
+             SET ultimo_acceso = NOW(), actualizado_en = NOW()
+             WHERE id_formulario = ?",
+            [$idFormulario]
+        );
+    }
+
+    public function marcarBorradorFormularioExterno(int $idFormulario, ?string $borradorHasta): bool
+    {
+        if ($idFormulario <= 0) {
+            return false;
+        }
+
+        return $this->update(
+            "UPDATE legajos_formularios_externos
+             SET estado = 'borrador',
+                 borrador_hasta = ?,
+                 ultimo_acceso = NOW(),
+                 actualizado_en = NOW()
+             WHERE id_formulario = ?",
+            [$borradorHasta, $idFormulario]
+        );
+    }
+
+    public function actualizarDatosFormularioExterno(int $idFormulario, ?string $nombreReferencia, ?string $nroSolicitudReferencia): bool
+    {
+        if ($idFormulario <= 0) {
+            return false;
+        }
+
+        return $this->update(
+            "UPDATE legajos_formularios_externos
+             SET nombre_referencia = ?,
+                 nro_solicitud_referencia = ?,
+                 actualizado_en = NOW()
+             WHERE id_formulario = ?",
+            [
+                trim((string)$nombreReferencia) !== '' ? trim((string)$nombreReferencia) : null,
+                trim((string)$nroSolicitudReferencia) !== '' ? trim((string)$nroSolicitudReferencia) : null,
+                $idFormulario
+            ]
+        );
+    }
+
+    public function marcarFormularioExternoEnviado(int $idFormulario): bool
+    {
+        if ($idFormulario <= 0) {
+            return false;
+        }
+
+        return $this->update(
+            "UPDATE legajos_formularios_externos
+             SET estado = 'enviado',
+                 enviado_en = NOW(),
+                 actualizado_en = NOW()
+             WHERE id_formulario = ?",
+            [$idFormulario]
+        );
+    }
+
+    public function obtenerDocumentosFormularioExterno(int $idFormulario): array
+    {
+        if ($idFormulario <= 0) {
+            return [];
+        }
+
+        return $this->select_all(
+            "SELECT id_formulario_doc, id_formulario, id_requisito, ruta_archivo, fecha_expedicion, fecha_vencimiento, observacion
+             FROM legajos_formularios_externos_documentos
+             WHERE id_formulario = ?
+             ORDER BY id_requisito ASC",
+            [$idFormulario]
+        );
+    }
+
+    public function guardarDocumentoFormularioExterno(
+        int $idFormulario,
+        int $idRequisito,
+        ?string $rutaArchivo,
+        ?string $fechaExpedicion,
+        ?string $fechaVencimiento,
+        ?string $observacion
+    ): bool {
+        if ($idFormulario <= 0 || $idRequisito <= 0) {
+            return false;
+        }
+
+        $query = "INSERT INTO legajos_formularios_externos_documentos
+                (id_formulario, id_requisito, ruta_archivo, fecha_expedicion, fecha_vencimiento, observacion)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    ruta_archivo = VALUES(ruta_archivo),
+                    fecha_expedicion = VALUES(fecha_expedicion),
+                    fecha_vencimiento = VALUES(fecha_vencimiento),
+                    observacion = VALUES(observacion),
+                    actualizado_en = NOW()";
+
+        return $this->insert($query, [
+            $idFormulario,
+            $idRequisito,
+            trim((string)$rutaArchivo) !== '' ? trim((string)$rutaArchivo) : null,
+            trim((string)$fechaExpedicion) !== '' ? trim((string)$fechaExpedicion) : null,
+            trim((string)$fechaVencimiento) !== '' ? trim((string)$fechaVencimiento) : null,
+            trim((string)$observacion) !== '' ? trim((string)$observacion) : null,
+        ]) ? true : false;
+    }
+
+    public function eliminarDocumentoFormularioExterno(int $idFormulario, int $idRequisito): bool
+    {
+        if ($idFormulario <= 0 || $idRequisito <= 0) {
+            return false;
+        }
+
+        return $this->update(
+            "DELETE FROM legajos_formularios_externos_documentos
+             WHERE id_formulario = ? AND id_requisito = ?",
+            [$idFormulario, $idRequisito]
+        );
     }
 }
 

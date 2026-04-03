@@ -43,9 +43,6 @@
                     
                     <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue flex justify-between items-center">
                         <h3 class="font-bold text-white text-sm uppercase tracking-wider">Datos de la Empresa</h3>
-                        <span class="text-xs text-scantec-blue bg-white px-2 py-1 rounded border border-white/80">
-                            ID: <?php echo $config['id'] ?? '---'; ?>
-                        </span>
                     </div>
 
                     <div class="p-6">
@@ -66,7 +63,6 @@
                                             placeholder="Nombre de la Empresa">
                                     </div>
                                 </div>
-
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Teléfono</label>
                                     <div class="relative">
@@ -92,7 +88,6 @@
                                             placeholder="contacto@empresa.com">
                                     </div>
                                 </div>
-
                                 <div class="col-span-1 md:col-span-2">
                                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Dirección Física</label>
                                     <div class="relative">
@@ -128,6 +123,75 @@
                                     <?php endif; ?>
                                 </div>
 
+                                <div class="col-span-1 md:col-span-2 flex justify-end pt-2 border-t border-gray-100">
+                                    <button type="submit" class="bg-scantec-blue hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg shadow transition-all inline-flex items-center text-sm">
+                                        <i class="fa fa-save mr-2"></i> Guardar datos de la empresa
+                                    </button>
+                                </div>
+
+                                <fieldset disabled class="hidden">
+                                <div class="col-span-1 md:col-span-2">
+                                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                                        <div class="md:col-span-6">
+                                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Sello para la Carátula</label>
+                                            <input type="text" name="legajo_marca_agua_texto" maxlength="255"
+                                                value="<?php echo htmlspecialchars($config['legajo_marca_agua_texto'] ?? ''); ?>"
+                                                class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all text-gray-700"
+                                                placeholder="Ej: COPIA CONTROLADA / USO INTERNO">
+                                        </div>
+
+                                        <div class="pt-7">
+                                            <label class="inline-flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-300 bg-white cursor-pointer select-none min-h-[42px]">
+                                                <input type="hidden" name="legajo_marca_agua_activa" value="0">
+                                                <input type="checkbox" name="legajo_marca_agua_activa" value="1"
+                                                    class="w-4 h-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue"
+                                                    <?php echo intval($config['legajo_marca_agua_activa'] ?? 0) === 1 ? 'checked' : ''; ?>>
+                                                <span class="text-sm font-semibold text-gray-700">Activar</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                </fieldset>
+
+                                <div class="col-span-1 md:col-span-2 hidden">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Sello para Hojas Anexadas</label>
+                                            <input type="text" name="legajo_sello_texto" maxlength="120"
+                                                value="<?php echo htmlspecialchars($config['legajo_sello_texto'] ?? ''); ?>"
+                                                disabled class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all text-gray-700"
+                                                placeholder="Ej: COPIA CONTROLADA">
+                                        </div>
+
+                                        <div class="md:col-span-3 pt-7">
+                                            <label class="inline-flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-300 bg-white cursor-pointer select-none min-h-[42px] w-full">
+                                                <input type="hidden" name="legajo_sello_activo" value="0" disabled>
+                                                <input type="checkbox" name="legajo_sello_activo" value="1"
+                                                    disabled
+                                                    class="w-4 h-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue"
+                                                    <?php echo intval($config['legajo_sello_activo'] ?? 0) === 1 ? 'checked' : ''; ?>>
+                                                <span class="text-sm font-semibold text-gray-700">Activar</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-span-1 md:col-span-2 hidden">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Posición del Sello</label>
+                                            <select name="legajo_sello_posicion"
+                                                disabled class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all text-gray-700 bg-white">
+                                                <?php $posicionSello = trim((string)($config['legajo_sello_posicion'] ?? 'derecha')); ?>
+                                                <option value="arriba" <?php echo $posicionSello === 'arriba' ? 'selected' : ''; ?>>Arriba</option>
+                                                <option value="abajo" <?php echo $posicionSello === 'abajo' ? 'selected' : ''; ?>>Abajo</option>
+                                                <option value="derecha" <?php echo $posicionSello === 'derecha' ? 'selected' : ''; ?>>Derecha</option>
+                                                <option value="izquierda" <?php echo $posicionSello === 'izquierda' ? 'selected' : ''; ?>>Izquierda</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- <div>
                                     <label class="block text-xs font-bold text-scantec-red uppercase tracking-widest mb-2">Límite Páginas / Lote</label>
                                     <div class="relative">
@@ -143,11 +207,6 @@
                                 </div> -->
                             </div>
 
-                            <div class="flex justify-end pt-4 border-t border-gray-100">
-                                <button type="submit" class="bg-scantec-blue hover:bg-gray-800 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all flex items-center">
-                                    <i class="fa fa-save mr-2"></i> ACTUALIZAR DATOS
-                                </button>
-                            </div>
                         </form>
                     </div>
                 </div>
@@ -391,6 +450,70 @@
     </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () { return;
+    const crearToggleDesdeSelect = function (select, labelText) {
+        if (!select) return;
+        const wrapper = select.parentElement;
+        if (!wrapper) return;
+
+        const checked = String(select.value) === '1';
+        const title = wrapper.querySelector('label');
+        if (title) title.classList.add('hidden');
+        select.classList.add('hidden');
+
+        const toggle = document.createElement('label');
+        toggle.className = 'inline-flex items-center gap-3 px-4 py-2.5 rounded-lg border border-gray-300 bg-white cursor-pointer select-none w-full min-h-[42px]';
+        toggle.innerHTML = `<input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue" ${checked ? 'checked' : ''}><span class="text-sm font-semibold text-gray-700">${labelText}</span>`;
+
+        const checkbox = toggle.querySelector('input[type="checkbox"]');
+        checkbox.addEventListener('change', function () {
+            select.value = checkbox.checked ? '1' : '0';
+        });
+
+        wrapper.insertBefore(toggle, select);
+    };
+
+    const blocks = Array.from(document.querySelectorAll('div.col-span-1.md\\:col-span-2'));
+    const watermarkBlock = blocks.find((block) => block.textContent.includes('Texto de Marca de Agua'));
+    if (watermarkBlock) {
+        watermarkBlock.querySelectorAll('p.text-\\[11px\\]').forEach((node) => node.remove());
+        const watermarkSelect = watermarkBlock.querySelector('select[name="legajo_marca_agua_activa"]');
+        const watermarkContainer = watermarkSelect?.parentElement;
+        if (watermarkContainer) {
+            watermarkContainer.className = 'pt-7';
+            crearToggleDesdeSelect(watermarkSelect, 'Activar marca de agua');
+        }
+    }
+
+    const selloBlock = blocks.find((block) => block.textContent.includes('Sello para Hojas Anexadas'));
+    const posicionBlock = blocks.find((block) => block.textContent.includes('Posición del Sello') || block.textContent.includes('Posici'));
+    if (selloBlock) {
+        selloBlock.querySelectorAll('p.text-\\[11px\\]').forEach((node) => node.remove());
+        const selloGrid = selloBlock.querySelector('.grid');
+        const selloTextCol = selloGrid?.children?.[0];
+        const selloStateCol = selloGrid?.children?.[1];
+        if (selloGrid && selloTextCol && selloStateCol) {
+            selloGrid.className = 'grid grid-cols-1 md:grid-cols-12 gap-4 items-start';
+            selloTextCol.className = 'md:col-span-6';
+            selloStateCol.className = 'md:col-span-3 pt-7';
+            const selloSelect = selloStateCol.querySelector('select[name="legajo_sello_activo"]');
+            crearToggleDesdeSelect(selloSelect, 'Activar sello');
+        }
+
+        if (posicionBlock && selloGrid) {
+            const posicionGrid = posicionBlock.querySelector('.grid');
+            const posicionCol = posicionGrid?.children?.[0];
+            if (posicionCol) {
+                posicionCol.className = 'md:col-span-3';
+                const target = selloGrid.children[1];
+                selloGrid.insertBefore(posicionCol, target);
+                posicionBlock.remove();
+            }
+        }
+    }
+});
+</script>
 
 <?php pie() ?>
 
@@ -445,20 +568,3 @@ function confirmarAccionDepartamento(formElement) {
 }
 
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

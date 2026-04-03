@@ -1,0 +1,16 @@
+{
+  "name": "scantec-playwright-smoke",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright smoke navigation tests for SCANTEC",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test tests/smoke-navigation.spec.js",
+    "test:headed": "playwright test --headed",
+    "test:smoke:headed": "playwright test tests/smoke-navigation.spec.js --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "dotenv": "^16.4.5"
+  }
+}

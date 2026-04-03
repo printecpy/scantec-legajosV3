@@ -7,6 +7,25 @@ class SeguridadLegajosModel extends Mysql
     public function __construct()
     {
         parent::__construct();
+        $this->ensureRolesDepartamentoColumn();
+        $this->ensurePermisosLegajosTiposTable();
+    }
+
+    private function ensureRolesDepartamentoColumn(): void
+    {
+        try {
+            $tablaRoles = $this->select_all("SHOW TABLES LIKE 'roles'");
+            if (empty($tablaRoles)) {
+                return;
+            }
+
+            $columnaDepartamento = $this->select_all("SHOW COLUMNS FROM roles LIKE 'id_departamento'");
+            if (empty($columnaDepartamento)) {
+                $this->update("ALTER TABLE roles ADD COLUMN id_departamento INT NULL DEFAULT NULL AFTER descripcion", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aun no esta alineada.
+        }
     }
 
     /**
@@ -23,9 +42,73 @@ class SeguridadLegajosModel extends Mysql
         }
     }
 
+    private function existeColumna(string $tabla, string $columna): bool
+    {
+        try {
+            $result = $this->select_all("SHOW COLUMNS FROM `{$tabla}` LIKE ?", [$columna]);
+            return !empty($result);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private function existeIndice(string $tabla, string $indice): bool
+    {
+        try {
+            $result = $this->select_all("SHOW INDEX FROM `{$tabla}` WHERE Key_name = ?", [$indice]);
+            return !empty($result);
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private function ensurePermisosLegajosTiposTable(): void
+    {
+        try {
+            if (!$this->existeTabla('permisos_legajos_tipos')) {
+                $this->update(
+                    "CREATE TABLE IF NOT EXISTS `permisos_legajos_tipos` (
+                        `id` int NOT NULL AUTO_INCREMENT,
+                        `id_rol` int NOT NULL,
+                        `id_tipo_legajo` int NOT NULL,
+                        `permitido` tinyint(1) NOT NULL DEFAULT 0,
+                        `actualizado_en` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        PRIMARY KEY (`id`),
+                        UNIQUE KEY `uk_rol_tipo_legajo` (`id_rol`, `id_tipo_legajo`),
+                        KEY `idx_tipo_legajo` (`id_tipo_legajo`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci",
+                    []
+                );
+                return;
+            }
+
+            if (!$this->existeColumna('permisos_legajos_tipos', 'id_tipo_legajo') && $this->existeColumna('permisos_legajos_tipos', 'id_tipoDoc')) {
+                $this->update("ALTER TABLE `permisos_legajos_tipos` CHANGE `id_tipoDoc` `id_tipo_legajo` INT NOT NULL", []);
+            }
+
+            if (!$this->existeColumna('permisos_legajos_tipos', 'permitido')) {
+                $this->update("ALTER TABLE `permisos_legajos_tipos` ADD COLUMN `permitido` TINYINT(1) NOT NULL DEFAULT 0 AFTER `id_tipo_legajo`", []);
+            }
+
+            if (!$this->existeColumna('permisos_legajos_tipos', 'actualizado_en')) {
+                $this->update("ALTER TABLE `permisos_legajos_tipos` ADD COLUMN `actualizado_en` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP", []);
+            }
+
+            if (!$this->existeIndice('permisos_legajos_tipos', 'uk_rol_tipo_legajo')) {
+                $this->update("ALTER TABLE `permisos_legajos_tipos` ADD UNIQUE KEY `uk_rol_tipo_legajo` (`id_rol`, `id_tipo_legajo`)", []);
+            }
+
+            if (!$this->existeIndice('permisos_legajos_tipos', 'idx_tipo_legajo')) {
+                $this->update("ALTER TABLE `permisos_legajos_tipos` ADD KEY `idx_tipo_legajo` (`id_tipo_legajo`)", []);
+            }
+        } catch (Throwable $e) {
+            error_log("Error asegurando estructura de permisos_legajos_tipos: " . $e->getMessage());
+        }
+    }
+
     /**
      * Lista fija de acciones/vistas configurables para legajos y seguridad.
-     * Se divide en dos categorías: vistas (sidebar) y acciones internas.
+     * Se divide en dos categorÃ­as: vistas (sidebar) y acciones internas.
      */
     public static function getAccionesDisponibles(): array
     {
@@ -135,7 +218,7 @@ class SeguridadLegajosModel extends Mysql
             'dashboard_card_docs_vencidos' => ['etiqueta' => 'Documentos vencidos / faltantes', 'icono' => 'fas fa-circle-exclamation'],
             'dashboard_card_legajos_por_tipo' => ['etiqueta' => 'Legajos completados por tipo', 'icono' => 'fas fa-table-list'],
             'dashboard_card_legajos_por_usuario' => ['etiqueta' => 'Legajos verificados por usuario', 'icono' => 'fas fa-users'],
-            'dashboard_card_grafico_productividad' => ['etiqueta' => 'Gráfico de productividad', 'icono' => 'fas fa-chart-line'],
+            'dashboard_card_grafico_productividad' => ['etiqueta' => 'GrÃ¡fico de productividad', 'icono' => 'fas fa-chart-line'],
         ];
     }
 
@@ -146,31 +229,30 @@ class SeguridadLegajosModel extends Mysql
     {
         return [
             'solo_lectura' => [
-                'nombre' => 'Solo Lectura',
-                'descripcion' => 'Acceso a vistas de consulta, sin capacidad de modificación',
+                'nombre' => 'Solo lectura',
+                'descripcion' => 'Puede buscar y ver legajos, sin modificar nada.',
                 'icono' => 'fas fa-eye',
                 'permisos' => [
-                    'dashboard_legajos',
                     'buscar_legajos',
                 ]
             ],
             'basico' => [
-                'nombre' => 'Básico',
-                'descripcion' => 'Acceso completo a legajos con operaciones básicas',
+                'nombre' => 'Basico',
+                'descripcion' => 'Puede armar, buscar, ver y editar legajos, sin tareas administrativas.',
                 'icono' => 'fas fa-tasks',
                 'permisos' => [
                     'dashboard_legajos',
                     'armar_legajo',
                     'buscar_legajos',
-                    'verificar_legajos',
                     'cargar_documento',
+                    'eliminar_documento',
                     'generar_pdf',
                 ]
             ],
-            'avanzado' => [
-                'nombre' => 'Avanzado',
-                'descripcion' => 'Acceso completo a legajos incluyendo administración y logs',
-                'icono' => 'fas fa-star',
+            'total' => [
+                'nombre' => 'Total',
+                'descripcion' => 'Puede hacer toda la operativa de legajos, incluyendo verificar, administrar, cerrar y eliminar.',
+                'icono' => 'fas fa-shield-alt',
                 'permisos' => [
                     'dashboard_legajos',
                     'armar_legajo',
@@ -184,9 +266,33 @@ class SeguridadLegajosModel extends Mysql
                     'eliminar_legajo',
                 ]
             ],
+            'avanzado' => [
+                'nombre' => 'Avanzado',
+                'descripcion' => 'Incluye control total de legajos y administracion de seguridad y permisos.',
+                'icono' => 'fas fa-star',
+                'permisos' => [
+                    'dashboard_legajos',
+                    'armar_legajo',
+                    'buscar_legajos',
+                    'verificar_legajos',
+                    'administrar_legajos',
+                    'log_legajos',
+                    'cargar_documento',
+                    'eliminar_documento',
+                    'generar_pdf',
+                    'eliminar_legajo',
+                    'permisos_legajos',
+                    'gestionar_permisos',
+                    'gestionar_roles',
+                    'crear_rol',
+                    'editar_rol',
+                    'eliminar_rol',
+                    'cambiar_estado_rol',
+                ]
+            ],
             'vacio' => [
-                'nombre' => 'Sin Permisos',
-                'descripcion' => 'Sin permisos (se asignarán manualmente)',
+                'nombre' => 'Sin permisos',
+                'descripcion' => 'Sin permisos (se asignaran manualmente)',
                 'icono' => 'fas fa-ban',
                 'permisos' => []
             ]
@@ -201,10 +307,59 @@ class SeguridadLegajosModel extends Mysql
         $presets = self::getPresetsPermisos();
 
         if (!isset($presets[$preset])) {
-            return false; // Preset no válido
+            return false; // Preset no vÃ¡lido
         }
 
         $permisosPreset = $presets[$preset]['permisos'];
+
+        if ($preset === 'basico') {
+            $permisosPreset = [
+                'dashboard_legajos',
+                'armar_legajo',
+                'buscar_legajos',
+                'cargar_documento',
+                'eliminar_documento',
+                'generar_pdf',
+            ];
+        } elseif ($preset === 'total') {
+            $permisosPreset = [
+                'dashboard_legajos',
+                'armar_legajo',
+                'buscar_legajos',
+                'verificar_legajos',
+                'administrar_legajos',
+                'log_legajos',
+                'cargar_documento',
+                'eliminar_documento',
+                'generar_pdf',
+                'eliminar_legajo',
+            ];
+        } elseif ($preset === 'avanzado') {
+            $permisosPreset = [
+                'dashboard_legajos',
+                'armar_legajo',
+                'buscar_legajos',
+                'verificar_legajos',
+                'administrar_legajos',
+                'log_legajos',
+                'cargar_documento',
+                'eliminar_documento',
+                'generar_pdf',
+                'eliminar_legajo',
+                'permisos_legajos',
+                'gestionar_permisos',
+                'gestionar_roles',
+                'crear_rol',
+                'editar_rol',
+                'eliminar_rol',
+                'cambiar_estado_rol',
+            ];
+        } elseif ($preset === 'solo_lectura') {
+            $permisosPreset = [
+                'buscar_legajos',
+            ];
+        }
+
         return $this->guardarPermisosLegajos($id_rol, array_flip($permisosPreset));
     }
 
@@ -283,7 +438,7 @@ class SeguridadLegajosModel extends Mysql
         return intval($res['total'] ?? 0) > 0;
     }
 
-    // insertarRol() eliminado — usar insertarRolConPermisos() que también asigna el preset.
+    // insertarRol() eliminado â€” usar insertarRolConPermisos() que tambiÃ©n asigna el preset.
 
     /**
      * Inserta un nuevo rol y asigna permisos por defecto.
@@ -349,7 +504,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Cuenta cuántos usuarios tienen asignado este rol.
+     * Cuenta cuÃ¡ntos usuarios tienen asignado este rol.
      */
     public function contarUsuariosPorRol(int $id_rol): int
     {
@@ -413,7 +568,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Obtiene los permisos de legajos de un rol específico.
+     * Obtiene los permisos de legajos de un rol especÃ­fico.
      * Retorna array: [accion => permitido]
      */
     public function selectPermisosLegajosPorRol(int $id_rol): array
@@ -435,7 +590,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Verifica si un rol tiene un permiso específico.
+     * Verifica si un rol tiene un permiso especÃ­fico.
      * Retorna true si tiene el permiso, false en caso contrario.
      */
     public function tienePermisoLegajo(int $id_rol, string $accion): bool
@@ -487,7 +642,7 @@ class SeguridadLegajosModel extends Mysql
     }
 
     /**
-     * Obtiene la configuración de visibilidad de legajos ajenos por rol.
+     * Obtiene la configuraciÃ³n de visibilidad de legajos ajenos por rol.
      * Retorna array indexado: [id_rol] => 0|1
      */
     public function selectVisibilidadLegajosOtrosPorRol(): array
@@ -522,7 +677,7 @@ class SeguridadLegajosModel extends Mysql
             $resultado = $this->select($sql, [$id_rol, self::ACCION_VER_LEGAJOS_OTROS]);
 
             if (empty($resultado)) {
-                return true;
+                return false;
             }
 
             if (is_array($resultado) && isset($resultado[0]) && is_array($resultado[0])) {
@@ -532,12 +687,12 @@ class SeguridadLegajosModel extends Mysql
             return intval($resultado['permitido'] ?? 0) === 1;
         } catch (Throwable $e) {
             error_log("Error verificando visibilidad de legajos ajenos para rol $id_rol: " . $e->getMessage());
-            return true;
+            return false;
         }
     }
 
     /**
-     * Guarda la configuración de visibilidad de legajos ajenos por rol.
+     * Guarda la configuraciÃ³n de visibilidad de legajos ajenos por rol.
      */
     public function guardarVisibilidadLegajosOtros(int $id_rol, bool $permitido): bool
     {
@@ -650,7 +805,7 @@ class SeguridadLegajosModel extends Mysql
                 WHERE id_rol = ?";
         $rows = $this->select_all($sql, [$id_rol]);
         if (empty($rows)) {
-            return $idsDisponibles;
+            return [];
         }
 
         $permitidos = [];
@@ -660,7 +815,7 @@ class SeguridadLegajosModel extends Mysql
         }
 
         foreach ($idsDisponibles as $idTipoLegajo) {
-            if (!array_key_exists($idTipoLegajo, $mapaEstados) || intval($mapaEstados[$idTipoLegajo]) === 1) {
+            if (array_key_exists($idTipoLegajo, $mapaEstados) && intval($mapaEstados[$idTipoLegajo]) === 1) {
                 $permitidos[] = $idTipoLegajo;
             }
         }
@@ -732,3 +887,4 @@ class SeguridadLegajosModel extends Mysql
         }
     }
 }
+

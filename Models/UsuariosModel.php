@@ -23,7 +23,7 @@ class UsuariosModel extends Mysql
 
             $columnaEstadoRoles = $this->select_all("SHOW COLUMNS FROM roles LIKE 'estado'");
             if (empty($columnaEstadoRoles)) {
-                $this->update("ALTER TABLE roles ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'activo' AFTER id_departamento", []);
+                $this->update("ALTER TABLE roles ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'activo'", []);
             }
 
             $rolScantec = $this->select("SELECT id_rol FROM roles WHERE id_rol = 1 LIMIT 1");
@@ -48,11 +48,16 @@ class UsuariosModel extends Mysql
             }
 
             $this->update(
-                "UPDATE usuarios SET id_rol = 2 WHERE id_rol = 1 AND LOWER(TRIM(usuario)) <> 'root'",
+                "UPDATE usuarios
+                 SET id_rol = 2
+                 WHERE id_rol = 1
+                   AND LOWER(TRIM(usuario)) NOT IN ('root', 'scantec')",
                 []
             );
             $this->update(
-                "UPDATE usuarios SET id_rol = 1 WHERE LOWER(TRIM(usuario)) = 'root'",
+                "UPDATE usuarios
+                 SET id_rol = 1
+                 WHERE LOWER(TRIM(usuario)) IN ('root', 'scantec')",
                 []
             );
         } catch (\Throwable $e) {

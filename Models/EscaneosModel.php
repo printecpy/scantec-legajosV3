@@ -104,7 +104,7 @@ class EscaneosModel extends Mysql{
 
     public function reporteEsctotal(string $mes_desde, string $anio_desde, string $mes_hasta, string $anio_hasta)
     {
-        // Convertir las cadenas a valores numéricos
+        // Convertir las cadenas a valores numÃ©ricos
         $mes_desde = (int)$mes_desde;
         $anio_desde = (int)$anio_desde;
         $mes_hasta = (int)$mes_hasta;
@@ -121,14 +121,15 @@ class EscaneosModel extends Mysql{
          FROM (
              SELECT SUM(pag_esc) AS pag_escaneadas, 
                     SUM(cant_exp) AS cant_expedientes,
-                    CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio
+                    CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio,
+                                MIN(fecha) AS fecha_orden
              FROM v_escaneos
              WHERE (YEAR(fecha) = $anio_desde AND MONTH(fecha) >= $mes_desde)
                  OR (YEAR(fecha) = $anio_hasta AND MONTH(fecha) <= $mes_hasta)
                  OR (YEAR(fecha) > $anio_desde AND YEAR(fecha) < $anio_hasta)
              GROUP BY YEAR(fecha), MONTH(fecha), mes_anio
          ) AS derived_table
-         ORDER BY mes_anio ASC;";
+         ORDER BY fecha_orden ASC;";
 
         // Ejecutar la consulta y devolver el resultado
         $res = $this->select_all($sql);
@@ -146,7 +147,7 @@ class EscaneosModel extends Mysql{
             SELECT SUM(pag_esc) AS pag_escaneadas, 
                     SUM(cant_exp) AS cant_expedientes,
                     MIN(fecha) AS fecha,
-                    YEAR(MIN(fecha)) AS month_number, 
+                    (YEAR(MIN(fecha)) * 100 + MONTH(MIN(fecha))) AS month_number, 
                     operador
             FROM v_escaneos 
             WHERE id_operador = $id_operador
@@ -168,7 +169,7 @@ class EscaneosModel extends Mysql{
             SELECT SUM(pag_esc) AS pag_escaneadas, 
                     SUM(cant_exp) AS cant_expedientes,
                     MIN(fecha) AS fecha,
-                    YEAR(MIN(fecha)) AS month_number, 
+                    (YEAR(MIN(fecha)) * 100 + MONTH(MIN(fecha))) AS month_number, 
                     id_est, nombre_pc 
             FROM v_escaneos 
             WHERE id_est = $id_est
@@ -209,12 +210,12 @@ class EscaneosModel extends Mysql{
         return $res;
     }
 
-    // Función para validar el formato de fecha
+    // FunciÃ³n para validar el formato de fecha
     function validarFecha($fecha)
     {
         $fecha_validada = DateTime::createFromFormat('m/d/Y H:i:s', $fecha);
         if (!$fecha_validada) {
-            throw new Exception("El formato de fecha no es válido");
+            throw new Exception("El formato de fecha no es vÃ¡lido");
         }
         return $fecha_validada->format('Y-m-d H:i:s');
     }

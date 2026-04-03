@@ -53,6 +53,7 @@ $formatearCi = static function ($valor) {
                             <option value="Incompleto" <?php echo $estado_legajo === 'Incompleto' ? 'selected' : ''; ?>>Incompleto</option>
                             <option value="Vencido" <?php echo $estado_legajo === 'Vencido' ? 'selected' : ''; ?>>Vencido</option>
                             <option value="Completado" <?php echo $estado_legajo === 'Completado' ? 'selected' : ''; ?>>Completado</option>
+                            <option value="Generado" <?php echo $estado_legajo === 'Generado' ? 'selected' : ''; ?>>Generado</option>
                             <option value="Verificación rechazada" <?php echo $estado_legajo === 'Verificación rechazada' ? 'selected' : ''; ?>>Verificación rechazada</option>
                             <option value="Verificado" <?php echo $estado_legajo === 'Verificado' ? 'selected' : ''; ?>>Verificado</option>
                             <option value="Cerrado" <?php echo $estado_legajo === 'Cerrado' ? 'selected' : ''; ?>>Cerrado</option>
@@ -121,6 +122,8 @@ $formatearCi = static function ($valor) {
                                     $claseEstado = 'bg-slate-200 text-slate-800';
                                 } elseif ($estadoTexto === 'Verificación rechazada') {
                                     $claseEstado = 'bg-amber-100 text-amber-800';
+                                } elseif ($estadoTexto === 'Generado') {
+                                    $claseEstado = 'bg-sky-100 text-sky-800';
                                 } elseif ($estadoTexto === 'Completado') {
                                     $claseEstado = 'bg-green-100 text-green-800';
                                 } elseif ($estadoTexto === 'Verificado') {

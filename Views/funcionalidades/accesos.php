@@ -7,15 +7,92 @@ $idRolActual = intval($data['id_rol_actual'] ?? 0);
 $idDepartamentoActual = intval($data['id_departamento_actual'] ?? 0);
 $accesosDisponibles = $data['accesos_disponibles'] ?? [];
 $accesosActuales = $data['accesos_actuales'] ?? [];
+$accesosFinalesEspeciales = [];
+
+if (!function_exists('normalizarTextoAccesosVista')) {
+    function normalizarTextoAccesosVista($valor)
+    {
+        if (!is_string($valor) || $valor === '') {
+            return $valor;
+        }
+
+        $reemplazos = [
+            'MÃ©todos' => 'Métodos',
+            'MÃƒÂ©todos' => 'Métodos',
+            'ActualizaciÃ³n' => 'Actualización',
+            'ActualizaciÃƒÂ³n' => 'Actualización',
+            'AdministraciÃ³n' => 'Administración',
+            'AdministraciÃƒÂ³n' => 'Administración',
+            'AdministraciÃƒÆ’Ã‚Â³n' => 'Administración',
+            'AuditorÃ­a' => 'Auditoría',
+            'AuditorÃƒÂ­a' => 'Auditoría',
+            'AuditorÃƒÆ’Ã‚Â­a' => 'Auditoría',
+            'ConfiguraciÃ³n' => 'Configuración',
+            'ConfiguraciÃƒÂ³n' => 'Configuración',
+            'DescripciÃ³n' => 'Descripción',
+            'DescripciÃƒÂ³n' => 'Descripción',
+            'funciÃ³n' => 'función',
+            'funciÃƒÂ³n' => 'función',
+            'quÃ©' => 'qué',
+            'quÃƒÂ©' => 'qué',
+            'segÃºn' => 'según',
+            'segÃƒÂºn' => 'según',
+            'automÃ¡ticamente' => 'automáticamente',
+            'automÃƒÂ¡ticamente' => 'automáticamente',
+            'mÃ³dulos' => 'módulos',
+            'mÃƒÂ³dulos' => 'módulos',
+            'aquÃ­' => 'aquí',
+            'aquÃƒÂ­' => 'aquí',
+            'tambiÃ©n' => 'también',
+            'tambiÃƒÂ©n' => 'también',
+            'ConfiguraciÃƒÂ³n' => 'Configuración',
+        ];
+
+        return strtr($valor, $reemplazos);
+    }
+}
 
 $grupos = [];
 foreach ($accesosDisponibles as $clave => $info) {
-    $grupo = $info['grupo'] ?? 'General';
+    if ($clave === 'tipos_relacion_archivos') {
+        $info['etiqueta'] = 'Legajos - Datos generales';
+    }
+    if ($clave === 'metodos_actualizacion_archivos') {
+        $info['etiqueta'] = 'Métodos de Actualización de Archivos';
+    }
+    if (in_array($clave, ['tipos_relacion_archivos', 'metodos_actualizacion_archivos'], true)) {
+        $accesosFinalesEspeciales[] = [$clave, $info];
+        continue;
+    }
+
+    $grupo = normalizarTextoAccesosVista($info['grupo'] ?? 'General');
     if (!isset($grupos[$grupo])) {
         $grupos[$grupo] = [];
     }
     $grupos[$grupo][$clave] = $info;
 }
+
+$ordenGrupos = [
+    'Dashboard' => 1,
+    'Legajos' => 2,
+    'Administración' => 3,
+    'Seguridad' => 4,
+    'Funcionalidades' => 5,
+    'Auditoría' => 6,
+    'Archivos' => 7,
+    'General' => 99,
+];
+
+uksort($grupos, static function ($a, $b) use ($ordenGrupos) {
+    $ordenA = $ordenGrupos[$a] ?? 50;
+    $ordenB = $ordenGrupos[$b] ?? 50;
+
+    if ($ordenA === $ordenB) {
+        return strcasecmp($a, $b);
+    }
+
+    return $ordenA <=> $ordenB;
+});
 ?>
 
 <main class="app-content bg-gray-50 min-h-screen py-8 font-sans">
@@ -60,7 +137,6 @@ foreach ($accesosDisponibles as $clave => $info) {
                             <?php $idRol = intval($rol['id_rol'] ?? 0); ?>
                             <option value="<?php echo $idRol; ?>" <?php echo $idRol === $idRolActual ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($rol['descripcion'] ?? ('Rol ' . $idRol)); ?>
-
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -118,16 +194,60 @@ foreach ($accesosDisponibles as $clave => $info) {
                                                 <?php echo $habilitado ? 'checked' : ''; ?>>
                                         </td>
                                         <td class="px-6 py-4 font-semibold text-gray-800">
-                                            <?php echo htmlspecialchars($info['etiqueta'] ?? $clave); ?>
+                                            <?php echo htmlspecialchars(normalizarTextoAccesosVista($info['etiqueta'] ?? $clave)); ?>
                                         </td>
                                         <td class="px-6 py-4 text-gray-500 font-mono text-xs">
                                             <?php echo htmlspecialchars($info['ruta'] ?? ''); ?>
                                         </td>
                                         <td class="px-6 py-4 text-gray-600">
-                                            <?php echo htmlspecialchars($info['descripcion'] ?? ''); ?>
+                                            <?php echo htmlspecialchars(normalizarTextoAccesosVista($info['descripcion'] ?? '')); ?>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+
+            <?php foreach ($accesosFinalesEspeciales as [$claveEspecial, $infoEspecial]): ?>
+                <?php $habilitadoEspecial = intval($accesosActuales[$claveEspecial] ?? 1) === 1; ?>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                    <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue flex items-center justify-between gap-4">
+                        <h5 class="font-bold text-white flex items-center">
+                            <i class="fas fa-layer-group mr-2 text-white"></i> <?php echo htmlspecialchars(normalizarTextoAccesosVista($infoEspecial['etiqueta'] ?? $claveEspecial)); ?>
+                        </h5>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-20">Activo</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Ventana o función</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Ruta</th>
+                                    <th class="text-left px-6 py-3 font-bold text-xs uppercase tracking-wider text-gray-600">Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <td class="px-4 py-4 text-center">
+                                        <input type="checkbox"
+                                            name="accesos[<?php echo htmlspecialchars($claveEspecial); ?>]"
+                                            value="1"
+                                            class="rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue"
+                                            <?php echo $habilitadoEspecial ? 'checked' : ''; ?>>
+                                    </td>
+                                    <td class="px-6 py-4 font-semibold text-gray-800">
+                                        <?php echo htmlspecialchars(normalizarTextoAccesosVista($infoEspecial['etiqueta'] ?? $claveEspecial)); ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-500 font-mono text-xs">
+                                        <?php echo htmlspecialchars($infoEspecial['ruta'] ?? ''); ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-600">
+                                        <?php echo htmlspecialchars(normalizarTextoAccesosVista($infoEspecial['descripcion'] ?? '')); ?>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -166,12 +286,12 @@ document.addEventListener('DOMContentLoaded', function () {
         btnGuardar.addEventListener('click', function () {
             Swal.fire({
                 title: 'Guardar accesos',
-                text: 'Se actualizaran las ventanas activas para el rol seleccionado en su departamento asociado.',
+                text: 'Se actualizarán las ventanas activas para el rol seleccionado en su departamento asociado.',
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#182541',
                 cancelButtonColor: '#d33',
-                confirmButtonText: '<i class="fas fa-save"></i> Si, guardar',
+                confirmButtonText: '<i class="fas fa-save"></i> Sí, guardar',
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -182,5 +302,3 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
-
-

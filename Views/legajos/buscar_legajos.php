@@ -27,8 +27,7 @@ $formatearCi = static function ($valor) {
                 </p>
             </div>
 
-            <div>
-                <a href="#" onclick="window.history.back(); return false;"
+            <div><a href="#" onclick="window.history.back(); return false;"
                     class="group px-4 h-10 rounded-xl bg-gray-600 text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm"
                     title="Volver atrás">
                     <i class="fas fa-arrow-left mr-2"></i> Volver
@@ -66,9 +65,11 @@ $formatearCi = static function ($valor) {
                             <select id="estado_legajo" name="estado_legajo"
                                 class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-700 transition-shadow">
                                 <option value="">Todos los estados</option>
+                                <option value="Proceso" <?php echo $estado_legajo === 'Proceso' ? 'selected' : ''; ?>>Proceso</option>
                                 <option value="Incompleto" <?php echo $estado_legajo === 'Incompleto' ? 'selected' : ''; ?>>Incompleto</option>
                                 <option value="Vencido" <?php echo $estado_legajo === 'Vencido' ? 'selected' : ''; ?>>Vencido</option>
                                 <option value="Completado" <?php echo $estado_legajo === 'Completado' ? 'selected' : ''; ?>>Completado</option>
+                                <option value="Generado" <?php echo $estado_legajo === 'Generado' ? 'selected' : ''; ?>>Generado</option>
                                 <option value="Verificación rechazada" <?php echo $estado_legajo === 'Verificación rechazada' ? 'selected' : ''; ?>>Verificación rechazada</option>
                                 <option value="Verificado" <?php echo $estado_legajo === 'Verificado' ? 'selected' : ''; ?>>Verificado</option>
                                 <option value="Cerrado" <?php echo $estado_legajo === 'Cerrado' ? 'selected' : ''; ?>>Cerrado</option>
@@ -142,6 +143,10 @@ $formatearCi = static function ($valor) {
                                             $claseEstado = 'bg-slate-200 text-slate-800';
                                         } elseif ($estadoTexto === 'Verificación rechazada') {
                                             $claseEstado = 'bg-amber-100 text-amber-800';
+                                        } elseif ($estadoTexto === 'Proceso') {
+                                            $claseEstado = 'bg-indigo-100 text-indigo-800';
+                                        } elseif ($estadoTexto === 'Generado') {
+                                            $claseEstado = 'bg-sky-100 text-sky-800';
                                         } elseif ($estadoTexto === 'Completado') {
                                             $claseEstado = 'bg-green-100 text-green-800';
                                         } elseif ($estadoTexto === 'Verificado') {
@@ -158,6 +163,7 @@ $formatearCi = static function ($valor) {
                                     </td>
                                     <td class="px-6 py-3 text-right">
                                         <?php $puedeVerPdfFinal = !empty($resultado['pdf_final_disponible']); ?>
+                                        <?php $puedeDuplicar = !empty($resultado['requiere_nro_solicitud']); ?>
                                         <div class="flex justify-end gap-2">
                                             <?php if ($puedeVerPdfFinal): ?>
                                             <a href="<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
@@ -173,11 +179,13 @@ $formatearCi = static function ($valor) {
                                                 title="Abrir">
                                                 <i class="fas fa-folder-open"></i>
                                             </a>
+                                            <?php if ($puedeDuplicar): ?>
                                             <a href="<?php echo base_url(); ?>legajos/armar_legajo?duplicar_desde=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
                                                 class="w-10 h-10 bg-gray-700 text-white rounded-lg font-bold text-xs hover:bg-gray-900 transition-all inline-flex items-center justify-center"
                                                 title="Duplicar">
                                                 <i class="fas fa-copy"></i>
                                             </a>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>

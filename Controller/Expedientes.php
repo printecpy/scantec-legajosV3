@@ -9,13 +9,13 @@ class Expedientes extends Controllers
 {
     public function __construct()
     {
-        // CORRECCIÓN: verificar antes de iniciar para evitar "session already started"
+        // CORRECCIÃ“N: verificar antes de iniciar para evitar "session already started"
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
-            exit(); // CORRECCIÓN: agregar exit() para detener la ejecución tras redirigir
+            exit(); // CORRECCIÃ“N: agregar exit() para detener la ejecuciÃ³n tras redirigir
         }
         parent::__construct();
     }
@@ -30,7 +30,7 @@ class Expedientes extends Controllers
     {
         $indice_04 = $this->model->selectDocumento();
         $tipos_documentos = $this->model->selectTipoDoc();
-        // Asegúrate de que la clave sea la misma en la vista y en el controlador
+        // AsegÃºrate de que la clave sea la misma en la vista y en el controlador
         $data = ['indice_04' => $indice_04, 'tipos_documentos' => $tipos_documentos];
         $this->views->getView($this, "indice_busqueda", $data);
     }
@@ -38,7 +38,7 @@ class Expedientes extends Controllers
     public function upload_files()
     {
         $tipos_documentos = $this->model->selectTipoDoc();
-        // Asegúrate de que la clave sea la misma en la vista y en el controlador
+        // AsegÃºrate de que la clave sea la misma en la vista y en el controlador
         $data = ['tipos_documentos' => $tipos_documentos];
         $this->views->getView($this, "upload_files", $data);
     }
@@ -97,14 +97,14 @@ class Expedientes extends Controllers
         $id_expediente = $_GET['id_expediente'];
         //Consultar al Modelo
         $respuesta_modelo = $this->model->editExpediente($id_expediente);
-        // Verificamos si la respuesta tiene el índice 0 (es decir, si es un array de arrays)
+        // Verificamos si la respuesta tiene el Ã­ndice 0 (es decir, si es un array de arrays)
         if (!empty($respuesta_modelo) && isset($respuesta_modelo[0])) {
             $expediente = $respuesta_modelo[0];
         } else {
-            // Si no tiene índice 0, asumimos que ya es el array plano o está vacío
+            // Si no tiene Ã­ndice 0, asumimos que ya es el array plano o estÃ¡ vacÃ­o
             $expediente = $respuesta_modelo;
         }
-        // validación final: Si después de limpiar sigue vacío, es que no existe el ID
+        // validaciÃ³n final: Si despuÃ©s de limpiar sigue vacÃ­o, es que no existe el ID
         if (empty($expediente)) {
             header("Location: " . base_url() . "expedientes");
             exit();
@@ -134,18 +134,18 @@ class Expedientes extends Controllers
     public function modificar()
     {
         // 1. Verificar Token CSRF (Seguridad)
-        // Si no existe o no coincide, detenemos la ejecución para evitar ataques.
+        // Si no existe o no coincide, detenemos la ejecuciÃ³n para evitar ataques.
         if (!isset($_POST['token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
             header("Location: " . base_url() . "expedientes?error=csrf");
             die();
         }
 
         // 2. Recibir datos del formulario (POST)
-        // Usamos el operador de fusión null (??) para evitar errores "Undefined index"
+        // Usamos el operador de fusiÃ³n null (??) para evitar errores "Undefined index"
         $id_expediente = $_POST['id_expediente'];
 
-        // id_proceso puede venir vacío si el input estaba 'disabled' en el HTML.
-        // Si es vital, asegúrate de quitar el 'disabled' o usar 'readonly'.
+        // id_proceso puede venir vacÃ­o si el input estaba 'disabled' en el HTML.
+        // Si es vital, asegÃºrate de quitar el 'disabled' o usar 'readonly'.
         $id_proceso = $_POST['id_proceso'] ?? '';
 
         // Limpiamos los datos básicos con htmlspecialchars para evitar XSS
@@ -159,12 +159,12 @@ class Expedientes extends Controllers
         $firma_digital = htmlspecialchars($_POST['firma_digital'] ?? 'no'); // Valor por defecto 'no'
         $version = htmlspecialchars($_POST['version'] ?? '1.0');     // Valor por defecto '1.0'
 
-        // CORRECCIÓN CLAVE DEL ERROR 500:
-        // Aseguramos que 'paginas' sea un número entero. Si no viene, ponemos 1.
+        // CORRECCIÃ“N CLAVE DEL ERROR 500:
+        // Aseguramos que 'paginas' sea un nÃºmero entero. Si no viene, ponemos 1.
         $paginas = !empty($_POST['paginas']) ? intval($_POST['paginas']) : 1;
 
         // 3. Llamar al Modelo
-        // El orden de los argumentos debe coincidir EXACTAMENTE con la definición en tu Modelo.
+        // El orden de los argumentos debe coincidir EXACTAMENTE con la definiciÃ³n en tu Modelo.
         $actualizar = $this->model->actualizarExpediente(
             $id_proceso,
             $indice_01,
@@ -182,17 +182,17 @@ class Expedientes extends Controllers
 
         // 4. Redireccionar con Mensaje
         if ($actualizar) {
-            // Guardamos mensaje de ÉXITO en la sesión
+            // Guardamos mensaje de Ã‰XITO en la sesiÃ³n
             $_SESSION['alert'] = [
                 'type' => 'success',
                 'message' => 'Expediente modificado correctamente.'
             ];
 
-            // Redirigimos a la misma página de edición para ver los cambios reflejados
+            // Redirigimos a la misma pÃ¡gina de ediciÃ³n para ver los cambios reflejados
             header("Location: " . base_url() . "expedientes/editar?id_expediente=" . $id_expediente);
             die();
         } else {
-            // Guardamos mensaje de ERROR en la sesión
+            // Guardamos mensaje de ERROR en la sesiÃ³n
             $_SESSION['alert'] = [
                 'type' => 'error',
                 'message' => 'Error al guardar los cambios en la base de datos.'
@@ -205,23 +205,23 @@ class Expedientes extends Controllers
     }
     public function subir()
     {
-        // 1. 🚀 CONFIGURACIÓN DE RENDIMIENTO
+        // 1. ðŸš€ CONFIGURACIÃ“N DE RENDIMIENTO
         // Evita que el script se corte por tiempo (Timeout)
         set_time_limit(0);
         // Aumenta memoria temporalmente para este proceso pesado
         ini_set('memory_limit', '1024M');
 
-        // --- 🔐 SEGURIDAD: Validación de CSRF ---
+        // --- ðŸ” SEGURIDAD: ValidaciÃ³n de CSRF ---
         if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
             header("Location: " . base_url() . "?error=csrf");
             die();
         }
 
-        // === 🛠️ RUTAS ABSOLUTAS ===
+        // === ðŸ› ï¸ RUTAS ABSOLUTAS ===
         $magick_escaped = escapeshellarg(MAGICK_EXECUTABLE_PATH);
         $tesseract_escaped = escapeshellarg(TESSERACT_EXECUTABLE_PATH);
 
-        // --- ⚙️ PREPARACIÓN DE DATOS ---
+        // --- âš™ï¸ PREPARACIÃ“N DE DATOS ---
         date_default_timezone_set('America/Asuncion');
         $id_proceso = date("Ymd-His");
 
@@ -234,12 +234,12 @@ class Expedientes extends Controllers
         $indice_05 = filter_input(INPUT_POST, 'indice_05', FILTER_SANITIZE_STRING);
         $indice_06 = filter_input(INPUT_POST, 'indice_06', FILTER_SANITIZE_STRING);
 
-        // --- 📁 RUTAS DE ARCHIVOS ---
+        // --- ðŸ“ RUTAS DE ARCHIVOS ---
         $nombre_final = $indice_04 . '.pdf'; // Usamos Indice 4 como nombre
         $ruta_relativa = 'Expedientes/' . $nombre_final;
         $ubicacion_fisica = RUTA_BASE . $ruta_relativa;
 
-        // --- 📤 VALIDAR SUBIDA ---
+        // --- ðŸ“¤ VALIDAR SUBIDA ---
         if (!isset($_FILES['file_pdf']) || $_FILES['file_pdf']['error'] !== UPLOAD_ERR_OK) {
             setAlert('error', "Error al subir el archivo.");
             header("location: " . base_url() . "expedientes/upload_files");
@@ -260,7 +260,7 @@ class Expedientes extends Controllers
         }
 
         // =============================================
-        // 🔄 PROCESAMIENTO: ENDEREZADO (DESKEW)
+        // ðŸ”„ PROCESAMIENTO: ENDEREZADO (DESKEW)
         // =============================================
         // Nota: Solo procesamos si realmente queremos corregir (Esto es LENTO)
 
@@ -272,7 +272,7 @@ class Expedientes extends Controllers
         $pdf_path_escaped = escapeshellarg($ubicacion_fisica);
         $img_output_path = escapeshellarg($temp_dir . 'page_%03d.png');
 
-        // 1️⃣ Convertir PDF a imágenes (Bajamos a 200 DPI para velocidad, 300 es muy pesado)
+        // 1ï¸âƒ£ Convertir PDF a imÃ¡genes (Bajamos a 200 DPI para velocidad, 300 es muy pesado)
         $cmd_convert = "$magick_escaped -density 200 -units PixelsPerInch $pdf_path_escaped $img_output_path 2>&1";
         exec($cmd_convert, $output_lines, $return_var);
 
@@ -283,10 +283,10 @@ class Expedientes extends Controllers
                 foreach ($images as $img) {
                     $img_escaped = escapeshellarg($img);
 
-                    // 2️⃣ Enderezar (Deskew)
+                    // 2ï¸âƒ£ Enderezar (Deskew)
                     shell_exec("$magick_escaped mogrify -deskew 40% $img_escaped 2>&1");
 
-                    // 3️⃣ Detectar rotación con Tesseract (OSD)
+                    // 3ï¸âƒ£ Detectar rotaciÃ³n con Tesseract (OSD)
                     $cmd_tesseract = "$tesseract_escaped $img_escaped stdout --psm 0 -l osd 2>&1";
                     $output_tess = [];
                     exec($cmd_tesseract, $output_tess);
@@ -301,7 +301,7 @@ class Expedientes extends Controllers
                     }
                 }
 
-                // 4️⃣ Reconstruir PDF
+                // 4ï¸âƒ£ Reconstruir PDF
                 $temp_output_escaped = escapeshellarg($temp_output);
                 $img_input_path = escapeshellarg($temp_dir . "page_*.png");
 
@@ -309,7 +309,7 @@ class Expedientes extends Controllers
                 $cmd_rebuild = "$magick_escaped -density 200 $img_input_path $temp_output_escaped 2>&1";
                 shell_exec($cmd_rebuild);
 
-                // Si se creó bien, reemplazamos el original
+                // Si se creÃ³ bien, reemplazamos el original
                 if (file_exists($temp_output)) {
                     copy($temp_output, $ubicacion_fisica);
                     unlink($temp_output);
@@ -318,10 +318,10 @@ class Expedientes extends Controllers
         }
 
         // ========================================================
-        // 5️⃣ CONTAR PÁGINAS (MÉTODO ÓPTIMO SIN PHP_IMAGICK) 🚀
+        // 5ï¸âƒ£ CONTAR PÃGINAS (MÃ‰TODO Ã“PTIMO SIN PHP_IMAGICK) ðŸš€
         // ========================================================
-        // Usamos 'identify' de consola. Es mucho más ligero.
-        // -format %n : Devuelve el número de páginas.
+        // Usamos 'identify' de consola. Es mucho mÃ¡s ligero.
+        // -format %n : Devuelve el nÃºmero de pÃ¡ginas.
 
         $num_paginas = 1; // Valor por defecto
 
@@ -329,20 +329,20 @@ class Expedientes extends Controllers
         $cmd_count = "$magick_escaped identify -format %n $pdf_path_escaped";
         $output_count = shell_exec($cmd_count);
 
-        // ImageMagick a veces devuelve un número por cada imagen procesada si hay ghostscript de fondo.
-        // O devuelve directamente el número. Lo limpiamos:
+        // ImageMagick a veces devuelve un nÃºmero por cada imagen procesada si hay ghostscript de fondo.
+        // O devuelve directamente el nÃºmero. Lo limpiamos:
         if ($output_count) {
-            // A veces devuelve "111" (tres páginas) o líneas separadas.
-            // La forma segura para PDF multipágina:
+            // A veces devuelve "111" (tres pÃ¡ginas) o lÃ­neas separadas.
+            // La forma segura para PDF multipÃ¡gina:
             $output_lines_count = [];
             exec($cmd_count, $output_lines_count);
 
-            // Si devuelve muchas líneas, el conteo es el número de líneas
+            // Si devuelve muchas lÃ­neas, el conteo es el nÃºmero de lÃ­neas
             if (count($output_lines_count) > 0) {
-                // Opción A: Contar líneas (típico comportamiento de identify en PDFs)
+                // OpciÃ³n A: Contar lÃ­neas (tÃ­pico comportamiento de identify en PDFs)
                 $num_paginas = count($output_lines_count);
 
-                // Opción B: Si devuelve un solo número
+                // OpciÃ³n B: Si devuelve un solo nÃºmero
                 if ($num_paginas == 1 && is_numeric(trim($output_lines_count[0]))) {
                     $num_paginas = intval(trim($output_lines_count[0]));
                 }
@@ -356,7 +356,7 @@ class Expedientes extends Controllers
         }
 
         // =============================
-        // 💾 REGISTRO EN BD
+        // ðŸ’¾ REGISTRO EN BD
         // =============================
         $ubicacion = "scantec";
         $version = "1.0";
@@ -379,7 +379,7 @@ class Expedientes extends Controllers
         );
 
         if ($registrar) {
-            setAlert('success', "Procesado correctamente. Páginas detectadas: $num_paginas");
+            setAlert('success', "Procesado correctamente. PÃ¡ginas detectadas: $num_paginas");
         } else {
             setAlert('error', "Error al registrar en BD.");
         }
@@ -394,7 +394,7 @@ class Expedientes extends Controllers
         $indice_05 = $_POST['indice_05'];
         $actualizar = $this->model->buscarExpediente($indice_05);
         if ($actualizar) {
-            header("location: " . base_url() . "expedientes/buscador");
+            header("location: " . base_url() . "expedientes/busqueda");
             die();
         }
     }
@@ -452,7 +452,7 @@ class Expedientes extends Controllers
     public function eliminar()
     {
         if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            // Redirigir y mostrar un mensaje de error en caso de token CSRF inválido o caducado
+            // Redirigir y mostrar un mensaje de error en caso de token CSRF invÃ¡lido o caducado
             header("Location: " . base_url() . "?error=csrf");
             die();
         }
@@ -479,17 +479,17 @@ class Expedientes extends Controllers
             $id_expediente = intval($_GET['id_expediente']);
 
             if (file_exists($ruta_original)) {
-                // ✅ Registrar visualización
+                // âœ… Registrar visualizaciÃ³n
                 date_default_timezone_set('America/Asuncion');
                 $fecha = date("Y-m-d H:i:s");
                 $direccion_ip = $_SERVER["REMOTE_ADDR"] ?? "";
                 $nombre_pc = gethostbyaddr($_SERVER['REMOTE_ADDR']);
                 $nombre_expediente = urldecode($_GET['ruta']);
-                // ⚠️ Reemplazar con datos seguros si usás tokens
+                // âš ï¸ Reemplazar con datos seguros si usÃ¡s tokens
                 $id_user = 1;
                 $usuario = 'api_user';
                 $this->model->registrar_visualizacion($id_user, $id_expediente, $usuario, $nombre_pc, $nombre_expediente, $direccion_ip, $fecha);
-                // ✅ Mostrar PDF
+                // âœ… Mostrar PDF
                 header('Content-Type: application/pdf');
                 header('Content-Disposition: inline; filename="' . basename($ruta_original) . '"');
                 readfile($ruta_original);
@@ -501,16 +501,16 @@ class Expedientes extends Controllers
             }
         } else {
             http_response_code(400);
-            echo json_encode(['error' => 'Parámetros inválidos']);
+            echo json_encode(['error' => 'ParÃ¡metros invÃ¡lidos']);
             exit;
         }
     }
 
     public function ver_expediente2()
     {
-        // CORRECCIÓN: validar la ruta para prevenir Path Traversal (igual que ver_expediente())
+        // CORRECCIÃ“N: validar la ruta para prevenir Path Traversal (igual que ver_expediente())
         if (!isset($_GET['ruta']) || empty($_GET['ruta'])) {
-            setAlert('warning', 'Se requiere una ruta válida.');
+            setAlert('warning', 'Se requiere una ruta vÃ¡lida.');
             header('Location: ' . base_url() . 'expedientes/indice_busqueda');
             exit;
         }
@@ -520,7 +520,7 @@ class Expedientes extends Controllers
         $ruta_archivo_real = realpath(RUTA_BASE . $archivo_relativo);
 
         if ($ruta_archivo_real === false || strpos($ruta_archivo_real, $ruta_base_real) !== 0) {
-            setAlert('warning', 'Ruta inválida o fuera de la carpeta segura.');
+            setAlert('warning', 'Ruta invÃ¡lida o fuera de la carpeta segura.');
             header('Location: ' . base_url() . 'expedientes/indice_busqueda');
             exit;
         }
@@ -551,7 +551,7 @@ class Expedientes extends Controllers
                     echo "Ruta construida: $ruta_original";
 
                     if (file_exists($ruta_original)) { // Verificar si el archivo existe
-                    // Registra la visualización del expediente
+                    // Registra la visualizaciÃ³n del expediente
                     date_default_timezone_set('America/Asuncion');
                     $fecha = date("Y-m-d H:i:s");
                     $direccion_ip = $_SERVER["REMOTE_ADDR"] ?? "";
@@ -574,7 +574,7 @@ class Expedientes extends Controllers
 
     public function ver_expediente()
     {
-        // Validar parámetros
+        // Validar parÃ¡metros
         if (!isset($_GET['ruta'], $_GET['id_expediente']) || empty($_GET['ruta']) || empty($_GET['id_expediente'])) {
             die("Error: No se ha proporcionado la ruta del archivo o el ID del expediente.");
         }
@@ -585,13 +585,13 @@ class Expedientes extends Controllers
         // Construir ruta completa
         $ruta_original = RUTA_BASE . $archivo_relativo;
 
-        // Validar que la ruta esté dentro de la carpeta base
+        // Validar que la ruta estÃ© dentro de la carpeta base
         $ruta_base_real = realpath(RUTA_BASE);
         $ruta_archivo_real = realpath($ruta_original);
 
         // Validar ruta segura
         if ($ruta_archivo_real === false || strpos($ruta_archivo_real, $ruta_base_real) !== 0) {
-            setAlert('warning', 'Ruta inválida o fuera de la carpeta segura.');
+            setAlert('warning', 'Ruta invÃ¡lida o fuera de la carpeta segura.');
             $return_url = $_GET['return_url'] ?? base_url() . 'expedientes/mostrar_registros';
             header('Location: ' . $return_url);
             exit;
@@ -603,7 +603,7 @@ class Expedientes extends Controllers
             header('Location: ' . $return_url);
             exit;
         }
-        // Registrar visualización
+        // Registrar visualizaciÃ³n
         date_default_timezone_set('America/Asuncion');
         $fecha = date("Y-m-d H:i:s");
         $direccion_ip = $_SERVER['REMOTE_ADDR'] ?? '';
@@ -631,7 +631,7 @@ class Expedientes extends Controllers
 
     public function expediente()
     {
-        // Verificar que se recibieron los parámetros necesarios
+        // Verificar que se recibieron los parÃ¡metros necesarios
         if (!isset($_GET['ruta']) || empty($_GET['ruta']) || !isset($_GET['id_expediente']) || empty($_GET['id_expediente'])) {
             echo "<script>alert('No se ha proporcionado la ruta del archivo o el ID del expediente!');window.history.back();</script>";
             exit;
@@ -646,7 +646,7 @@ class Expedientes extends Controllers
 
         // Validar ruta segura
         if ($ruta_archivo_real === false || strpos($ruta_archivo_real, $ruta_base_segura) !== 0) {
-            setAlert('warning', 'Ruta inválida o fuera de la carpeta segura.');
+            setAlert('warning', 'Ruta invÃ¡lida o fuera de la carpeta segura.');
             $return_url = $_GET['return_url'] ?? base_url() . 'expedientes/mostrar_registros';
             header('Location: ' . $return_url);
             exit;
@@ -682,7 +682,7 @@ class Expedientes extends Controllers
         ob_clean();
         $pdf->Output('I', basename($archivo));
 
-        // Registrar visualización
+        // Registrar visualizaciÃ³n
         $direccion_ip = $_SERVER["REMOTE_ADDR"] ?? "";
         $nombre_pc = gethostbyaddr($_SERVER['REMOTE_ADDR']);
         $nombre_expediente = basename($archivo);
@@ -709,7 +709,7 @@ class Expedientes extends Controllers
 
         switch ($extension) {
             case 'pdf':
-                // === Tu código original para FPDI ===
+                // === Tu cÃ³digo original para FPDI ===
                 $pdf = new FPDI();
                 $pdf->SetFont('Arial', 'B', 8);
                 $pdf->SetTextColor(128, 128, 128);
@@ -750,7 +750,7 @@ class Expedientes extends Controllers
     }
 } */
 
-    // Método para obtener el token dinámicamente al firmar el archivo
+    // MÃ©todo para obtener el token dinÃ¡micamente al firmar el archivo
     public function getApiToken()
     {
         $credentials = $this->model->getApiCredentials('API de Firma Digital');
@@ -772,13 +772,13 @@ class Expedientes extends Controllers
         $responseData = json_decode($response, true);
 
         if (isset($responseData['token'])) {
-            return $responseData['token']; // Token solo para esta operación
+            return $responseData['token']; // Token solo para esta operaciÃ³n
         } else {
             throw new Exception("No se pudo obtener el token.");
         }
     }
 
-    // Método para firmar el archivo usando un webhook
+    // MÃ©todo para firmar el archivo usando un webhook
     public function signFileWithWebhook($idExpediente, $fileToSign, $usernameCert, $passwordCert, $pinCert)
     {
         $token = $this->getApiToken();
@@ -822,7 +822,7 @@ class Expedientes extends Controllers
 
     /*         public function obtener_metadatos()
         {
-            // Asegúrate de sanitizar el parámetro de entrada
+            // AsegÃºrate de sanitizar el parÃ¡metro de entrada
             $ruta_archivo = htmlspecialchars($_GET['ruta']);
             $ruta_completa = RUTA_BASE . $ruta_archivo;
 
@@ -832,7 +832,7 @@ class Expedientes extends Controllers
             }
 
             // Ruta del ExifTool
-            $exiftool = "C:/Tools/exiftool.exe"; // Ajustar según tu instalación
+            $exiftool = "C:/Tools/exiftool.exe"; // Ajustar segÃºn tu instalaciÃ³n
             $comando = "$exiftool -j \"$ruta_completa\"";
 
             // Ejecutar comando
@@ -852,11 +852,11 @@ class Expedientes extends Controllers
         $ruta_relativa = $_POST['ruta'] ?? '';
 
         if (empty($ruta_relativa)) {
-            echo "<div class='text-red-500 p-4'>Error: No se recibió la ruta del archivo.</div>";
+            echo "<div class='text-red-500 p-4'>Error: No se recibiÃ³ la ruta del archivo.</div>";
             exit;
         }
 
-        // 2. Construir y validar ruta física
+        // 2. Construir y validar ruta fÃ­sica
         // RUTA_BASE debe terminar en '/' o asegurarse al concatenar
         $archivo_pdf = RUTA_BASE . $ruta_relativa;
 
@@ -865,7 +865,7 @@ class Expedientes extends Controllers
             exit;
         }
 
-        // 3. Datos Básicos (PHP Nativo - Siempre funcionan)
+        // 3. Datos básicos (PHP Nativo - Siempre funcionan)
         $nombre = basename($archivo_pdf);
         $peso = round(filesize($archivo_pdf) / 1024, 2) . " KB";
         $fecha = date("d/m/Y H:i:s", filemtime($archivo_pdf));
@@ -902,11 +902,11 @@ class Expedientes extends Controllers
         ?>
         <div class="space-y-4">
             <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h4 class="font-bold text-scantec-blue mb-2 text-sm uppercase">Información del Archivo</h4>
+                <h4 class="font-bold text-scantec-blue mb-2 text-sm uppercase">InformaciÃ³n del Archivo</h4>
                 <ul class="text-sm text-gray-700 space-y-1">
                     <li class="flex justify-between"><span class="font-semibold">Nombre:</span>
                         <span><?php echo $nombre; ?></span></li>
-                    <li class="flex justify-between"><span class="font-semibold">Tamaño:</span>
+                    <li class="flex justify-between"><span class="font-semibold">TamaÃ±o:</span>
                         <span><?php echo $peso; ?></span></li>
                     <li class="flex justify-between"><span class="font-semibold">Modificado:</span>
                         <span><?php echo $fecha; ?></span></li>
@@ -918,17 +918,17 @@ class Expedientes extends Controllers
                     <h4 class="font-bold text-gray-600 mb-3 text-sm uppercase">Metadatos Internos (PDF)</h4>
                     <div class="grid grid-cols-1 gap-2 text-sm">
                         <?php
-                        // Campos de interés a mostrar (para no mostrar basura técnica)
+                        // Campos de interÃ©s a mostrar (para no mostrar basura tÃ©cnica)
                         $campos_interes = [
-                            'Title' => 'Título',
+                            'Title' => 'TÃ­tulo',
                             'Author' => 'Autor',
                             'Subject' => 'Asunto',
                             'Keywords' => 'Palabras Clave',
                             'Creator' => 'Creador',
                             'Producer' => 'Productor PDF',
-                            'CreateDate' => 'Fecha Creación',
-                            'PageCount' => 'Páginas',
-                            'PDFVersion' => 'Versión PDF'
+                            'CreateDate' => 'Fecha CreaciÃ³n',
+                            'PageCount' => 'PÃ¡ginas',
+                            'PDFVersion' => 'VersiÃ³n PDF'
                         ];
 
                         foreach ($campos_interes as $key => $label):
@@ -958,7 +958,7 @@ class Expedientes extends Controllers
     public function obtener_metadatos_pdf()
     {
         header('Content-Type: application/json');
-        // Validar el parámetro 'ruta'
+        // Validar el parÃ¡metro 'ruta'
         if (!isset($_GET['ruta']) || empty($_GET['ruta'])) {
             echo json_encode(['success' => false, 'error' => 'La ruta del archivo PDF es requerida.']);
             exit;
@@ -967,7 +967,7 @@ class Expedientes extends Controllers
         // Sanitizar y verificar que el archivo existe
         $archivo_pdf = realpath(RUTA_BASE . htmlspecialchars($_GET['ruta']));
         if (!$archivo_pdf || !file_exists($archivo_pdf)) {
-            echo json_encode(['success' => false, 'error' => 'El archivo no existe o la ruta es inválida.']);
+            echo json_encode(['success' => false, 'error' => 'El archivo no existe o la ruta es invÃ¡lida.']);
             exit;
         }
 
@@ -1022,8 +1022,8 @@ class Expedientes extends Controllers
         $pdf->Cell(50, 7, utf8_decode('Indice 4'), 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Indice 5', 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Fecha carga', 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Páginas'), 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Versión'), 1, 1, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('PÃ¡ginas'), 1, 0, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('VersiÃ³n'), 1, 1, 'C', 1);
 
         // Configurar anchos para el bucle
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
@@ -1049,7 +1049,7 @@ class Expedientes extends Controllers
         $filePath = $tempDir . "/Expedientes_" . date('Y_m_d_His') . ".pdf";
         $pdf->Output('F', $filePath);
 
-        // Validar si el archivo se generó correctamente
+        // Validar si el archivo se generÃ³ correctamente
         if (file_exists($filePath)) {
             if ($mailController->sendEmailWithAttachment($filePath, [$destinatario => $nombreDestinatario], $asunto, $mensaje)) {
                 echo 'Correo enviado correctamente.';
@@ -1083,7 +1083,7 @@ class Expedientes extends Controllers
         }
 
         if (empty($destinatarios)) {
-            echo 'Error: No se ingresaron correos válidos.';
+            echo 'Error: No se ingresaron correos vÃ¡lidos.';
             return;
         }
         $asunto = 'Informe de Archivos';
@@ -1104,8 +1104,8 @@ class Expedientes extends Controllers
         $pdf->Cell(50, 7, utf8_decode('Indice 4'), 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Indice 5', 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Fecha carga', 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Páginas'), 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Versión'), 1, 1, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('PÃ¡ginas'), 1, 0, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('VersiÃ³n'), 1, 1, 'C', 1);
 
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
         $pdf->SetAligns(array('L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C'));
@@ -1157,8 +1157,8 @@ class Expedientes extends Controllers
         $pdf->Cell(50, 7, utf8_decode('Indice 4'), 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Indice 5', 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Fecha carga', 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Páginas'), 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Versión'), 1, 1, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('PÃ¡ginas'), 1, 0, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('VersiÃ³n'), 1, 1, 'C', 1);
 
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
         $pdf->SetAligns(array('L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C'));
@@ -1202,8 +1202,8 @@ class Expedientes extends Controllers
         $pdf->Cell(50, 7, utf8_decode('Indice 4'), 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Indice 5', 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Fecha carga', 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Páginas'), 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Versión'), 1, 1, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('PÃ¡ginas'), 1, 0, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('VersiÃ³n'), 1, 1, 'C', 1);
 
         $pdf->SetWidths(array(45, 65, 40, 40, 50, 35, 35, 15, 15));
         $pdf->SetAligns(array('L', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C'));
@@ -1240,13 +1240,13 @@ class Expedientes extends Controllers
         $pdf->SetTextColor(0, 0, 0);
 
         // Cabeceras
-        $pdf->Cell(15, 7, utf8_decode('N°'), 1, 0, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('NÂ°'), 1, 0, 'C', 1);
         $pdf->Cell(35, 7, utf8_decode('Indice 1'), 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Indice 2', 1, 0, 'C', 1);
         $pdf->Cell(35, 7, 'Indice 3', 1, 0, 'C', 1);
         $pdf->Cell(35, 7, utf8_decode('Indice 4'), 1, 0, 'C', 1);
         $pdf->Cell(168, 7, 'Indice 5', 1, 0, 'C', 1);
-        $pdf->Cell(15, 7, utf8_decode('Páginas'), 1, 1, 'C', 1);
+        $pdf->Cell(15, 7, utf8_decode('PÃ¡ginas'), 1, 1, 'C', 1);
 
         $pdf->SetWidths(array(15, 35, 35, 35, 35, 168, 15));
         $pdf->SetAligns(array('C', 'C', 'C', 'C', 'C', 'L', 'C'));
@@ -1311,7 +1311,7 @@ class Expedientes extends Controllers
             $dataRow++;
         }
 
-        // Ajustar columnas: Las largas con número fijo (Wrap), las cortas con 'auto'
+        // Ajustar columnas: Las largas con nÃºmero fijo (Wrap), las cortas con 'auto'
         $excel->setColumnWidths([
             'A' => 'auto',
             'B' => 45, // Indice 01

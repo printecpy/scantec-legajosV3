@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+    cacheDirectory=".phpunit.cache"
+    colors="true"
+    executionOrder="default"
+    failOnDeprecation="false"
+    failOnNotice="false"
+    failOnRisky="false"
+    failOnSkipped="false"
+    failOnWarning="false"
+>
+    <testsuites>
+        <testsuite name="SCANTEC Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory>Controller</directory>
+            <directory>Models</directory>
+            <directory>Libraries</directory>
+            <directory>Helpers</directory>
+            <directory>Config</directory>
+        </include>
+    </source>
+</phpunit>

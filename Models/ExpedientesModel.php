@@ -111,9 +111,9 @@ class ExpedientesModel extends Mysql
             WHERE estado = 'Activo'
             GROUP BY indice_01
         ) AS sub ON v.indice_01 = sub.indice_01
-        WHERE v.estado = 'Activo' AND v.indice_01='$indice_01'
+        WHERE v.estado = 'Activo' AND v.indice_01 = ?
         ORDER BY v.id_expediente ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$indice_01]);
         return $res;
     }
 
@@ -158,7 +158,7 @@ class ExpedientesModel extends Mysql
 
     public function selectRegistros2(string $indice_01, string $nombre_tipoDoc, string $termino)
     {
-        $id_grupo = $_SESSION['id_grupo'];
+        $id_grupo = intval($_SESSION['id_grupo'] ?? 0);
         $sql = "SELECT sub.cant_documentos, 
                v.id_proceso, 
                v.id_expediente,
@@ -186,19 +186,22 @@ class ExpedientesModel extends Mysql
         ) AS sub ON v.indice_01 = sub.indice_01
         JOIN permisos_documentos pd ON pd.id_tipoDoc = v.id_tipoDoc
         WHERE v.estado = 'Activo' 
-          AND pd.id_grupo = '$id_grupo' 
-          AND v.nombre_tipoDoc = '$nombre_tipoDoc'
-          AND v.indice_01 = '$indice_01'";
+          AND pd.id_grupo = ? 
+          AND v.nombre_tipoDoc = ?
+          AND v.indice_01 = ?";
+        $params = [$id_grupo, $nombre_tipoDoc, $indice_01];
         if (!empty($termino)) {
             $sql .= " AND (
-                v.indice_01 LIKE '$termino%' OR
-                v.indice_02 LIKE '$termino%' OR
-                v.indice_03 LIKE '$termino%' OR
-                v.indice_04 LIKE '$termino%'
+                v.indice_01 LIKE ? OR
+                v.indice_02 LIKE ? OR
+                v.indice_03 LIKE ? OR
+                v.indice_04 LIKE ?
             )";
+            $terminoLike = $termino . '%';
+            array_push($params, $terminoLike, $terminoLike, $terminoLike, $terminoLike);
         }
         $sql .= " ORDER BY v.id_expediente ASC";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, $params);
         return $res;
     }
 
@@ -291,11 +294,11 @@ class ExpedientesModel extends Mysql
                 FROM v_expedientes
                 WHERE estado = 'Activo'
                 GROUP BY indice_01
-            ) AS sub ON v.indice_01 = sub.indice_01
-            WHERE v.estado = 'Activo' AND v.indice_04 LIKE '%$indice_04%'
+                ) AS sub ON v.indice_01 = sub.indice_01
+            WHERE v.estado = 'Activo' AND v.indice_04 LIKE ?
             GROUP BY v.indice_01
             ORDER BY MIN(v.id_expediente) DESC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, ['%' . $indice_04 . '%']);
         return $res;
     }
 
@@ -383,7 +386,7 @@ class ExpedientesModel extends Mysql
 
     public function buscarExpediente2(int $id_tipoDoc, string $indice_01_pattern, string $indice_02_pattern, string $indice_03_pattern, string $indice_04_pattern)
     {
-        $id_grupo = $_SESSION['id_grupo'];
+        $id_grupo = intval($_SESSION['id_grupo'] ?? 0);
         $sql = "SELECT 
                 v.indice_01,
                 COUNT(*) AS cant_documentos,
@@ -413,21 +416,29 @@ class ExpedientesModel extends Mysql
             ) AS sub ON v.indice_01 = sub.indice_01
             JOIN permisos_documentos pd ON pd.id_tipoDoc = v.id_tipoDoc
             WHERE v.estado = 'Activo' 
-            AND pd.id_grupo = $id_grupo
-            AND (pd.id_tipoDoc IS NULL OR $id_tipoDoc = 0 OR pd.id_tipoDoc = $id_tipoDoc)
-            AND v.indice_01 LIKE '%$indice_01_pattern%'
-            AND v.indice_02 LIKE '%$indice_02_pattern%'
-            AND v.indice_03 LIKE '%$indice_03_pattern%'
-            AND v.indice_04 LIKE '%$indice_04_pattern%'
+            AND pd.id_grupo = ?
+            AND (? = 0 OR pd.id_tipoDoc = ?)
+            AND v.indice_01 LIKE ?
+            AND v.indice_02 LIKE ?
+            AND v.indice_03 LIKE ?
+            AND v.indice_04 LIKE ?
             GROUP BY v.indice_01
             ORDER BY MIN(v.id_expediente) DESC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [
+            $id_grupo,
+            $id_tipoDoc,
+            $id_tipoDoc,
+            '%' . $indice_01_pattern . '%',
+            '%' . $indice_02_pattern . '%',
+            '%' . $indice_03_pattern . '%',
+            '%' . $indice_04_pattern . '%'
+        ]);
         return $res;
     }
 
     public function buscarExpedientePorTermino(int $id_tipoDoc, string $termino)
     {
-        $id_grupo = $_SESSION['id_grupo'];
+        $id_grupo = intval($_SESSION['id_grupo'] ?? 0);
         $sql = "SELECT 
                 COUNT(*) AS cant_documentos,
                 MIN(v.indice_01) AS indice_01,
@@ -451,17 +462,26 @@ class ExpedientesModel extends Mysql
             ) AS sub ON v.indice_01 = sub.indice_01
             JOIN permisos_documentos pd ON pd.id_tipoDoc = v.id_tipoDoc
             WHERE v.estado = 'Activo' 
-            AND pd.id_grupo = $id_grupo
-            AND ($id_tipoDoc = 0 OR pd.id_tipoDoc = $id_tipoDoc)
+            AND pd.id_grupo = ?
+            AND (? = 0 OR pd.id_tipoDoc = ?)
             AND (
-                v.indice_01 LIKE '%$termino%' OR
-                v.indice_02 LIKE '%$termino%' OR
-                v.indice_03 LIKE '%$termino%' OR
-                v.indice_04 LIKE '%$termino%'
+                v.indice_01 LIKE ? OR
+                v.indice_02 LIKE ? OR
+                v.indice_03 LIKE ? OR
+                v.indice_04 LIKE ?
             )
             GROUP BY v.indice_01, v.id_tipoDoc
             ORDER BY MIN(v.id_expediente) DESC;";
-        return $this->select_all($sql);
+        $terminoLike = '%' . $termino . '%';
+        return $this->select_all($sql, [
+            $id_grupo,
+            $id_tipoDoc,
+            $id_tipoDoc,
+            $terminoLike,
+            $terminoLike,
+            $terminoLike,
+            $terminoLike
+        ]);
     }
 
     public function registrar_visualizacion(
@@ -650,10 +670,9 @@ public function actualizarExpediente(
 
     public function reporteExpedientesFecha(string $desde, string $hasta)
     {
-        $id_grupo = $_SESSION['id_grupo'];
+        $id_grupo = intval($_SESSION['id_grupo'] ?? 0);
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = $id_grupo = $_SESSION['id_grupo'];
         $sql = "SELECT 
                 v.indice_01,
                 COUNT(*) AS cant_documentos,
@@ -683,9 +702,10 @@ public function actualizarExpediente(
                 ) AS sub ON v.indice_01 = sub.indice_01
                 JOIN permisos_documentos pd ON pd.id_tipoDoc = v.id_tipoDoc
                 WHERE v.estado = 'Activo' 
-                    AND pd.id_grupo = $id_grupo and v.fecha_indexado BETWEEN '$desde' AND '$hasta'
-                GROUP BY v.indice_01 order by id_expediente asc;";
-        $res = $this->select_all($sql);
+                    AND pd.id_grupo = ? AND v.fecha_indexado BETWEEN ? AND ?
+                GROUP BY v.indice_01
+                ORDER BY MIN(v.id_expediente) ASC;";
+        $res = $this->select_all($sql, [$id_grupo, $desde, $hasta]);
         return $res;
     }
 

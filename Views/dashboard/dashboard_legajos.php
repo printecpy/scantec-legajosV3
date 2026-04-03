@@ -29,6 +29,7 @@ $mostrarLegajosPorTipo = !empty($dashboardCards['dashboard_card_legajos_por_tipo
 $mostrarLegajosPorUsuario = !empty($dashboardCards['dashboard_card_legajos_por_usuario']);
 $mostrarGraficoProductividad = !empty($dashboardCards['dashboard_card_grafico_productividad']);
 $dashboardSoloPropios = !empty($data['dashboard_scope_solo_propios']);
+$puedeVerificarLegajos = !empty($data['puede_verificar_legajos']);
 $totalLegajosUsuario = intval($data['cant_legajos']['cant_legajos'] ?? 0);
 $tiposLegajoDashboard = $data['tipos_legajo_disponibles_dashboard'] ?? [];
 $tiposLegajoSeleccionadosDashboard = array_map('intval', (array)($data['tipos_legajo_seleccionados_dashboard'] ?? []));
@@ -79,7 +80,7 @@ if (!empty($nombresTiposSeleccionadosDashboard)) {
         <?php if ($mostrarCardProceso || $mostrarCardCompletados || $mostrarCardRechazados || $mostrarCardVerificados || $mostrarCardCerrados): ?>
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
             <?php if ($mostrarCardProceso): ?>
-            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?estado_legajo=Incompleto"
+            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?termino=*.*&estado_legajo=Proceso"
                 class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-indigo-500">
                 <div class="flex items-center justify-between mb-4">
                     <div class="p-3 bg-indigo-50 rounded-xl">
@@ -104,12 +105,19 @@ if (!empty($nombresTiposSeleccionadosDashboard)) {
                     <div class="p-3 bg-scantec-blue/5 rounded-xl">
                         <i class="fas fa-folder-open text-scantec-blue fa-2x"></i>
                     </div>
-                    <span class="text-[10px] font-bold text-scantec-blue uppercase tracking-widest">Completado</span>
+                    <span class="text-[10px] font-bold text-scantec-blue uppercase tracking-widest">Generado</span>
                 </div>
                 <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
                     <?php echo number_format($data['cant_legajos_completados']['cant_legajos_completados'] ?? 0, 0, ',', '.'); ?>
                 </h3>
-                <p class="text-sm text-scantec-gray font-medium mb-4">Legajos completados</p>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Legajos generados</p>
+                <?php if ($puedeVerificarLegajos): ?>
+                <a href="<?php echo base_url(); ?>legajos/verificar_legajos"
+                    class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-all hover:bg-amber-600">
+                    <i class="fas fa-user-check"></i>
+                    <span>Verificar</span>
+                </a>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
 
