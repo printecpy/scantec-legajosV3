@@ -8,6 +8,7 @@ class LegajosModel extends Mysql
         $this->ensureMatrizActivoColumn();
         $this->ensureTipoLegajoDepartamentoColumn();
         $this->ensureTipoLegajoBrandingColumns();
+        $this->ensureValorCampoColumn();
         $this->ensureFormulariosExternosTables();
     }
 
@@ -88,6 +89,17 @@ class LegajosModel extends Mysql
             }
             if ($this->existeTabla('cfg_tipo_legajo') && !$this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')) {
                 $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN sello_anexos_posicion VARCHAR(20) NOT NULL DEFAULT 'derecha' AFTER sello_anexos_texto", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga.
+        }
+    }
+
+    private function ensureValorCampoColumn(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_legajo_documento') && !$this->existeColumna('cfg_legajo_documento', 'valor_campo')) {
+                $this->update("ALTER TABLE cfg_legajo_documento ADD COLUMN valor_campo TEXT NULL DEFAULT NULL AFTER fecha_vencimiento", []);
             }
         } catch (Throwable $e) {
             // No interrumpimos la carga.
@@ -294,21 +306,29 @@ class LegajosModel extends Mysql
 
         if ($this->existeTabla('cfg_tipo_legajo') && $this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo')) {
             $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
+            $filtroActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'WHERE mr.activo = 1' : 'WHERE 1=1';
             $sql = "SELECT mr.id_requisito, mr.id_tipo_legajo, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
                     mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, $campoActivo,
-                    cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
+                    cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base, 
+                    " . ($this->existeColumna('cfg_catalogo_documentos', 'tipo_campo') ? 'cd.tipo_campo' : "'documento' AS tipo_campo") . ",
+                    " . ($this->existeColumna('cfg_catalogo_documentos', 'opciones_campo') ? 'cd.opciones_campo' : 'NULL AS opciones_campo') . "
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
+                    $filtroActivo
                     ORDER BY COALESCE(mr.id_tipo_legajo, mr.id_tipoDoc) ASC, mr.orden_visual ASC, mr.id_requisito ASC";
             return $this->select_all($sql);
         }
 
         $campoActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'mr.activo' : '1 AS activo';
+        $filtroActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? 'WHERE mr.activo = 1' : 'WHERE 1=1';
         $sql = "SELECT mr.id_requisito, NULL AS id_tipo_legajo, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
                 mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, $campoActivo,
-                cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
+                cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base, 
+                    " . ($this->existeColumna('cfg_catalogo_documentos', 'tipo_campo') ? 'cd.tipo_campo' : "'documento' AS tipo_campo") . ",
+                    " . ($this->existeColumna('cfg_catalogo_documentos', 'opciones_campo') ? 'cd.opciones_campo' : 'NULL AS opciones_campo') . "
                 FROM cfg_matriz_requisitos mr
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
+                $filtroActivo
                 ORDER BY mr.id_tipoDoc ASC, mr.orden_visual ASC, mr.id_requisito ASC";
         return $this->select_all($sql);
     }
@@ -722,8 +742,11 @@ class LegajosModel extends Mysql
         $campoObservacion = $this->existeColumna('cfg_legajo_documento', 'observacion')
             ? 'observacion'
             : 'NULL AS observacion';
+        $campoValor = $this->existeColumna('cfg_legajo_documento', 'valor_campo')
+            ? 'valor_campo'
+            : 'NULL AS valor_campo';
         $sql = "SELECT id_legajo_doc, id_legajo, id_requisito, id_documento_maestro, rol_vinculado,
-                es_obligatorio, estado, ruta_archivo, fecha_carga, fecha_vencimiento, reemplazado_por, $campoObservacion
+                es_obligatorio, estado, ruta_archivo, fecha_carga, fecha_vencimiento, reemplazado_por, $campoObservacion, $campoValor
                 FROM cfg_legajo_documento
                 WHERE id_legajo = ?
                 ORDER BY id_requisito ASC, id_legajo_doc ASC";
@@ -787,6 +810,7 @@ class LegajosModel extends Mysql
         int $idRequisito,
         ?string $rutaArchivo,
         ?string $fechaVencimiento,
+        ?string $valorCampo = null,
         ?string $estado = null,
         ?string $observacion = null
     ) {
@@ -801,6 +825,11 @@ class LegajosModel extends Mysql
 
         $set[] = "fecha_vencimiento = ?";
         $params[] = $fechaVencimiento !== '' ? $fechaVencimiento : null;
+
+        if ($valorCampo !== null && $this->existeColumna('cfg_legajo_documento', 'valor_campo')) {
+            $set[] = "valor_campo = ?";
+            $params[] = $valorCampo;
+        }
 
         if ($estado !== null) {
             $set[] = "estado = ?";
@@ -936,6 +965,23 @@ class LegajosModel extends Mysql
                 FROM cfg_legajo_documento ld
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = ld.id_documento_maestro
                 WHERE ld.id_legajo = ? AND ld.ruta_archivo IS NOT NULL AND ld.ruta_archivo <> ''
+                ORDER BY ld.id_requisito ASC, ld.id_legajo_doc ASC";
+        return $this->select($sql, [$idLegajo]);
+    }
+
+    public function obtenerCamposNoDocumentoConValor(int $idLegajo)
+    {
+        if (!$this->existeColumna('cfg_catalogo_documentos', 'tipo_campo') || !$this->existeColumna('cfg_legajo_documento', 'valor_campo')) {
+            return [];
+        }
+
+        $sql = "SELECT ld.id_legajo_doc, ld.id_requisito, ld.valor_campo, cd.nombre AS documento_nombre, cd.tipo_campo, cd.opciones_campo
+                FROM cfg_legajo_documento ld
+                INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = ld.id_documento_maestro
+                WHERE ld.id_legajo = ?
+                  AND cd.tipo_campo <> 'documento'
+                  AND ld.valor_campo IS NOT NULL
+                  AND TRIM(ld.valor_campo) <> ''
                 ORDER BY ld.id_requisito ASC, ld.id_legajo_doc ASC";
         return $this->select($sql, [$idLegajo]);
     }
@@ -1320,6 +1366,65 @@ class LegajosModel extends Mysql
              WHERE id_formulario = ? AND id_requisito = ?",
             [$idFormulario, $idRequisito]
         );
+    }
+
+    public function actualizarCantidadPaginasProcesadas(int $idLegajo, int $cantidadPaginas)
+    {
+        if ($idLegajo <= 0 || !$this->existeColumna('cfg_legajo', 'cantidad_paginas_procesadas')) {
+            return false;
+        }
+        $sql = "UPDATE cfg_legajo SET cantidad_paginas_procesadas = ? WHERE id_legajo = ?";
+        return $this->update($sql, [$cantidadPaginas, $idLegajo]);
+    }
+
+    public function registrarFacturacionLegajo(int $idLegajo, int $paginasTotales, ?string $usuarioGenerador)
+    {
+        if ($idLegajo <= 0 || !$this->existeTabla('cfg_legajo_facturacion')) {
+            return false;
+        }
+
+        $sqlUltima = "SELECT paginas_totales FROM cfg_legajo_facturacion WHERE id_legajo = ? ORDER BY id_facturacion DESC LIMIT 1";
+        $resUltima = $this->select($sqlUltima, [$idLegajo]);
+        $paginasAnteriores = !empty($resUltima) ? intval($resUltima[0]['paginas_totales']) : 0;
+        
+        $paginasIncrementales = max(0, $paginasTotales - $paginasAnteriores);
+
+        $sql = "INSERT INTO cfg_legajo_facturacion (id_legajo, paginas_totales, paginas_incrementales, usuario_generador) VALUES (?, ?, ?, ?)";
+        return $this->insert($sql, [$idLegajo, $paginasTotales, $paginasIncrementales, $usuarioGenerador]);
+    }
+
+    public function selectTotalesFacturacionLegajos(string $desde, string $hasta)
+    {
+        if (!$this->existeTabla('cfg_legajo_facturacion')) {
+            return ['total_movimientos' => 0, 'total_legajos' => 0, 'total_paginas' => 0];
+        }
+
+        $sql = "SELECT 
+                    COUNT(id_facturacion) as total_movimientos, 
+                    COUNT(DISTINCT id_legajo) as total_legajos, 
+                    COALESCE(SUM(paginas_incrementales), 0) as total_paginas 
+                FROM cfg_legajo_facturacion 
+                WHERE DATE(fecha_generacion) >= ? AND DATE(fecha_generacion) <= ?";
+        $res = $this->select($sql, [$desde, $hasta]);
+        return empty($res) ? ['total_movimientos' => 0, 'total_legajos' => 0, 'total_paginas' => 0] : $res;
+    }
+
+    public function selectResumenFacturacionLegajosPorFecha(string $desde, string $hasta)
+    {
+        if (!$this->existeTabla('cfg_legajo_facturacion')) {
+            return [];
+        }
+
+        $sql = "SELECT 
+                    DATE(fecha_generacion) as fecha,
+                    COUNT(id_facturacion) as cantidad_movimientos, 
+                    COUNT(DISTINCT id_legajo) as cantidad_legajos, 
+                    COALESCE(SUM(paginas_incrementales), 0) as total_paginas 
+                FROM cfg_legajo_facturacion 
+                WHERE DATE(fecha_generacion) >= ? AND DATE(fecha_generacion) <= ?
+                GROUP BY DATE(fecha_generacion)
+                ORDER BY DATE(fecha_generacion) ASC";
+        return $this->select_all($sql, [$desde, $hasta]);
     }
 }
 

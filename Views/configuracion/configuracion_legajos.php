@@ -31,7 +31,7 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                     <i class="fas fa-cogs mr-3"></i> Configuraci&oacute;n del Motor de Legajos
                 </h1>
                 <p class="text-sm text-gray-500 mt-1 ml-1">
-                    Administre el cat&aacute;logo global de documentos y las reglas de los checklists.
+                    Administre el cat&aacute;logo global de documentos y las reglas de los listados.
                 </p>
             </div>
         </div>
@@ -85,6 +85,17 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de campo</label>
+                            <?php $tipoCampoEditar = strtolower(trim((string)($documento_editar['tipo_campo'] ?? 'documento'))); ?>
+                            <select name="tipo_campo" onchange="toggleCatalogoTipoFields(this)"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                                <option value="documento" <?php echo $tipoCampoEditar === 'documento' ? 'selected' : ''; ?>>Documento</option>
+                                <option value="texto" <?php echo $tipoCampoEditar === 'texto' ? 'selected' : ''; ?>>Texto</option>
+                                <option value="lista" <?php echo $tipoCampoEditar === 'lista' ? 'selected' : ''; ?>>Lista desplegable</option>
+                                <option value="casilla" <?php echo $tipoCampoEditar === 'casilla' ? 'selected' : ''; ?>>Casilla de selección</option>
+                            </select>
+                        </div>
+                        <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">¿Vence?</label>
                             <select name="tiene_vencimiento" onchange="toggleVencimientoFields(this)"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
@@ -108,6 +119,13 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                             <button type="submit" class="bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                                 <?php echo !empty($documento_editar) ? 'Actualizar' : 'Guardar'; ?>
                             </button>
+                        </div>
+                        <div class="md:col-span-6" data-opciones-campo-wrap>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Opciones de la lista</label>
+                            <textarea name="opciones_campo" rows="4"
+                                placeholder="Una opción por línea"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none"><?php echo htmlspecialchars($documento_editar['opciones_campo'] ?? ''); ?></textarea>
+                            <p class="mt-1 text-xs text-gray-500">Solo se usa cuando el tipo es lista desplegable.</p>
                         </div>
                         <div class="md:col-span-6 flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between">
                             <div class="flex flex-col gap-1">
@@ -133,6 +151,7 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre del Documento</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Código</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">¿Vence?</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Años Vigencia</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Aviso Previo</th>
@@ -142,7 +161,7 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                         <tbody class="divide-y divide-gray-200">
                             <?php if (empty($catalogo_documentos)): ?>
                             <tr class="hover:bg-gray-50">
-                                <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">No hay documentos configurados.</td>
+                                <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">No hay documentos configurados.</td>
                             </tr>
                             <?php endif; ?>
 
@@ -158,18 +177,27 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                                     </div>
                                 </td>
                                 <td class="px-4 py-4 text-sm font-mono <?php echo $documentoActivo ? 'text-gray-500' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($documento['codigo_interno'] ?? '-'); ?></td>
+                                <?php $tipoCampoDocumento = strtolower(trim((string)($documento['tipo_campo'] ?? 'documento'))); ?>
+                                <td class="px-4 py-4 text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                    <?php echo htmlspecialchars([
+                                        'documento' => 'Documento',
+                                        'texto' => 'Texto',
+                                        'lista' => 'Lista',
+                                        'casilla' => 'Casilla'
+                                    ][$tipoCampoDocumento] ?? 'Documento'); ?>
+                                </td>
                                 <td class="px-4 py-4 text-center">
-                                    <?php if (!empty($documento['tiene_vencimiento'])): ?>
+                                    <?php if ($tipoCampoDocumento === 'documento' && !empty($documento['tiene_vencimiento'])): ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded <?php echo $documentoActivo ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'; ?>">SÍ</span>
                                     <?php else: ?>
                                     <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">NO</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
-                                    <?php echo !empty($documento['dias_vigencia_base']) ? intval($documento['dias_vigencia_base']) . ' años' : '-'; ?>
+                                    <?php echo $tipoCampoDocumento === 'documento' && !empty($documento['dias_vigencia_base']) ? intval($documento['dias_vigencia_base']) . ' años' : '-'; ?>
                                 </td>
                                 <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
-                                    <?php echo !empty($documento['dias_alerta_previa']) ? intval($documento['dias_alerta_previa']) . ' días' : '-'; ?>
+                                    <?php echo $tipoCampoDocumento === 'documento' && !empty($documento['dias_alerta_previa']) ? intval($documento['dias_alerta_previa']) . ' días' : '-'; ?>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex justify-end gap-2">
@@ -861,6 +889,33 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
         }
     }
 
+    function toggleCatalogoTipoFields(selectElement) {
+        const form = selectElement.closest('form');
+        if (!form) {
+            return;
+        }
+
+        const tipoCampo = String(selectElement.value || 'documento').toLowerCase();
+        const wrapOpciones = form.querySelector('[data-opciones-campo-wrap]');
+        const textareaOpciones = form.querySelector('textarea[name="opciones_campo"]');
+        const selectVencimiento = form.querySelector('select[name="tiene_vencimiento"]');
+
+        if (wrapOpciones) {
+            wrapOpciones.classList.toggle('hidden', tipoCampo !== 'lista');
+        }
+        if (textareaOpciones) {
+            textareaOpciones.disabled = tipoCampo !== 'lista';
+        }
+
+        if (selectVencimiento) {
+            if (tipoCampo !== 'documento') {
+                selectVencimiento.value = '0';
+            }
+            toggleVencimientoFields(selectVencimiento);
+            selectVencimiento.disabled = tipoCampo !== 'documento';
+        }
+    }
+
     function confirmarAccionDocumentoCatalogo(formElement) {
         Swal.fire({
             title: 'Documento universal',
@@ -966,6 +1021,9 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
         document.querySelectorAll('select[name="tiene_vencimiento"]').forEach(function(selectElement) {
             toggleVencimientoFields(selectElement);
         });
+        document.querySelectorAll('select[name="tipo_campo"]').forEach(function(selectElement) {
+            toggleCatalogoTipoFields(selectElement);
+        });
     });
 </script>
 
@@ -980,3 +1038,6 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
 </style>
 
 <?php pie() ?>
+
+
+

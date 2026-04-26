@@ -80,12 +80,16 @@ class Mysql extends Conexion
         $res = $update->execute($this->arrvalues);
         return $res;
     }
-    public function delete(string $query)
+    public function delete(string $query, array $arr_params = [])
     {
         $this->ensureConnection();
         $this->strquery = $query;
         $result = $this->conexion->prepare($this->strquery);
-        $result->execute();
+        if (!empty($arr_params)) {
+            $result->execute($arr_params);
+        } else {
+            $result->execute();
+        }
         return $result;
     }
 }

@@ -55,15 +55,15 @@ class ControlModel extends Mysql{
     }
     public function editControl(int $id_cont)
     {
-        $sql = "SELECT * FROM op_control WHERE id_cont = $id_cont";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM op_control WHERE id_cont = ?";
+        $res = $this->select($sql, [$id_cont]);
         return $res;
     }
 
     public function detControl(int $id_cont)
     {
-        $sql = "SELECT * FROM det_control WHERE id_cont = $id_cont";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM det_control WHERE id_cont = ?";
+        $res = $this->select_all($sql, [$id_cont]);
         return $res;
     }
 
@@ -106,8 +106,8 @@ class ControlModel extends Mysql{
     {
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = "SELECT * FROM v_control WHERE fecha BETWEEN '$desde' AND '$hasta' order by id_cont asc;";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM v_control WHERE fecha BETWEEN ? AND ? order by id_cont asc;";
+        $res = $this->select_all($sql, [$desde, $hasta]);
         return $res;
     }
 
@@ -137,14 +137,14 @@ class ControlModel extends Mysql{
                         CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio,
                                 MIN(fecha) AS fecha_orden
                 FROM v_control
-                WHERE (YEAR(fecha) = $anio_desde AND MONTH(fecha) >= $mes_desde)
-                    OR (YEAR(fecha) = $anio_hasta AND MONTH(fecha) <= $mes_hasta)
-                    OR (YEAR(fecha) > $anio_desde AND YEAR(fecha) < $anio_hasta)
+                WHERE (YEAR(fecha) = ? AND MONTH(fecha) >= ?)
+                    OR (YEAR(fecha) = ? AND MONTH(fecha) <= ?)
+                    OR (YEAR(fecha) > ? AND YEAR(fecha) < ?)
                 GROUP BY YEAR(fecha), MONTH(fecha), mes_anio
             ) AS derived_table
             ORDER BY fecha_orden ASC;";
         // Ejecutar la consulta y devolver el resultado
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$anio_desde, $mes_desde, $anio_hasta, $mes_hasta, $anio_desde, $anio_hasta]);
         return $res;
     }
 
@@ -164,11 +164,11 @@ class ControlModel extends Mysql{
                     SUM(solicitado) as solicitados, 
         					SUM(exp_reescaneo) as reescaneos
             FROM v_control 
-            WHERE id_operador = $id_operador
+            WHERE id_operador = ?
             GROUP BY YEAR(fecha), MONTH(fecha), operador 
         ) AS derived_table 
         ORDER BY month_number ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$id_operador]);
         return $res;
     }
 
@@ -188,11 +188,11 @@ class ControlModel extends Mysql{
                     SUM(solicitado) as solicitados, 
         			SUM(exp_reescaneo) as reescaneos
             FROM v_control 
-            WHERE id_est = $id_est
+            WHERE id_est = ?
             GROUP BY YEAR(fecha), MONTH(fecha), id_est, nombre_pc
         ) AS derived_table 
         ORDER BY month_number ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$id_est]);
         return $res;
     }
 
@@ -214,15 +214,15 @@ class ControlModel extends Mysql{
 
     public function selectDetControlPag(int $id_cont)
     {
-        $sql = "SELECT sum(num_pag) as pag_control FROM det_control WHERE id_cont = $id_cont;";
-        $res = $this->select($sql);
+        $sql = "SELECT sum(num_pag) as pag_control FROM det_control WHERE id_cont = ?;";
+        $res = $this->select($sql, [$id_cont]);
         return $res;
     }
 
     public function selectDetControlExp(int $id_cont)
     {
-        $sql = "SELECT Count(*) as exp_control FROM det_control WHERE id_cont = $id_cont;";
-        $res = $this->select($sql);
+        $sql = "SELECT Count(*) as exp_control FROM det_control WHERE id_cont = ?;";
+        $res = $this->select($sql, [$id_cont]);
         return $res;
     }
 

@@ -22,8 +22,8 @@ class HomeModel extends Mysql{
     } */
 
     public function consultarPW($nombre, $usuario) {
-        $query = "SELECT * FROM usuarios WHERE nombre = '$nombre' AND usuario = '$usuario';";
-        $resul = $this->select($query);
+        $query = "SELECT * FROM usuarios WHERE nombre = ? AND usuario = ?;";
+        $resul = $this->select($query, [$nombre, $usuario]);
         return $resul;
     }
     

@@ -3,7 +3,13 @@ require "Libraries/php-jwt-main/vendor/autoload.php";
 use \Firebase\JWT\JWT;
 use \Firebase\JWT\Key;
 
-define('JWT_SECRET_KEY', '@S1c2A3n4T5e6C*23');
+if (!defined('JWT_SECRET_KEY')) {
+    $jwtSecret = function_exists('scantecEnv') ? scantecEnv('JWT_SECRET', '') : (getenv('JWT_SECRET') ?: '');
+    if ($jwtSecret === '') {
+        throw new RuntimeException('JWT_SECRET no esta configurado.');
+    }
+    define('JWT_SECRET_KEY', $jwtSecret);
+}
 
 function generateToken($user_id) {
     $issuedat_claim = time();

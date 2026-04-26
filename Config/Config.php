@@ -9,7 +9,75 @@
  * - 'hosting' => fuerza entorno hosting
  */
 
-$SCANTEC_FORCE_ENV = 'local';
+$SCANTEC_FORCE_ENV = '';
+
+if (!function_exists('scantecLoadEnvFile')) {
+    function scantecLoadEnvFile(string $path): void
+    {
+        if (!is_file($path) || !is_readable($path)) {
+            return;
+        }
+
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines === false) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            $pos = strpos($line, '=');
+            if ($pos === false) {
+                continue;
+            }
+
+            $key = trim(substr($line, 0, $pos));
+            $value = trim(substr($line, $pos + 1));
+            if ($key === '') {
+                continue;
+            }
+
+            if (
+                (str_starts_with($value, '"') && str_ends_with($value, '"'))
+                || (str_starts_with($value, "'") && str_ends_with($value, "'"))
+            ) {
+                $value = substr($value, 1, -1);
+            }
+
+            // Las variables SCANTEC_ siempre se sobrescriben desde el .env
+            // para evitar que valores cacheados en el proceso Apache (putenv de
+            // requests anteriores) tapen los cambios guardados en el .env.
+            $esScantec = str_starts_with($key, 'SCANTEC_');
+            if ($esScantec || getenv($key) === false) {
+                putenv($key . '=' . $value);
+            }
+            if ($esScantec) {
+                $_ENV[$key] = $value;
+                $_SERVER[$key] = $value;
+            } else {
+                $_ENV[$key] = $_ENV[$key] ?? $value;
+                $_SERVER[$key] = $_SERVER[$key] ?? $value;
+            }
+        }
+    }
+}
+
+if (!function_exists('scantecEnv')) {
+    function scantecEnv(string $key, string $default = ''): string
+    {
+        if (array_key_exists($key, $_ENV)) {
+            return (string) $_ENV[$key];
+        }
+
+        $value = getenv($key);
+        return $value !== false ? (string) $value : $default;
+    }
+}
+
+scantecLoadEnvFile(dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env');
 
 if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -23,7 +91,7 @@ if (!function_exists('scantecDetectarEntorno')) {
             return $forcedEnv;
         }
 
-        $env = strtolower(trim((string) ($_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: '')));
+        $env = strtolower(trim(scantecEnv('APP_ENV', (string) ($_SERVER['APP_ENV'] ?? ''))));
         if (in_array($env, ['local', 'hosting'], true)) {
             return $env;
         }
@@ -104,6 +172,44 @@ if (!function_exists('scantecPrimerEjecutableDisponible')) {
     }
 }
 
+if (!function_exists('scantecAbortarConfiguracion')) {
+    function scantecAbortarConfiguracion(array $faltantes, string $env): void
+    {
+        $mensaje = 'Configuracion incompleta para entorno "' . $env . '". Faltan variables: ' . implode(', ', $faltantes) . '.';
+        if (PHP_SAPI === 'cli') {
+            fwrite(STDERR, $mensaje . PHP_EOL);
+            exit(1);
+        }
+
+        http_response_code(500);
+        exit('<h1>Configuracion incompleta</h1><p>' . htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8') . '</p>');
+    }
+}
+
+if (!function_exists('scantecValidarConfiguracionBase')) {
+    function scantecValidarConfiguracionBase(array $config, string $env): void
+    {
+        $requeridos = [
+            'SCANTEC_DB_HOST' => $config['db_host'] ?? '',
+            'SCANTEC_DB_PORT' => $config['db_port'] ?? '',
+            'SCANTEC_DB_NAME' => $config['db_name'] ?? '',
+            'SCANTEC_DB_USER' => $config['db_user'] ?? '',
+            'JWT_SECRET' => scantecEnv('JWT_SECRET', ''),
+        ];
+
+        $faltantes = [];
+        foreach ($requeridos as $variable => $valor) {
+            if (trim((string) $valor) === '') {
+                $faltantes[] = $variable;
+            }
+        }
+
+        if ($faltantes !== []) {
+            scantecAbortarConfiguracion($faltantes, $env);
+        }
+    }
+}
+
 $scantecEnv = scantecDetectarEntorno($SCANTEC_FORCE_ENV ?? '');
 $scantecConfigFile = __DIR__ . DIRECTORY_SEPARATOR . 'config.' . $scantecEnv . '.php';
 
@@ -117,6 +223,8 @@ if (!is_array($SCANTEC_APP_CONFIG)) {
     http_response_code(500);
     exit('Invalid config for env: ' . htmlspecialchars($scantecEnv, ENT_QUOTES, 'UTF-8'));
 }
+
+scantecValidarConfiguracionBase($SCANTEC_APP_CONFIG, $scantecEnv);
 
 $SCANTEC_APP_CONFIG['env'] = $scantecEnv;
 $GLOBALS['SCANTEC_APP_CONFIG'] = $SCANTEC_APP_CONFIG;
@@ -282,6 +390,21 @@ $db = [
     'username' => DB_USER,
     'password' => PASS,
     'db' => BD,
+];
+
+// Configuración de base de datos de usuarios
+$usuariosDbConfig = obtenerConfiguracionUsuarios();
+define('DB_USUARIOS_HOST', $usuariosDbConfig['host']);
+define('DB_USUARIOS_PORT', $usuariosDbConfig['port']);
+define('DB_USUARIOS_USER', $usuariosDbConfig['user']);
+define('DB_USUARIOS_PASS', $usuariosDbConfig['password']);
+define('BD_USUARIOS', obtenerBaseDatosUsuariosSeleccionada((string) ($SCANTEC_APP_CONFIG['db_usuarios_name'] ?? 'usuarios')));
+
+$dbUsuarios = [
+    'host' => DB_USUARIOS_HOST,
+    'username' => DB_USUARIOS_USER,
+    'password' => DB_USUARIOS_PASS,
+    'db' => BD_USUARIOS,
 ];
 
 date_default_timezone_set('America/Asuncion');

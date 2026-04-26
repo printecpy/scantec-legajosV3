@@ -5,6 +5,7 @@ class FuncionalidadesModel extends Mysql
     private const MODULOS_ITEMS = [
         'archivos' => 'Archivos',
         'legajos' => 'Legajos',
+        'personas' => 'Personas',
         'sistema' => 'Sistema',
     ];
 
@@ -28,6 +29,7 @@ class FuncionalidadesModel extends Mysql
             'grupos' => ['etiqueta' => 'Grupos', 'ruta' => 'usuarios/grupo', 'modulo' => 'sistema'],
             'log_documentos' => ['etiqueta' => 'Log Documentos', 'ruta' => 'logsumango/views', 'modulo' => 'archivos'],
             'visitas_archivos' => ['etiqueta' => 'Visitas Archivos', 'ruta' => 'logs/registro_views', 'modulo' => 'archivos'],
+            'reporte_paginas_legajos' => ['etiqueta' => 'Páginas de Legajos', 'ruta' => 'logs/reporte_paginas_legajos', 'modulo' => 'legajos'],
             'dashboard_legajos' => ['etiqueta' => 'Dashboard Legajos', 'ruta' => 'dashboard/dashboard_legajos', 'modulo' => 'legajos'],
             'armar_legajo' => ['etiqueta' => 'Armar legajo', 'ruta' => 'legajos/armar_legajo', 'modulo' => 'legajos'],
             'buscar_legajos' => ['etiqueta' => 'Buscar legajos', 'ruta' => 'legajos/buscar_legajos', 'modulo' => 'legajos'],
@@ -35,7 +37,9 @@ class FuncionalidadesModel extends Mysql
             'administrar_legajos' => ['etiqueta' => 'Administrar legajos', 'ruta' => 'legajos/administrar_legajos', 'modulo' => 'legajos'],
             'permisos_legajos' => ['etiqueta' => 'Permisos Legajos', 'ruta' => 'seguridad/permisos_legajos', 'modulo' => 'legajos'],
             'log_legajos' => ['etiqueta' => 'Log Legajos', 'ruta' => 'legajos/log_legajos', 'modulo' => 'legajos'],
+            'personas' => ['etiqueta' => 'Personas', 'ruta' => 'personas/listar', 'modulo' => 'personas'],
             'empresa' => ['etiqueta' => 'Empresa', 'ruta' => 'configuracion/listar', 'modulo' => 'sistema'],
+            'facturacion' => ['etiqueta' => 'Facturación', 'ruta' => 'legajos/facturacion', 'modulo' => 'sistema'],
             'backup' => ['etiqueta' => 'Backup', 'ruta' => 'configuracion/mantenimiento', 'modulo' => 'sistema'],
             'matriz_legajos' => ['etiqueta' => 'Matriz de legajos', 'ruta' => 'configuracion/configuracion_legajos', 'modulo' => 'sistema'],
             'gestion_usuarios' => ['etiqueta' => 'Gestión de usuarios', 'ruta' => 'usuarios/listar', 'modulo' => 'sistema'],
@@ -101,6 +105,13 @@ class FuncionalidadesModel extends Mysql
                 'grupo' => 'Auditoría',
                 'rutas' => ['logs/registro_views*'],
             ],
+            'reporte_paginas_legajos' => [
+                'etiqueta' => 'Páginas de legajos',
+                'ruta' => 'logs/reporte_paginas_legajos',
+                'descripcion' => 'Muestra el reporte de páginas procesadas de legajos por período.',
+                'grupo' => 'AuditorÃ­a',
+                'rutas' => ['logs/reporte_paginas_legajos*', 'logs/reporte_paginas_legajosPdf*', 'logs/reporte_paginas_legajosExcel*'],
+            ],
             'unir_pdf' => [
                 'etiqueta' => "Unir PDF's",
                 'ruta' => 'unirpdf/unir_documentos',
@@ -127,7 +138,7 @@ class FuncionalidadesModel extends Mysql
                 'ruta' => 'legajos/buscar_legajos',
                 'descripcion' => 'Permite consultar legajos existentes.',
                 'grupo' => 'Legajos',
-                'rutas' => ['legajos/buscar_legajos*', 'legajos/estado_legajo*', 'legajos/ver_pdf_legajo*', 'legajos/descargar_pdf_legajo*'],
+                'rutas' => ['legajos/buscar_legajos*', 'legajos/documentos_procesados*', 'legajos/documentos_procesadosPdf*', 'legajos/documentos_procesadosExcel*', 'legajos/estado_legajo*', 'legajos/ver_pdf_legajo*', 'legajos/descargar_pdf_legajo*'],
             ],
             'verificar_legajos' => [
                 'etiqueta' => 'Verificar legajos',
@@ -157,12 +168,26 @@ class FuncionalidadesModel extends Mysql
                 'grupo' => 'Auditoría',
                 'rutas' => ['legajos/log_legajos*'],
             ],
+            'personas' => [
+                'etiqueta' => 'Personas',
+                'ruta' => 'personas/listar',
+                'descripcion' => 'Permite gestionar personas vinculables a legajos.',
+                'grupo' => 'Personas',
+                'rutas' => ['personas/*'],
+            ],
             'empresa' => [
                 'etiqueta' => 'Empresa',
                 'ruta' => 'configuracion/listar',
                 'descripcion' => 'Permite gestionar la configuración general de la empresa y sus departamentos.',
                 'grupo' => 'Administración',
                 'rutas' => ['configuracion/listar*', 'configuracion/guardar_departamento*', 'configuracion/actualizar_departamento*', 'configuracion/eliminar_departamento*'],
+            ],
+            'facturacion' => [
+                'etiqueta' => 'Facturación',
+                'ruta' => 'legajos/facturacion',
+                'descripcion' => 'Permite consultar el contador facturable de páginas procesadas por fecha.',
+                'grupo' => 'Facturación',
+                'rutas' => ['legajos/facturacion*', 'legajos/facturacionPdf*', 'legajos/facturacionExcel*'],
             ],
             'backup' => [
                 'etiqueta' => 'Backup',
@@ -254,6 +279,14 @@ class FuncionalidadesModel extends Mysql
     public static function getSeccionesDisponibles(): array
     {
         return [
+            'personas' => [
+                'etiqueta' => 'Personas',
+                'descripcion' => 'Gestiona clientes y empleados que pueden asociarse a legajos.',
+                'icono' => 'fas fa-address-book',
+                'grupo' => 'Módulo',
+                'rutas' => ['personas/*'],
+                'ruta_menu' => 'personas/listar',
+            ],
             'dashboard' => [
                 'etiqueta' => 'Dashboard',
                 'descripcion' => 'Controla el acceso al tablero general de legajos.',

@@ -235,13 +235,20 @@ class Expedientes extends Controllers
         $indice_06 = filter_input(INPUT_POST, 'indice_06', FILTER_SANITIZE_STRING);
 
         // --- ðŸ“ RUTAS DE ARCHIVOS ---
-        $nombre_final = $indice_04 . '.pdf'; // Usamos Indice 4 como nombre
+        $nombreSeguro = preg_replace('/[^A-Za-z0-9._-]/', '_', (string)$indice_04);
+        $nombre_final = ($nombreSeguro !== '' ? $nombreSeguro : uniqid('expediente_', true)) . '.pdf';
         $ruta_relativa = 'Expedientes/' . $nombre_final;
         $ubicacion_fisica = RUTA_BASE . $ruta_relativa;
 
         // --- ðŸ“¤ VALIDAR SUBIDA ---
         if (!isset($_FILES['file_pdf']) || $_FILES['file_pdf']['error'] !== UPLOAD_ERR_OK) {
             setAlert('error', "Error al subir el archivo.");
+            header("location: " . base_url() . "expedientes/upload_files");
+            exit();
+        }
+
+        if (!scantecValidarUpload($_FILES['file_pdf'], ['pdf'], ['application/pdf'], 50 * 1024 * 1024)) {
+            setAlert('error', "El archivo debe ser un PDF valido y no superar 50 MB.");
             header("location: " . base_url() . "expedientes/upload_files");
             exit();
         }
@@ -438,6 +445,14 @@ class Expedientes extends Controllers
             if ($imgName == null || $imgName == "") {
                 $actualizar = $this->model->actualizarLibro($titulo, $cantidad, $autor ,$editorial, $anio_edicion, $materia, $num_pagina, $descripcion, $imgAntigua, $id_expediente);
             } else {
+                if (!scantecValidarUpload($img, ['png', 'jpg', 'jpeg', 'webp', 'gif'], ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], 5 * 1024 * 1024)) {
+                    setAlert('error', "La imagen debe ser valida y no superar 5 MB.");
+                    header("location: " . base_url() . "expedientes/listar");
+                    exit();
+                }
+                $extensionImagen = strtolower(pathinfo($imgName, PATHINFO_EXTENSION));
+                $fecha = md5(date("Y-m-d h:i:s") . $imgName) . "." . $extensionImagen;
+                $destino = "Assets/images/libros/" . $fecha;
                 $actualizar = $this->model->actualizarLibro($titulo, $cantidad, $autor ,$editorial, $anio_edicion, $materia, $num_pagina, $descripcion, $fecha, $id_expediente);
                 if ($actualizar) {
                     move_uploaded_file($nombreTemp, $destino);

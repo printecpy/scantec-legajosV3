@@ -28,13 +28,9 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
 
     public function __construct()
     {
-        $env_path = dirname(__DIR__, 2) . '/.env'; 
-        if (file_exists($env_path)) {
-            $env_vars = parse_ini_file($env_path);
-            $this->secretKey = $env_vars['JWT_SECRET'] ?? 'CLAVE_RESPALDO';
-        } else {
-            // Si por algún motivo no existe el archivo, usamos un respaldo o tiramos error
-            $this->secretKey = 'vbWYSAMa1Tb0u&eMiKtopgGkS$9GjoJrmTr970Geh5sEZbY(PJ2q)$wn1^cXsANnj%I)UMY(U9td&l7K2g%Rd*nfB$jm&sA9rb@15(X4IbxwZv(%b9(fEJKaaXOw^lJQ4^rMye%l04J7ioi$#1J(BL'; 
+        $this->secretKey = function_exists('scantecEnv') ? scantecEnv('JWT_SECRET', '') : (getenv('JWT_SECRET') ?: '');
+        if ($this->secretKey === '') {
+            $this->sendErrorResponse(500, 'JWT_SECRET no esta configurado.');
         }
         $this->apiLogModel = new ApiLogModel();
         // 1. Carga del modelo de usuario

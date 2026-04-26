@@ -169,11 +169,155 @@ class Legajos extends Controllers
         return is_array($flash) ? $flash : [];
     }
 
+    private function moduloPersonasActivo(): bool
+    {
+        try {
+            require_once 'Models/FuncionalidadesModel.php';
+            $funcionalidadesModel = new FuncionalidadesModel();
+            return $funcionalidadesModel->estaSeccionHabilitada('personas');
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private function obtenerPersonasActivas(): array
+    {
+        if (!$this->moduloPersonasActivo()) {
+            return [];
+        }
+
+        require_once 'Models/PersonasModel.php';
+        $personasModel = new PersonasModel();
+        return $personasModel->selectPersonasActivas();
+    }
+
+    private function obtenerPersonaActivaPorId(int $idPersona): array
+    {
+        if ($idPersona <= 0 || !$this->moduloPersonasActivo()) {
+            return [];
+        }
+
+        require_once 'Models/PersonasModel.php';
+        $personasModel = new PersonasModel();
+        $persona = $personasModel->selectPersonaPorId($idPersona);
+        return strtolower((string)($persona['estado'] ?? '')) === 'activo' ? $persona : [];
+    }
+
+    private function baseUsuariosExternaHabilitada(): bool
+    {
+        $config = $GLOBALS['SCANTEC_APP_CONFIG'] ?? [];
+        $valor = strtolower(trim((string)($config['db_usuarios_enabled'] ?? '0')));
+        return in_array($valor, ['1', 'true', 'si', 'sí', 'yes', 'on'], true);
+    }
+
+    private function obtenerFuentePersonasLegajo(): string
+    {
+        if ($this->baseUsuariosExternaHabilitada()) {
+            return 'externa';
+        }
+
+        if ($this->moduloPersonasActivo()) {
+            return 'interna';
+        }
+
+        return 'ninguna';
+    }
+
+    private function normalizarPersonaExterna(array $persona): array
+    {
+        $nombreCompleto = trim((string)($persona['nombre_completo'] ?? ''));
+
+        return [
+            'selector_valor' => (string)intval($persona['id'] ?? 0),
+            'id_persona' => 0,
+            'id_externo' => intval($persona['id'] ?? 0),
+            'nombre_completo' => $nombreCompleto,
+            'ci' => trim((string)($persona['nro_cedula'] ?? '')),
+            'nro_solicitud' => trim((string)($persona['nro_solicitud'] ?? '')),
+            'origen' => 'externa',
+        ];
+    }
+
+    private function obtenerPersonasExternasActivas(): array
+    {
+        if (!$this->baseUsuariosExternaHabilitada()) {
+            return [];
+        }
+
+        try {
+            require_once 'Models/UsuariosDatosModel.php';
+            $usuariosDatosModel = new UsuariosDatosModel();
+            $personas = [];
+
+            foreach ($usuariosDatosModel->obtenerTodos() as $persona) {
+                $normalizada = $this->normalizarPersonaExterna($persona);
+                if ($normalizada['selector_valor'] !== '' && $normalizada['ci'] !== '' && $normalizada['nombre_completo'] !== '') {
+                    $personas[] = $normalizada;
+                }
+            }
+
+            return $personas;
+        } catch (Throwable $e) {
+            error_log('No se pudo cargar la base externa de personas: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function obtenerPersonaExternaPorId(int $idPersonaExterna): array
+    {
+        if ($idPersonaExterna <= 0 || !$this->baseUsuariosExternaHabilitada()) {
+            return [];
+        }
+
+        try {
+            require_once 'Models/UsuariosDatosModel.php';
+            $usuariosDatosModel = new UsuariosDatosModel();
+            $persona = $usuariosDatosModel->obtenerPorId($idPersonaExterna);
+            return empty($persona) ? [] : $this->normalizarPersonaExterna($persona);
+        } catch (Throwable $e) {
+            error_log('No se pudo obtener la persona desde la base externa: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function obtenerSelectorPersonaActual(array $legajo, array $personasActivas, string $fuente): string
+    {
+        if ($fuente === 'interna') {
+            $idPersona = intval($legajo['id_persona'] ?? 0);
+            return $idPersona > 0 ? (string)$idPersona : '';
+        }
+
+        if ($fuente === 'externa') {
+            $ciLegajo = $this->normalizarCedula((string)($legajo['ci_socio'] ?? ''));
+            if ($ciLegajo === '') {
+                return '';
+            }
+
+            foreach ($personasActivas as $persona) {
+                if ($this->normalizarCedula((string)($persona['ci'] ?? '')) === $ciLegajo) {
+                    return (string)($persona['selector_valor'] ?? '');
+                }
+            }
+        }
+
+        return '';
+    }
+
     private function construirFlashDocumentosDesdePost(): array
     {
         $documentos = [];
 
         foreach ($_POST as $clave => $valor) {
+            if (strpos($clave, 'valor_campo_') === 0) {
+                $idRequisito = intval(substr($clave, strlen('valor_campo_')));
+                if ($idRequisito > 0) {
+                    $documentos[$idRequisito]['valor_campo'] = is_array($valor)
+                        ? ''
+                        : trim((string)$valor);
+                }
+                continue;
+            }
+
             if (strpos($clave, 'fecha_expedicion_') === 0) {
                 $idRequisito = intval(substr($clave, strlen('fecha_expedicion_')));
                 if ($idRequisito > 0) {
@@ -191,6 +335,38 @@ class Legajos extends Controllers
         }
 
         return $documentos;
+    }
+
+    private function normalizarTipoCampo(array $regla): string
+    {
+        $tipoCampo = strtolower(trim((string)($regla['tipo_campo'] ?? 'documento')));
+        return in_array($tipoCampo, ['documento', 'texto', 'lista', 'casilla'], true) ? $tipoCampo : 'documento';
+    }
+
+    private function esCampoDocumento(array $regla): bool
+    {
+        return $this->normalizarTipoCampo($regla) === 'documento';
+    }
+
+    private function obtenerValorCampoDesdePost(int $idRequisito, array $regla, ?string $valorAnterior = ''): string
+    {
+        $clave = 'valor_campo_' . $idRequisito;
+        $tipoCampo = $this->normalizarTipoCampo($regla);
+
+        if ($tipoCampo === 'casilla') {
+            return isset($_POST[$clave]) ? '1' : '0';
+        }
+
+        return trim((string)($_POST[$clave] ?? $valorAnterior ?? ''));
+    }
+
+    private function campoValorCompleto(array $regla, ?string $valor): bool
+    {
+        if ($this->normalizarTipoCampo($regla) === 'casilla') {
+            return trim((string)$valor) === '1';
+        }
+
+        return trim((string)$valor) !== '';
     }
 
     private function construirUrlArmarLegajo(int $idLegajo = 0, int $duplicadoDesde = 0): string
@@ -310,6 +486,48 @@ class Legajos extends Controllers
 
         if (isset($_SESSION['legajo_pdf_final_listo']['id_legajo']) && intval($_SESSION['legajo_pdf_final_listo']['id_legajo']) === $idLegajo) {
             unset($_SESSION['legajo_pdf_final_listo']);
+        }
+
+        if (method_exists($this->model, 'limpiarCantidadPaginasProcesadas')) {
+            $this->model->limpiarCantidadPaginasProcesadas($idLegajo);
+        }
+    }
+
+    private function contarPaginasPdf(string $rutaArchivo): int
+    {
+        if ($rutaArchivo === '' || !is_file($rutaArchivo)) {
+            return 0;
+        }
+
+        try {
+            if (!class_exists('\setasign\Fpdi\Fpdi')) {
+                require_once 'Libraries/fpdi/src/autoload.php';
+            }
+
+            $fpdi = new \setasign\Fpdi\Fpdi();
+            return max(0, intval($fpdi->setSourceFile($rutaArchivo)));
+        } catch (Throwable $e) {
+            error_log('No se pudo contar las paginas del PDF final del legajo: ' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    private function sincronizarCantidadPaginasProcesadasLegajo(array $legajo, string $rutaArchivo): void
+    {
+        $idLegajo = intval($legajo['id_legajo'] ?? 0);
+        if ($idLegajo <= 0 || $rutaArchivo === '') {
+            return;
+        }
+
+        $paginasTotales = $this->contarPaginasPdf($rutaArchivo);
+        $paginasProcesadas = $paginasTotales > 0 ? max(0, $paginasTotales - 1) : 0;
+
+        if (method_exists($this->model, 'actualizarCantidadPaginasProcesadas')) {
+            $this->model->actualizarCantidadPaginasProcesadas($idLegajo, $paginasProcesadas);
+        }
+
+        if (method_exists($this->model, 'registrarFacturacionLegajo')) {
+            $this->model->registrarFacturacionLegajo($idLegajo, $paginasProcesadas, $_SESSION['nombre'] ?? null);
         }
     }
 
@@ -514,7 +732,9 @@ class Legajos extends Controllers
 
                         $xCentro = $this->w / 2;
                         $yCentro = $this->h / 2;
-                        $textoPdf = utf8_decode($texto);
+                        $textoPdf = function_exists("iconv")
+                            ? (@iconv("UTF-8", "ISO-8859-1//TRANSLIT//IGNORE", $texto) ?: $texto)
+                            : $texto;
                         $anchoTexto = $this->GetStringWidth($textoPdf);
                         if ($posicion === "cruzado") {
                             $posicion = "arriba";
@@ -562,7 +782,9 @@ class Legajos extends Controllers
 
                         $longitud = function_exists("mb_strlen") ? mb_strlen($texto, "UTF-8") : strlen($texto);
                         $tamanoFuente = $longitud > 28 ? 7 : 8;
-                        $textoPdf = utf8_decode($texto);
+                        $textoPdf = function_exists("iconv")
+                            ? (@iconv("UTF-8", "ISO-8859-1//TRANSLIT//IGNORE", $texto) ?: $texto)
+                            : $texto;
                         $this->SetFont("Arial", "B", $tamanoFuente);
                         $this->SetTextColor(210, 210, 210);
                         $anchoTexto = $this->GetStringWidth($textoPdf);
@@ -605,7 +827,8 @@ class Legajos extends Controllers
             ');
         }
 
-        return new ScantecLegajoPdf();
+        $pdfClass = 'ScantecLegajoPdf';
+        return new $pdfClass();
     }
 
     private function unirPdfsSimple(array $rutasOrigen, string $rutaDestino): bool
@@ -671,8 +894,6 @@ class Legajos extends Controllers
 
                 $rutaTemporalJpg = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'legajo_img_' . uniqid('', true) . '.jpg';
                 imagejpeg($dst, $rutaTemporalJpg, 90);
-                imagedestroy($src);
-                imagedestroy($dst);
                 $rutaTrabajo = $rutaTemporalJpg;
             }
 
@@ -749,16 +970,17 @@ class Legajos extends Controllers
 
         if (extension_loaded('imagick')) {
             try {
-                $imagick = new \Imagick();
+                $imagickClass = '\Imagick';
+                $imagick = new $imagickClass();
                 $imagick->setResolution(150, 150);
                 $imagick->readImage($rutaPdf);
 
                 $indice = 0;
                 foreach ($imagick as $pagina) {
                     $paginaActual = clone $pagina;
-                    $paginaActual->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
+                    $paginaActual->setImageAlphaChannel(constant('\Imagick::ALPHACHANNEL_REMOVE'));
                     $paginaActual->setImageBackgroundColor('white');
-                    $paginaActual = $paginaActual->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
+                    $paginaActual = $paginaActual->mergeImageLayers(constant('\Imagick::LAYERMETHOD_FLATTEN'));
                     $paginaActual->setImageFormat('jpg');
 
                     $rutaImagen = $prefijoTemporal . '_' . str_pad((string)$indice, 3, '0', STR_PAD_LEFT) . '.jpg';
@@ -885,7 +1107,14 @@ class Legajos extends Controllers
                 }
 
                 $extension = strtolower(pathinfo((string)$nombreOriginal, PATHINFO_EXTENSION));
-                if (!in_array($extension, ['pdf', 'jpg', 'jpeg', 'png', 'jfif'], true)) {
+                $archivoValidar = [
+                    'name' => $nombreOriginal,
+                    'type' => $archivo['type'][$indice] ?? '',
+                    'tmp_name' => $rutaTemporal,
+                    'error' => $error,
+                    'size' => $archivo['size'][$indice] ?? 0,
+                ];
+                if (!scantecValidarUpload($archivoValidar, ['pdf', 'jpg', 'jpeg', 'png', 'jfif'], ['application/pdf', 'image/jpeg', 'image/png'], 50 * 1024 * 1024)) {
                     continue;
                 }
                 $cantidadEsperada++;
@@ -940,6 +1169,10 @@ class Legajos extends Controllers
         }
 
         $extension = strtolower(pathinfo((string)($archivo['name'] ?? ''), PATHINFO_EXTENSION));
+        if (!scantecValidarUpload($archivo, ['pdf', 'jpg', 'jpeg', 'png', 'jfif'], ['application/pdf', 'image/jpeg', 'image/png'], 50 * 1024 * 1024)) {
+            return false;
+        }
+
         if ($extension === 'pdf') {
             return move_uploaded_file($rutaTemporal, $rutaDestino);
         }
@@ -1023,11 +1256,15 @@ class Legajos extends Controllers
 
     private function requiereFechaExpedicion(array $regla): bool
     {
-        return !empty($regla['tiene_vencimiento']);
+        return $this->esCampoDocumento($regla) && !empty($regla['tiene_vencimiento']);
     }
 
-    private function resolverEstadoDocumentoPorRegla(array $regla, ?string $rutaArchivo, ?string $fechaVencimiento): string
+    private function resolverEstadoDocumentoPorRegla(array $regla, ?string $rutaArchivo, ?string $fechaVencimiento, ?string $valorCampo = null): string
     {
+        if (!$this->esCampoDocumento($regla)) {
+            return $this->campoValorCompleto($regla, $valorCampo) ? 'cargado' : 'pendiente';
+        }
+
         $rutaArchivo = trim((string)$rutaArchivo);
         $fechaVencimiento = trim((string)$fechaVencimiento);
 
@@ -1097,7 +1334,8 @@ class Legajos extends Controllers
             $documento['estado'] = $this->resolverEstadoDocumentoPorRegla(
                 $reglaDocumento,
                 $documento['ruta_archivo'] ?? '',
-                $documento['fecha_vencimiento'] ?? null
+                $documento['fecha_vencimiento'] ?? null,
+                $documento['valor_campo'] ?? null
             );
             $documentosPorRequisito[$idRequisito] = $documento;
         }
@@ -1253,13 +1491,13 @@ class Legajos extends Controllers
         if ($tipoLegajo !== '') {
             $titulo .= ' - ' . $tipoLegajo;
         }
-        $pdf->Cell(0, 12, utf8_decode($titulo), 0, 1, 'C');
+        $pdf->Cell(0, 12, $this->pdfText($titulo), 0, 1, 'C');
 
         $pdf->Ln(2);
         $pdf->SetFont('Arial', '', 11);
         $pdf->SetTextColor(60, 60, 60);
-        $pdf->Cell(0, 6, utf8_decode('Generación: ' . date('d/m/Y H:i')), 0, 1, 'R');
-        $pdf->Cell(0, 6, utf8_decode('Generado por: ' . trim($usuarioGenerador)), 0, 1, 'R');
+        $pdf->Cell(0, 6, $this->pdfText('Generación: ' . date('d/m/Y H:i')), 0, 1, 'R');
+        $pdf->Cell(0, 6, $this->pdfText('Generado por: ' . trim($usuarioGenerador)), 0, 1, 'R');
         $estadoLegajo = strtolower(trim((string)($legajo['estado'] ?? '')));
         $fechaVerificacion = trim((string)($legajo['fecha_cierre'] ?? ''));
         $verificadoPor = '';
@@ -1269,8 +1507,8 @@ class Legajos extends Controllers
         if ($fechaVerificacion !== '' && $verificadoPor === '') {
             $verificadoPor = trim((string)($legajo['nombre_usuario_armado'] ?? $legajo['nombre_usuario_creador'] ?? $usuarioGenerador));
         }
-        $pdf->Cell(0, 6, utf8_decode('Verificación: ' . ($fechaVerificacion !== '' ? date('d/m/Y H:i', strtotime($fechaVerificacion)) : '---')), 0, 1, 'R');
-        $pdf->Cell(0, 6, utf8_decode('Verificado por: ' . ($verificadoPor !== '' ? $verificadoPor : '---')), 0, 1, 'R');
+        $pdf->Cell(0, 6, $this->pdfText('Verificación: ' . ($fechaVerificacion !== '' ? date('d/m/Y H:i', strtotime($fechaVerificacion)) : '---')), 0, 1, 'R');
+        $pdf->Cell(0, 6, $this->pdfText('Verificado por: ' . ($verificadoPor !== '' ? $verificadoPor : '---')), 0, 1, 'R');
 
         $pdf->SetDrawColor(210, 210, 210);
         $pdf->SetFillColor(248, 250, 252);
@@ -1288,27 +1526,27 @@ class Legajos extends Controllers
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->Cell($labelW, $rowH, 'Titular:', 0, 0);
         $pdf->SetFont('Arial', '', 11);
-        $pdf->Cell($valueWLeft, $rowH, utf8_decode(substr($legajo['nombre_completo'] ?? '', 0, 34)), 0, 0);
+        $pdf->Cell($valueWLeft, $rowH, $this->pdfText(substr($legajo['nombre_completo'] ?? '', 0, 34)), 0, 0);
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->Cell($labelWRight, $rowH, 'Solicitud:', 0, 0);
         $pdf->SetFont('Arial', '', 11);
-        $pdf->Cell($valueWRight, $rowH, utf8_decode(substr((string)($legajo['nro_solicitud'] ?? ''), 0, 18)), 0, 1);
+        $pdf->Cell($valueWRight, $rowH, $this->pdfText(substr((string)($legajo['nro_solicitud'] ?? ''), 0, 18)), 0, 1);
 
         $pdf->SetX($x);
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->Cell($labelW, $rowH, 'CI:', 0, 0);
         $pdf->SetFont('Arial', '', 11);
-        $pdf->Cell($valueWLeft, $rowH, utf8_decode(substr((string)($legajo['ci_socio'] ?? ''), 0, 25)), 0, 0);
+        $pdf->Cell($valueWLeft, $rowH, $this->pdfText(substr((string)($legajo['ci_socio'] ?? ''), 0, 25)), 0, 0);
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->Cell($labelWRight, $rowH, 'Estado:', 0, 0);
         $pdf->SetFont('Arial', '', 11);
-        $pdf->Cell($valueWRight, $rowH, utf8_decode($this->obtenerTextoEstadoLegajo($legajo['estado'] ?? '')), 0, 1);
+        $pdf->Cell($valueWRight, $rowH, $this->pdfText($this->obtenerTextoEstadoLegajo($legajo['estado'] ?? '')), 0, 1);
 
         $pdf->SetX($x);
         $pdf->SetFont('Arial', 'B', 11);
         $pdf->Cell($labelW, $rowH, 'Tipo de legajo:', 0, 0);
         $pdf->SetFont('Arial', '', 11);
-        $pdf->Cell(131, $rowH, utf8_decode(substr($legajo['nombre_tipo_legajo'] ?? '', 0, 55)), 0, 1);
+        $pdf->Cell(131, $rowH, $this->pdfText(substr($legajo['nombre_tipo_legajo'] ?? '', 0, 55)), 0, 1);
 
         $pdf->SetX($x);
         $pdf->SetFont('Arial', 'B', 11);
@@ -1316,18 +1554,18 @@ class Legajos extends Controllers
         $pdf->SetFont('Arial', '', 11);
         $pdf->Cell(18, $rowH, strval($cantidadDocumentosCargados), 0, 0);
         $pdf->SetFont('Arial', 'B', 11);
-        $pdf->Cell(40, $rowH, 'Checklist total:', 0, 0);
+        $pdf->Cell(40, $rowH, 'Listado total:', 0, 0);
         $pdf->SetFont('Arial', '', 11);
         $pdf->Cell(18, $rowH, strval(count($reglas)), 0, 1);
 
         $pdf->Ln(8);
         $pdf->SetFont('Arial', 'B', 12);
         $pdf->SetTextColor(24, 37, 65);
-        $pdf->Cell(0, 8, utf8_decode('Checklist de verificación manual'), 0, 1);
+        $pdf->Cell(0, 8, $this->pdfText('Listado de verificación manual'), 0, 1);
 
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetTextColor(80, 80, 80);
-        $pdf->MultiCell(0, 6, utf8_decode('Marque manualmente cada documento verificado en la revision fisica del legajo.'));
+        $pdf->MultiCell(0, 6, $this->pdfText('Marque manualmente cada documento verificado en la revision fisica del legajo.'));
         $pdf->Ln(2);
 
         $pdf->SetFillColor(240, 244, 248);
@@ -1351,8 +1589,8 @@ class Legajos extends Controllers
             $yCelda = $pdf->GetY();
             $pdf->Cell(22, 8, '', 1, 0, 'C');
             $pdf->Rect($xCelda + 8, $yCelda + 2, 4, 4);
-            $pdf->Cell(88, 8, utf8_decode($regla['documento_nombre'] ?? ''), 1, 0, 'L');
-            $pdf->Cell(35, 8, utf8_decode($regla['rol_vinculado'] ?? ''), 1, 0, 'L');
+            $pdf->Cell(88, 8, $this->pdfText($regla['documento_nombre'] ?? ''), 1, 0, 'L');
+            $pdf->Cell(35, 8, $this->pdfText($regla['rol_vinculado'] ?? ''), 1, 0, 'L');
             $pdf->Cell(35, 8, $tipo, 1, 1, 'L');
         }
 
@@ -1362,10 +1600,131 @@ class Legajos extends Controllers
         $pdf->SetXY(115, 262);
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetTextColor(70, 70, 70);
-        $pdf->Cell(75, 6, utf8_decode('Verificado por:'), 0, 1, 'L');
+        $pdf->Cell(75, 6, $this->pdfText('Verificado por:'), 0, 1, 'L');
     }
 
-    private function unirArchivosLegajo(array $documentos, string $rutaDestino, string $titulo, string $usuario, array $legajo = [], array $reglas = []): bool
+
+    /**
+     * Genera la segunda hoja del PDF del legajo con los campos no-documento
+     * (tipo texto, lista y casilla). Muestra TODOS, incluso sin valor (aparecen con "-").
+     * Diseño de 2 columnas en tarjetas con título en negrita y valor debajo.
+     */
+    /**
+     * Genera un PDF individual para un campo que no es un documento (texto, lista, casilla)
+     * y devuelve la ruta relativa para ser guardada en la base de datos.
+     */
+        /**
+     * Genera un PDF temporal en disco con los campos no-documento (texto, lista, casilla)
+     * y devuelve la ruta del archivo generado, o null si no hay campos.
+     */
+    private function generarPdfCamposNoDocumento(array $legajo, array $camposNoDoc, string $dirDestino, string $nombreArchivo): ?string
+    {
+        if (empty($camposNoDoc)) {
+            return null;
+        }
+
+        $pdf = $this->crearInstanciaPdf();
+        $pdf->SetTitle('Datos Adicionales', true);
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 18);
+        $pdf->AddPage('P', 'A4');
+
+        $this->aplicarMarcaAguaSiCorresponde($pdf, intval($legajo['id_tipo_legajo'] ?? 0), true);
+
+        // â”€â”€ Encabezado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        $rutaLogoReducido = $this->obtenerRutaLogoReducidoEmpresa();
+        if (!empty($rutaLogoReducido)) {
+            try { $pdf->Image($rutaLogoReducido, 15, 10, 22); } catch (Throwable $e) {}
+        }
+
+        $pdf->SetFont('Arial', 'B', 15);
+        $pdf->SetTextColor(24, 37, 65);
+        $pdf->Cell(0, 10, $this->pdfText('DATOS ADICIONALES DEL LEGAJO'), 0, 1, 'C');
+
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->SetTextColor(80, 80, 80);
+        $titular = trim((string)($legajo['nombre_completo'] ?? '-'));
+        $ci      = trim((string)($legajo['ci_socio'] ?? '-'));
+        $pdf->Cell(0, 5, $this->pdfText("Titular: $titular   |   CI: $ci"), 0, 1, 'C');
+
+        $pdf->SetDrawColor(200, 210, 225);
+        $pdf->Line(15, $pdf->GetY() + 2, 195, $pdf->GetY() + 2);
+        $pdf->Ln(7);
+
+        // â”€â”€ Tarjetas en 1 columna â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        $colW        = 180;   // ancho total (210 - 2*15)
+        $cardPad     = 4;     // padding interno
+        $titleH      = 7;     // altura del encabezado de tarjeta
+        $minValueH   = 8;     // altura mínima del valor
+        $marginLeft  = 15;
+
+        $xCard    = $marginLeft;
+        $rowTopY  = $pdf->GetY();
+
+        foreach ($camposNoDoc as $campo) {
+            $nombreCampo = $this->pdfText(trim((string)($campo['campo_nombre'] ?? 'Campo')));
+            $tipoCampo   = strtolower(trim((string)($campo['tipo_campo'] ?? 'texto')));
+            $valorRaw    = trim((string)($campo['valor_campo'] ?? ''));
+
+            // Formatear valor según tipo
+            if ($tipoCampo === 'casilla') {
+                $valorMostrar = ($valorRaw === '1') ? $this->pdfText('Si (marcado)') : $this->pdfText('No (sin marcar)');
+            } elseif ($valorRaw === '') {
+                $valorMostrar = '-';
+            } else {
+                $valorMostrar = $this->pdfText($valorRaw);
+            }
+
+            // Calcular altura del valor (MultiCell puede necesitar varias líneas)
+            $pdf->SetFont('Arial', '', 9);
+            $lineas      = $pdf->GetStringWidth($valorMostrar) > ($colW - $cardPad * 2)
+                           ? ceil($pdf->GetStringWidth($valorMostrar) / ($colW - $cardPad * 2 - 1))
+                           : 1;
+            $valueH      = max($minValueH, $lineas * 5 + 3);
+            $cardH       = $titleH + $valueH + $cardPad;
+
+            // Salto de página si no cabe
+            if ($rowTopY + $cardH > 270) {
+                $pdf->AddPage('P', 'A4');
+                $this->aplicarMarcaAguaSiCorresponde($pdf, intval($legajo['id_tipo_legajo'] ?? 0), true);
+                $rowTopY = $pdf->GetY();
+            }
+
+            // Fondo de la tarjeta
+            $pdf->SetFillColor(245, 248, 252);
+            $pdf->SetDrawColor(210, 220, 235);
+            $pdf->Rect($xCard, $rowTopY, $colW, $cardH, 'DF');
+
+            // Encabezado de tarjeta (fondo azul oscuro)
+            $pdf->SetFillColor(24, 37, 65);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetFont('Arial', 'B', 8);
+            $pdf->SetXY($xCard, $rowTopY);
+            $pdf->Cell($colW, $titleH, $nombreCampo, 0, 0, 'L', true);
+
+            // Valor
+            $pdf->SetTextColor(40, 40, 40);
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetXY($xCard + $cardPad, $rowTopY + $titleH + 2);
+            $pdf->MultiCell($colW - $cardPad * 2, 5, $valorMostrar, 0, 'L');
+
+            $rowTopY += $cardH + 5;
+        }
+
+        $pdf->SetY($rowTopY);
+
+        $pdf->SetTextColor(0, 0, 0);
+
+        // Guardar como PDF temporal
+        $rutaFinal = $dirDestino . $nombreArchivo;
+        try {
+            $pdf->Output('F', $rutaFinal);
+            return file_exists($rutaFinal) ? $rutaFinal : null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+    private function unirArchivosLegajo(array $documentos, string $rutaDestino, string $titulo, string $usuario, array $legajo = [], array $reglas = [], array $camposNoDoc = []): bool
     {
         $pdf = $this->crearInstanciaPdf();
         $pdf->SetTitle($titulo, true);
@@ -1380,16 +1739,40 @@ class Legajos extends Controllers
             mkdir($tempDir, 0777, true);
         }
 
+        // Generar PDF temporal de campos no-documento e insertar en lista
+        $rutaBaseLegajo = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . 'Legajos' . DIRECTORY_SEPARATOR . intval($legajo['id_legajo'] ?? 0) . DIRECTORY_SEPARATOR;
+        if (!is_dir($rutaBaseLegajo)) {
+            @mkdir($rutaBaseLegajo, 0777, true);
+        }
+        
+        $ciL = $legajo['ci_socio'] ?? '';
+        $solL = $legajo['nro_solicitud'] ?? '';
+        $cedulaL = preg_replace('/[^0-9]+/', '', $ciL);
+        if ($cedulaL === '') $cedulaL = 'SINCI';
+        $solLObj = preg_replace('/[^0-9A-Za-z]+/', '', $solL);
+        $nombreAdicional = 'DA_TITULAR_' . $cedulaL . ($solLObj !== '' ? '_' . $solLObj : '') . '.pdf';
+
+        $pdfCamposTempPath = $this->generarPdfCamposNoDocumento($legajo, $camposNoDoc, $rutaBaseLegajo, $nombreAdicional);
+        $documentosConCampos = $documentos;
+        if ($pdfCamposTempPath !== null) {
+            // Insertar al inicio (después de carátula, antes de documentos adjuntos)
+            array_unshift($documentosConCampos, ['ruta_archivo' => $pdfCamposTempPath, '_es_temp' => true]);
+        }
+
         $this->agregarCaratulaLegajo($pdf, $legajo, $reglas, count($documentos), $usuario);
         $agregoPaginas = true;
 
-        foreach ($documentos as $documento) {
+        foreach ($documentosConCampos as $documento) {
             $rutaRelativa = trim((string)($documento['ruta_archivo'] ?? ''));
-            if ($rutaRelativa === '') {
+            // Si es un archivo temporal, la ruta ya es absoluta
+            if (!empty($documento['_es_temp'])) {
+                $rutaAbsoluta = $rutaRelativa;
+            } elseif ($rutaRelativa === '') {
                 continue;
+            } else {
+                $rutaAbsoluta = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $rutaRelativa);
             }
 
-            $rutaAbsoluta = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $rutaRelativa);
             if (!file_exists($rutaAbsoluta)) {
                 continue;
             }
@@ -1415,15 +1798,12 @@ class Legajos extends Controllers
                             imagefill($dst, 0, 0, $white);
                             imagecopy($dst, $src, 0, 0, 0, 0, $w, $h);
                             imagejpeg($dst, $tempJpg, 90);
-                            imagedestroy($src);
-                            imagedestroy($dst);
                             $ok = true;
                         }
                     } elseif (in_array($extension, ['jpg', 'jpeg', 'jfif'], true) && function_exists('imagecreatefromjpeg')) {
                         $src = @imagecreatefromjpeg($rutaAbsoluta);
                         if ($src) {
                             imagejpeg($src, $tempJpg, 90);
-                            imagedestroy($src);
                             $ok = true;
                         }
                     }
@@ -1451,7 +1831,12 @@ class Legajos extends Controllers
         }
 
         $pdf->Output('F', $rutaDestino);
-        return file_exists($rutaDestino);
+        $archivoGenerado = file_exists($rutaDestino);
+        if ($archivoGenerado) {
+            $this->sincronizarCantidadPaginasProcesadasLegajo($legajo, $rutaDestino);
+        }
+
+        return $archivoGenerado;
     }
 
     private function regenerarPdfFinalLegajo(int $idLegajo, string $usuario): bool
@@ -1470,7 +1855,10 @@ class Legajos extends Controllers
         }
 
         $documentosParaUnir = $this->model->obtenerDocumentosCargadosParaUnir($idLegajo);
-        if (empty($documentosParaUnir)) {
+        $camposNoDoc = $this->model->obtenerCamposNoDocumentoConValor($idLegajo);
+
+        // Genera el PDF si hay documentos adjuntos O si hay campos no-documento configurados
+        if (empty($documentosParaUnir) && empty($camposNoDoc)) {
             return false;
         }
 
@@ -1483,7 +1871,7 @@ class Legajos extends Controllers
         $nombreFinal = $this->construirNombrePdfFinalLegajo($legajoActual, $idLegajo);
         $rutaFinal = $rutaBaseLegajos . $nombreFinal;
 
-        return $this->unirArchivosLegajo($documentosParaUnir, $rutaFinal, 'Legajo ' . $idLegajo, $usuario, $legajoActual, $matriz);
+        return $this->unirArchivosLegajo($documentosParaUnir ?? [], $rutaFinal, 'Legajo ' . $idLegajo, $usuario, $legajoActual, $matriz, $camposNoDoc);
     }
 
     private function eliminarDirectorioRecursivo(string $directorio): bool
@@ -1517,6 +1905,144 @@ class Legajos extends Controllers
         }
 
         return $this->eliminarDirectorioRecursivo($directorio);
+    }
+
+    private function fechaIsoValida(string $fecha): bool
+    {
+        $fecha = trim($fecha);
+        if ($fecha === '') {
+            return false;
+        }
+
+        $date = DateTime::createFromFormat('Y-m-d', $fecha);
+        return $date instanceof DateTime && $date->format('Y-m-d') === $fecha;
+    }
+
+    private function resolverFiltrosDocumentosProcesados(): array
+    {
+        $desde = trim((string)($_GET['desde'] ?? ''));
+        $hasta = trim((string)($_GET['hasta'] ?? ''));
+
+        if (!$this->fechaIsoValida($desde)) {
+            $desde = date('Y-m-01');
+        }
+
+        if (!$this->fechaIsoValida($hasta)) {
+            $hasta = date('Y-m-t');
+        }
+
+        if ($desde > $hasta) {
+            [$desde, $hasta] = [$hasta, $desde];
+        }
+
+        return [
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ];
+    }
+
+    private function pdfText(?string $texto): string
+    {
+        $texto = (string)$texto;
+
+        if ($texto === '') {
+            return '';
+        }
+
+        if (function_exists('iconv')) {
+            $convertido = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $texto);
+            if ($convertido !== false) {
+                return $convertido;
+            }
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            return mb_convert_encoding($texto, 'ISO-8859-1', 'UTF-8');
+        }
+
+        return $texto;
+    }
+
+    private function obtenerModeloDocumentosProcesados(): LogsModel
+    {
+        if (!class_exists('LogsModel')) {
+            require_once 'Models/LogsModel.php';
+        }
+
+        return new LogsModel();
+    }
+
+    private function asegurarAccesoFacturacion(): void
+    {
+        $idRol = intval($_SESSION['id_rol'] ?? 0);
+        if ($idRol === 1) {
+            return;
+        }
+
+        require_once 'Models/FuncionalidadesModel.php';
+        $funcionalidadesModel = new FuncionalidadesModel();
+        $idDepartamento = intval($_SESSION['id_departamento'] ?? 0);
+
+        if ($funcionalidadesModel->puedeAccederItemPorContexto('facturacion', $idRol, $idDepartamento)) {
+            return;
+        }
+
+        if (function_exists('setAlert')) {
+            setAlert('warning', 'No tienes permiso para acceder a facturación.');
+        }
+        header('Location: ' . base_url() . 'dashboard/dashboard_legajos');
+        exit();
+    }
+
+    public function facturacion()
+    {
+        $this->asegurarAccesoFacturacion();
+        $filtros = $this->resolverFiltrosDocumentosProcesados();
+
+        $data = [
+            'filtros' => $filtros,
+            'totales' => $this->model->selectTotalesFacturacionLegajos($filtros['desde'], $filtros['hasta']),
+            'resumen_fechas' => $this->model->selectResumenFacturacionLegajosPorFecha($filtros['desde'], $filtros['hasta']),
+        ];
+
+        $this->views->getView($this, "facturacion", $data);
+    }
+
+    public function facturacionPdf()
+    {
+        $this->asegurarAccesoFacturacion();
+        $filtros = $this->resolverFiltrosDocumentosProcesados();
+        $totales = $this->model->selectTotalesFacturacionLegajos($filtros['desde'], $filtros['hasta']);
+
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+        require_once 'Helpers/ReportTemplatePDF.php';
+
+        $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Facturacion de legajos', 'L', 'A4');
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(0, 8, iconv('UTF-8', 'ISO-8859-1//TRANSLIT', 'Reporte de Facturación de Legajos'), 0, 1, 'L');
+        
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(0, 6, iconv('UTF-8', 'ISO-8859-1//TRANSLIT', 'Período: ' . $filtros['desde'] . ' a ' . $filtros['hasta']), 0, 1, 'L');
+        $pdf->Cell(0, 6, iconv('UTF-8', 'ISO-8859-1//TRANSLIT', 'Generado: ' . date('d/m/Y H:i')), 0, 1, 'L');
+        $pdf->Ln(3);
+
+        // Tarjetas de contadores
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->SetFillColor(230, 230, 230);
+        $pdf->Cell(60, 7, iconv('UTF-8', 'ISO-8859-1//TRANSLIT', 'Legajos con incrementos'), 0, 0, 'L', true);
+        $pdf->Cell(60, 7, iconv('UTF-8', 'ISO-8859-1//TRANSLIT', 'Legajos facturados'), 0, 0, 'L', true);
+        $pdf->Cell(60, 7, iconv('UTF-8', 'ISO-8859-1//TRANSLIT', 'Páginas facturables'), 0, 1, 'L', true);
+        
+        $pdf->SetFont('Arial', 'B', 14);
+        $pdf->SetFillColor(240, 240, 240);
+        $pdf->Cell(60, 10, strval(intval($totales['total_movimientos'] ?? 0)), 0, 0, 'C', true);
+        $pdf->Cell(60, 10, strval(intval($totales['total_legajos'] ?? 0)), 0, 0, 'C', true);
+        $pdf->Cell(60, 10, strval(intval($totales['total_paginas'] ?? 0)), 0, 1, 'C', true);
+        $pdf->Ln(5);
+
+        $pdf->Output("Facturacion_Legajos.pdf", "I");
     }
 
     public function __construct()
@@ -1791,6 +2317,11 @@ class Legajos extends Controllers
         $legajo_documentos = [];
         $pdf_final_listo = null;
         $flashFormulario = $this->consumirFlashFormularioLegajo();
+        $fuentePersonas = $this->obtenerFuentePersonasLegajo();
+        $personasModuloActivo = $fuentePersonas !== 'ninguna';
+        $personasActivas = $fuentePersonas === 'externa'
+            ? $this->obtenerPersonasExternasActivas()
+            : ($personasModuloActivo ? $this->obtenerPersonasActivas() : []);
 
         if ($id_legajo > 0) {
             $this->asegurarAccesoLegajo($id_legajo, 'legajos/armar_legajo');
@@ -1811,7 +2342,8 @@ class Legajos extends Controllers
                 $legajo_documento['estado'] = $this->resolverEstadoDocumentoPorRegla(
                     $reglaDocumento,
                     $legajo_documento['ruta_archivo'] ?? '',
-                    $legajo_documento['fecha_vencimiento'] ?? null
+                    $legajo_documento['fecha_vencimiento'] ?? null,
+                    $legajo_documento['valor_campo'] ?? null
                 );
             }
             unset($legajo_documento);
@@ -1850,12 +2382,13 @@ class Legajos extends Controllers
                 }
                 foreach ($legajo_documentos as &$legajo_documento) {
                     $reglaDocumento = $reglasPorRequisito[intval($legajo_documento['id_requisito'] ?? 0)] ?? [];
-                    $legajo_documento['estado'] = $this->resolverEstadoDocumentoPorRegla(
-                        $reglaDocumento,
-                        $legajo_documento['ruta_archivo'] ?? '',
-                        $legajo_documento['fecha_vencimiento'] ?? null
-                    );
-                }
+                $legajo_documento['estado'] = $this->resolverEstadoDocumentoPorRegla(
+                    $reglaDocumento,
+                    $legajo_documento['ruta_archivo'] ?? '',
+                    $legajo_documento['fecha_vencimiento'] ?? null,
+                    $legajo_documento['valor_campo'] ?? null
+                );
+            }
                 unset($legajo_documento);
             }
         }
@@ -1893,7 +2426,11 @@ class Legajos extends Controllers
             'pdf_final_listo' => $pdf_final_listo,
             'buscar_legajo' => $buscar_legajo,
             'resultados_busqueda_legajo' => $resultados_busqueda_legajo,
-            'duplicar_desde' => $duplicar_desde
+            'duplicar_desde' => $duplicar_desde,
+            'personas_modulo_activo' => $personasModuloActivo,
+            'personas_activas' => $personasActivas,
+            'personas_fuente' => $fuentePersonas,
+            'selector_persona_valor_actual' => $this->obtenerSelectorPersonaActual($legajo, $personasActivas, $fuentePersonas)
         ];
         $this->views->getView($this, "armar_legajo", $data);
     }
@@ -1953,6 +2490,139 @@ class Legajos extends Controllers
             'tipos_legajo' => $tipos_legajo
         ];
         $this->views->getView($this, "buscar_legajos", $data);
+    }
+
+    public function documentos_procesados()
+    {
+        $this->checkLegajoGroupPermission('buscar_legajos');
+        $filtros = $this->resolverFiltrosDocumentosProcesados();
+        $reporteModel = $this->obtenerModeloDocumentosProcesados();
+
+        $data = [
+            'filtros' => $filtros,
+            'totales' => $reporteModel->selectTotalesPaginasLegajos($filtros['desde'], $filtros['hasta']),
+            'resumen_periodos' => $reporteModel->selectResumenPaginasLegajosPorPeriodo($filtros['desde'], $filtros['hasta']),
+            'detalle_legajos' => $reporteModel->selectDetallePaginasLegajos($filtros['desde'], $filtros['hasta']),
+        ];
+
+        $this->views->getView($this, "documentos_procesados", $data);
+    }
+
+    public function documentos_procesadosPdf()
+    {
+        $this->checkLegajoGroupPermission('buscar_legajos');
+        $filtros = $this->resolverFiltrosDocumentosProcesados();
+        $reporteModel = $this->obtenerModeloDocumentosProcesados();
+        $totales = $reporteModel->selectTotalesPaginasLegajos($filtros['desde'], $filtros['hasta']);
+        $detalle = $reporteModel->selectDetallePaginasLegajos($filtros['desde'], $filtros['hasta']);
+
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+        require_once 'Helpers/ReportTemplatePDF.php';
+
+        $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Documentos procesados para facturacion', 'L', 'A4');
+        $pdf->SetFont('Arial', 'B', 11);
+        $pdf->Cell(0, 8, $this->pdfText('Periodo facturable: ' . $filtros['desde'] . ' a ' . $filtros['hasta']), 0, 1, 'L');
+
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(90, 7, $this->pdfText('Legajos contabilizados: ' . intval($totales['total_legajos'] ?? 0)), 0, 0, 'L');
+        $pdf->Cell(90, 7, $this->pdfText('Paginas procesadas: ' . intval($totales['total_paginas'] ?? 0)), 0, 0, 'L');
+        $pdf->Cell(90, 7, $this->pdfText('Promedio por legajo: ' . number_format((float)($totales['promedio_paginas'] ?? 0), 2, ',', '.')), 0, 1, 'L');
+        $pdf->Ln(3);
+
+        $pdf->SetFont('Arial', 'B', 8);
+        $pdf->SetFillColor(192, 192, 192);
+        $pdf->Cell(18, 6, 'ID', 1, 0, 'C', true);
+        $pdf->Cell(28, 6, $this->pdfText('Fecha'), 1, 0, 'C', true);
+        $pdf->Cell(42, 6, $this->pdfText('Tipo'), 1, 0, 'C', true);
+        $pdf->Cell(38, 6, $this->pdfText('CI'), 1, 0, 'C', true);
+        $pdf->Cell(70, 6, $this->pdfText('Nombre'), 1, 0, 'C', true);
+        $pdf->Cell(32, 6, $this->pdfText('Solicitud'), 1, 0, 'C', true);
+        $pdf->Cell(20, 6, $this->pdfText('Paginas'), 1, 0, 'C', true);
+        $pdf->Cell(26, 6, $this->pdfText('Estado'), 1, 1, 'C', true);
+
+        $pdf->SetFont('Arial', '', 7);
+        foreach ($detalle as $row) {
+            $pdf->Cell(18, 6, strval($row['id_legajo']), 1, 0, 'C');
+            $pdf->Cell(28, 6, $this->pdfText(substr((string)$row['fecha_creacion'], 0, 10)), 1, 0, 'C');
+            $pdf->Cell(42, 6, $this->pdfText((string)($row['nombre_tipo_legajo'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(38, 6, $this->pdfText((string)($row['ci_socio'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(70, 6, $this->pdfText((string)($row['nombre_completo'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(32, 6, $this->pdfText((string)($row['nro_solicitud'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(20, 6, strval(intval($row['cantidad_paginas_procesadas'] ?? 0)), 1, 0, 'C');
+            $pdf->Cell(26, 6, $this->pdfText((string)($row['estado'] ?? '')), 1, 1, 'C');
+        }
+
+        $pdf->Output("Documentos_Procesados.pdf", "I");
+    }
+
+    public function documentos_procesadosExcel()
+    {
+        $this->checkLegajoGroupPermission('buscar_legajos');
+        $filtros = $this->resolverFiltrosDocumentosProcesados();
+        $reporteModel = $this->obtenerModeloDocumentosProcesados();
+        $totales = $reporteModel->selectTotalesPaginasLegajos($filtros['desde'], $filtros['hasta']);
+        $detalle = $reporteModel->selectDetallePaginasLegajos($filtros['desde'], $filtros['hasta']);
+
+        ob_start();
+        require_once 'Helpers/ReportTemplateExcel.php';
+        date_default_timezone_set('America/Asuncion');
+
+        $excel = new ReportTemplateExcel('Documentos procesados para facturacion', 'SCANTEC');
+        $sheet = $excel->getSheet();
+
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '878787']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
+        ];
+
+        $sheet->setCellValue('A2', 'Periodo');
+        $sheet->setCellValue('B2', $filtros['desde'] . ' a ' . $filtros['hasta']);
+        $sheet->setCellValue('A3', 'Legajos contabilizados');
+        $sheet->setCellValue('B3', intval($totales['total_legajos'] ?? 0));
+        $sheet->setCellValue('C3', 'Paginas procesadas');
+        $sheet->setCellValue('D3', intval($totales['total_paginas'] ?? 0));
+
+        $sheet->setCellValue('A5', 'ID');
+        $sheet->setCellValue('B5', 'Fecha');
+        $sheet->setCellValue('C5', 'Tipo de legajo');
+        $sheet->setCellValue('D5', 'CI');
+        $sheet->setCellValue('E5', 'Nombre completo');
+        $sheet->setCellValue('F5', 'Nro solicitud');
+        $sheet->setCellValue('G5', 'Paginas procesadas');
+        $sheet->setCellValue('H5', 'Estado');
+        $sheet->setCellValue('I5', 'Usuario');
+        $sheet->getStyle('A5:I5')->applyFromArray($headerStyle);
+
+        $row = 6;
+        foreach ($detalle as $value) {
+            $sheet->setCellValue('A' . $row, intval($value['id_legajo'] ?? 0));
+            $sheet->setCellValue('B' . $row, (string)($value['fecha_creacion'] ?? ''));
+            $sheet->setCellValue('C' . $row, (string)($value['nombre_tipo_legajo'] ?? ''));
+            $sheet->setCellValue('D' . $row, (string)($value['ci_socio'] ?? ''));
+            $sheet->setCellValue('E' . $row, (string)($value['nombre_completo'] ?? ''));
+            $sheet->setCellValue('F' . $row, (string)($value['nro_solicitud'] ?? ''));
+            $sheet->setCellValue('G' . $row, intval($value['cantidad_paginas_procesadas'] ?? 0));
+            $sheet->setCellValue('H' . $row, (string)($value['estado'] ?? ''));
+            $sheet->setCellValue('I' . $row, (string)($value['usuario_responsable'] ?? ''));
+            $row++;
+        }
+
+        $excel->setColumnWidths([
+            'A' => 'auto',
+            'B' => 20,
+            'C' => 28,
+            'D' => 18,
+            'E' => 36,
+            'F' => 18,
+            'G' => 18,
+            'H' => 18,
+            'I' => 24,
+        ]);
+
+        $excel->output('Documentos_Procesados_' . date('Y_m_d_His'));
     }
 
     public function validar_solicitud_duplicada()
@@ -2681,6 +3351,9 @@ class Legajos extends Controllers
         $ciSocio = trim($_POST['ci_socio'] ?? '');
         $nombreCompleto = trim($_POST['nombre_socio'] ?? '');
         $nroSolicitud = trim($_POST['nro_solicitud'] ?? '');
+        $fuentePersonas = $this->obtenerFuentePersonasLegajo();
+        $personasModuloActivo = $fuentePersonas !== 'ninguna';
+        $idPersona = $personasModuloActivo ? intval($_POST['id_persona'] ?? 0) : 0;
         $idUsuario = intval($_SESSION['id'] ?? 0);
         $auditoria = $this->obtenerContextoAuditoria();
         $esFinalizacion = $accion === 'finalizar';
@@ -2700,6 +3373,30 @@ class Legajos extends Controllers
             if ($nroSolicitud === '') {
                 $nroSolicitud = trim((string)($legajoAntesGuardar['nro_solicitud'] ?? ''));
             }
+            if ($idPersona <= 0) {
+                $idPersona = intval($legajoAntesGuardar['id_persona'] ?? 0);
+            }
+        }
+
+        if ($personasModuloActivo) {
+            $personaLegajo = $fuentePersonas === 'externa'
+                ? $this->obtenerPersonaExternaPorId($idPersona)
+                : $this->obtenerPersonaActivaPorId($idPersona);
+            if (empty($personaLegajo)) {
+                if (function_exists('setAlert')) {
+                    setAlert('warning', $fuentePersonas === 'externa'
+                        ? 'Seleccione una persona de la base externa para armar el legajo.'
+                        : 'Seleccione una persona activa para armar el legajo.');
+                }
+                header("Location: " . $this->construirUrlArmarLegajo($idLegajo, $duplicadoDesde));
+                exit();
+            }
+
+            $ciSocio = trim((string)($personaLegajo['ci'] ?? ''));
+            $nombreCompleto = trim((string)($personaLegajo['nombre_completo'] ?? ''));
+            if ($nroSolicitud === '') {
+                $nroSolicitud = trim((string)($personaLegajo['nro_solicitud'] ?? ''));
+            }
         }
 
         $this->guardarFlashFormularioLegajo([
@@ -2707,6 +3404,7 @@ class Legajos extends Controllers
             'legajo' => [
                 'id_legajo' => $idLegajo,
                 'id_tipo_legajo' => $idTipoLegajo,
+                'id_persona' => $fuentePersonas === 'interna' && $personasModuloActivo ? $idPersona : null,
                 'ci_socio' => $ciSocio,
                 'nombre_completo' => $nombreCompleto,
                 'nro_solicitud' => $nroSolicitud,
@@ -2785,6 +3483,7 @@ class Legajos extends Controllers
         if ($idLegajo > 0) {
             if (
                 intval($legajoAntesGuardar['id_tipo_legajo'] ?? 0) !== $idTipoLegajo
+                || ($fuentePersonas === 'interna' && $personasModuloActivo && intval($legajoAntesGuardar['id_persona'] ?? 0) !== $idPersona)
                 || trim((string)($legajoAntesGuardar['ci_socio'] ?? '')) !== $ciSocio
                 || trim((string)($legajoAntesGuardar['nombre_completo'] ?? '')) !== $nombreCompleto
                 || trim((string)($legajoAntesGuardar['nro_solicitud'] ?? '')) !== $nroSolicitud
@@ -2795,25 +3494,18 @@ class Legajos extends Controllers
                 }
             }
 
-            if (
-                $legajoEstabaRechazado
-                && (
-                    $marcadoEliminarArchivo
-                    || $rutaRelativa !== null
-                    || $rutaNuevaDocumento !== $rutaAnterior
-                    || $fechaNuevaDocumento !== $fechaAnteriorDocumento
-                )
-            ) {
-                $legajoModificadoTrasRechazo = true;
-            }
 
+            $idPersonaPersistir = $fuentePersonas === 'interna' && $personasModuloActivo
+                ? $idPersona
+                : (isset($legajoAntesGuardar['id_persona']) ? intval($legajoAntesGuardar['id_persona']) : null);
             $actualizado = $this->model->actualizarLegajo(
                 $idLegajo,
                 $idTipoLegajo,
                 $ciSocio,
                 $nombreCompleto,
                 $nroSolicitud,
-                $estadoLegajo
+                $estadoLegajo,
+                $idPersonaPersistir
             );
             if (!$actualizado) {
                 $idLegajo = 0;
@@ -2825,7 +3517,8 @@ class Legajos extends Controllers
                 $nombreCompleto,
                 $nroSolicitud,
                 $idUsuario,
-                $estadoLegajo
+                $estadoLegajo,
+                $fuentePersonas === 'interna' && $personasModuloActivo ? $idPersona : null
             );
         }
 
@@ -2886,18 +3579,32 @@ class Legajos extends Controllers
                 continue;
             }
 
+            $esCampoDocumento = $this->esCampoDocumento($regla);
             $marcadoEliminarArchivo = intval($_POST['eliminar_archivo_' . $idRequisito] ?? 0) === 1;
+            if (!$esCampoDocumento) {
+                $marcadoEliminarArchivo = false;
+            }
             $fechaExpedicion = trim($_POST['fecha_expedicion_' . $idRequisito] ?? '');
             $observacionDocumento = trim($_POST['observacion_' . $idRequisito] ?? '');
+            $valorCampoAnterior = trim((string)($documentosExistentes[$idRequisito]['valor_campo'] ?? ''));
+            $valorCampo = $esCampoDocumento ? null : $this->obtenerValorCampoDesdePost($idRequisito, $regla, $valorCampoAnterior);
+            if (!$esCampoDocumento) {
+                $fechaExpedicion = '';
+            }
             $fechaVencimiento = !$marcadoEliminarArchivo && $fechaExpedicion !== ''
                 ? $this->calcularFechaVencimiento($fechaExpedicion, $regla)
                 : ($documentosExistentes[$idRequisito]['fecha_vencimiento'] ?? null);
+            if (!$esCampoDocumento) {
+                $fechaVencimiento = null;
+            }
             $rutaArchivoDuplicado = trim($_POST['ruta_existente_' . $idRequisito] ?? '');
             $fileKey = null;
-            foreach ($_FILES as $inputName => $fileInfo) {
-                if (strpos($inputName, 'doc_' . $idRequisito . '_') === 0) {
-                    $fileKey = $inputName;
-                    break;
+            if ($esCampoDocumento) {
+                foreach ($_FILES as $inputName => $fileInfo) {
+                    if (strpos($inputName, 'doc_' . $idRequisito . '_') === 0) {
+                        $fileKey = $inputName;
+                        break;
+                    }
                 }
             }
 
@@ -2908,7 +3615,7 @@ class Legajos extends Controllers
                 $rutaArchivoExistente = $rutaArchivoDuplicado;
             }
 
-            if ($marcadoEliminarArchivo) {
+            if ($esCampoDocumento && $marcadoEliminarArchivo) {
                 $rutaEliminar = $rutaArchivoExistente !== '' ? $rutaArchivoExistente : $rutaArchivoDuplicado;
                 $prefijoLegajoActual = 'Legajos/' . intval($idLegajo) . '/';
                 if ($rutaEliminar !== '' && strpos(str_replace('\\', '/', $rutaEliminar), $prefijoLegajoActual) === 0) {
@@ -2925,7 +3632,7 @@ class Legajos extends Controllers
             }
 
             $hayArchivoSubido = false;
-            if ($fileKey !== null && isset($_FILES[$fileKey])) {
+            if ($esCampoDocumento && $fileKey !== null && isset($_FILES[$fileKey])) {
                 $errorArchivo = $_FILES[$fileKey]['error'] ?? UPLOAD_ERR_NO_FILE;
                 if (is_array($errorArchivo)) {
                     foreach ($errorArchivo as $errorItem) {
@@ -2939,7 +3646,7 @@ class Legajos extends Controllers
                 }
             }
 
-            if ($fileKey !== null && isset($_FILES[$fileKey]) && $hayArchivoSubido) {
+            if ($esCampoDocumento && $fileKey !== null && isset($_FILES[$fileKey]) && $hayArchivoSubido) {
                 if ($this->requiereFechaExpedicion($regla) && $fechaExpedicion === '') {
                     if (function_exists('setAlert')) {
                         setAlert('warning', 'Debe completar la fecha de expedición antes de cargar el documento "' . trim((string)($regla['documento_nombre'] ?? '')) . '".');
@@ -2990,6 +3697,8 @@ class Legajos extends Controllers
                 }
             }
 
+
+
             $politicaActualizacion = strtoupper(trim((string)($regla['politica_actualizacion'] ?? '')));
             if ($politicaActualizacion === '') {
                 $politicaActualizacion = !empty($regla['permite_reemplazo']) ? 'REEMPLAZAR' : 'NO_PERMITIR';
@@ -3024,15 +3733,17 @@ class Legajos extends Controllers
                 }
             }
 
-            $rutaEstado = $rutaRelativa !== null ? $rutaRelativa : $rutaArchivoExistente;
+            $rutaEstado = $esCampoDocumento
+                ? ($rutaRelativa !== null ? $rutaRelativa : $rutaArchivoExistente)
+                : '';
             $fechaVencimientoEstado = $fechaVencimiento !== null
                 ? $fechaVencimiento
                 : ($documentosExistentes[$idRequisito]['fecha_vencimiento'] ?? null);
-            $estadoDocumento = $this->resolverEstadoDocumentoPorRegla($regla, $rutaEstado, $fechaVencimientoEstado);
+            $estadoDocumento = $this->resolverEstadoDocumentoPorRegla($regla, $rutaEstado, $fechaVencimientoEstado, $valorCampo);
             $estadoDocumentoGuardar = $estadoDocumento === 'por_vencer' ? 'cargado' : $estadoDocumento;
 
-            $rutaGuardar = $marcadoEliminarArchivo ? '' : $rutaRelativa;
-            if ($rutaGuardar === null && empty($documentosExistentes[$idRequisito]['ruta_archivo']) && $rutaArchivoExistente !== '') {
+            $rutaGuardar = $esCampoDocumento ? ($marcadoEliminarArchivo ? '' : $rutaRelativa) : '';
+            if ($esCampoDocumento && $rutaGuardar === null && empty($documentosExistentes[$idRequisito]['ruta_archivo']) && $rutaArchivoExistente !== '') {
                 $rutaGuardar = $rutaArchivoExistente;
             }
 
@@ -3041,21 +3752,26 @@ class Legajos extends Controllers
             $estadoAnteriorDocumento = trim((string)($documentoAnterior['estado'] ?? 'pendiente'));
             $observacionAnteriorDocumento = trim((string)($documentoAnterior['observacion'] ?? ''));
             $fechaAnteriorDocumento = trim((string)($documentoAnterior['fecha_vencimiento'] ?? ''));
+            $valorAnteriorDocumento = trim((string)($documentoAnterior['valor_campo'] ?? ''));
             $fechaVencimientoLog = $fechaVencimiento !== null
                 ? $fechaVencimiento
                 : trim((string)($documentoAnterior['fecha_vencimiento'] ?? ''));
-            $rutaNuevaDocumento = trim((string)($rutaGuardar ?? $rutaArchivoExistente));
-            $fechaNuevaDocumento = trim((string)($fechaVencimiento ?? $fechaAnteriorDocumento));
+            $rutaNuevaDocumento = $esCampoDocumento ? trim((string)($rutaGuardar ?? $rutaArchivoExistente)) : '';
+            $fechaNuevaDocumento = $esCampoDocumento ? trim((string)($fechaVencimiento ?? $fechaAnteriorDocumento)) : '';
 
             if (
-                $marcadoEliminarArchivo
-                || $rutaRelativa !== null
+                ($esCampoDocumento && $marcadoEliminarArchivo)
+                || ($esCampoDocumento && $rutaRelativa !== null)
                 || $rutaNuevaDocumento !== $rutaAnterior
                 || $fechaNuevaDocumento !== $fechaAnteriorDocumento
+                || trim((string)$valorCampo) !== $valorAnteriorDocumento
             ) {
                 $huboCambiosParaRearmarPdf = true;
                 if ($legajoEstabaVerificado) {
                     $legajoModificadoTrasVerificacion = true;
+                }
+                if ($legajoEstabaRechazado) {
+                    $legajoModificadoTrasRechazo = true;
                 }
             }
 
@@ -3064,11 +3780,28 @@ class Legajos extends Controllers
                 $idRequisito,
                 $rutaGuardar,
                 $fechaVencimiento,
+                $valorCampo,
                 $estadoDocumentoGuardar,
                 $observacionDocumento
             );
 
-            if ($marcadoEliminarArchivo && $rutaAnterior !== '') {
+            if (!$esCampoDocumento && trim((string)$valorCampo) !== $valorAnteriorDocumento) {
+                $this->model->registrarLogLegajoDocumento(
+                    intval($idLegajo),
+                    $idRequisito,
+                    'CAMPO_ACTUALIZADO',
+                    'Se actualizo el valor del campo.',
+                    $valorAnteriorDocumento,
+                    trim((string)$valorCampo),
+                    $estadoAnteriorDocumento,
+                    $estadoDocumentoGuardar,
+                    null,
+                    $auditoria['id_usuario'],
+                    $auditoria['nombre_host'],
+                    $auditoria['ip_host'],
+                    $observacionDocumento
+                );
+            } elseif ($marcadoEliminarArchivo && $rutaAnterior !== '') {
                 $this->model->registrarLogLegajoDocumento(
                     intval($idLegajo),
                     $idRequisito,
@@ -3142,18 +3875,36 @@ class Legajos extends Controllers
             $auditoria['ip_host']
         );
 
+        // Siempre generar y guardar el archivo ADICIONALES para los campos de texto
+        $camposNoDocForced = $this->model->obtenerCamposNoDocumentoConValor(intval($idLegajo));
+        $rutaBaseLegajoForced = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . 'Legajos' . DIRECTORY_SEPARATOR . intval($idLegajo) . DIRECTORY_SEPARATOR;
+        if (!is_dir($rutaBaseLegajoForced)) {
+            @mkdir($rutaBaseLegajoForced, 0777, true);
+        }
+        
+        $legajoInfoF = $legajoAntesGuardar ?? $this->model->selectLegajoPorId(intval($idLegajo));
+        $ciLF = $legajoInfoF['ci_socio'] ?? '';
+        $solLF = $legajoInfoF['nro_solicitud'] ?? '';
+        $cedulaLF = preg_replace('/[^0-9]+/', '', $ciLF);
+        if ($cedulaLF === '') $cedulaLF = 'SINCI';
+        $solLObjF = preg_replace('/[^0-9A-Za-z]+/', '', $solLF);
+        $nombreAdicionalF = 'DA_TITULAR_' . $cedulaLF . ($solLObjF !== '' ? '_' . $solLObjF : '') . '.pdf';
+
+        $this->generarPdfCamposNoDocumento($legajoInfoF, $camposNoDocForced, $rutaBaseLegajoForced, $nombreAdicionalF);
+
         $mensajeExito = "Legajo guardado como borrador.";
         if ($esFinalizacion) {
             $this->invalidarPdfFinalLegajo(intval($idLegajo));
             $this->model->actualizarUsuarioArmado(intval($idLegajo), $idUsuario);
             $documentosParaUnir = $this->model->obtenerDocumentosCargadosParaUnir(intval($idLegajo));
-            if (!empty($documentosParaUnir)) {
+            $camposNoDoc = $this->model->obtenerCamposNoDocumentoConValor(intval($idLegajo));
+            if (!empty($documentosParaUnir) || !empty($camposNoDoc)) {
                 $legajoActual = $this->model->selectLegajoPorId(intval($idLegajo));
                 $usuario = $_SESSION['nombre'] ?? 'Sistema';
                 $nombreFinal = $this->construirNombrePdfFinalLegajo($legajoActual, intval($idLegajo));
                 $rutaFinal = $rutaBaseLegajos . $nombreFinal;
 
-                if ($this->unirArchivosLegajo($documentosParaUnir, $rutaFinal, 'Legajo ' . intval($idLegajo), $usuario, $legajoActual, $matriz)) {
+                if ($this->unirArchivosLegajo($documentosParaUnir, $rutaFinal, 'Legajo ' . intval($idLegajo), $usuario, $legajoActual, $matriz, $camposNoDoc)) {
                     $this->model->insertarLogUnionLegajo(
                         trim($legajoActual['ci_socio'] ?? ''),
                         trim($legajoActual['nombre_completo'] ?? ''),
@@ -3349,12 +4100,21 @@ class Legajos extends Controllers
                 continue;
             }
 
+            $esCampoDocumento = $this->esCampoDocumento($regla);
             $documentoExistente = $documentosExistentes[$idRequisito] ?? [];
             $rutaArchivo = trim((string)($documentoExistente['ruta_archivo'] ?? ''));
+            $valorCampo = $esCampoDocumento
+                ? ''
+                : $this->obtenerValorCampoDesdePost($idRequisito, $regla, $documentoExistente['valor_campo'] ?? '');
             $fechaExpedicion = trim((string)($_POST['fecha_expedicion_' . $idRequisito] ?? ($documentoExistente['fecha_expedicion'] ?? '')));
             $observacion = trim((string)($_POST['observacion_' . $idRequisito] ?? ($documentoExistente['observacion'] ?? '')));
             $fechaVencimiento = $fechaExpedicion !== '' ? $this->calcularFechaVencimiento($fechaExpedicion, $regla) : null;
-            $marcarEliminar = intval($_POST['eliminar_archivo_' . $idRequisito] ?? 0) === 1;
+            $marcarEliminar = $esCampoDocumento && intval($_POST['eliminar_archivo_' . $idRequisito] ?? 0) === 1;
+
+            if (!$esCampoDocumento) {
+                $fechaExpedicion = '';
+                $fechaVencimiento = null;
+            }
 
             if ($marcarEliminar && $rutaArchivo !== '') {
                 $this->eliminarArchivoRelativoSiExiste($rutaArchivo);
@@ -3362,7 +4122,7 @@ class Legajos extends Controllers
             }
 
             $fileKey = 'doc_' . $idRequisito;
-            if (isset($_FILES[$fileKey])) {
+            if ($esCampoDocumento && isset($_FILES[$fileKey])) {
                 $hayArchivo = false;
                 $errorArchivo = $_FILES[$fileKey]['error'] ?? UPLOAD_ERR_NO_FILE;
                 if (is_array($errorArchivo)) {
@@ -3394,7 +4154,7 @@ class Legajos extends Controllers
                 }
             }
 
-            if ($rutaArchivo === '' && $fechaExpedicion === '' && $observacion === '') {
+            if ($rutaArchivo === '' && trim((string)$valorCampo) === '' && $fechaExpedicion === '' && $observacion === '') {
                 $this->model->eliminarDocumentoFormularioExterno($idFormulario, $idRequisito);
                 continue;
             }
@@ -3403,6 +4163,7 @@ class Legajos extends Controllers
                 $idFormulario,
                 $idRequisito,
                 $rutaArchivo,
+                $valorCampo,
                 $fechaExpedicion,
                 $fechaVencimiento,
                 $observacion
@@ -3440,7 +4201,16 @@ class Legajos extends Controllers
 
             $documento = $documentosFormulario[$idRequisito] ?? [];
             $rutaArchivo = trim((string)($documento['ruta_archivo'] ?? ''));
+            $valorCampo = trim((string)($documento['valor_campo'] ?? ''));
             $fechaExpedicion = trim((string)($documento['fecha_expedicion'] ?? ''));
+
+            if (!$this->esCampoDocumento($regla)) {
+                if (!empty($regla['es_obligatorio']) && !$this->campoValorCompleto($regla, $valorCampo)) {
+                    $nombreDocumento = trim((string)($regla['documento_nombre'] ?? 'el campo requerido'));
+                    return 'Debes completar ' . $nombreDocumento . ' antes de enviar el formulario.';
+                }
+                continue;
+            }
 
             if ($rutaArchivo !== '' && $this->requiereFechaExpedicion($regla) && $fechaExpedicion === '') {
                 $nombreDocumento = trim((string)($regla['documento_nombre'] ?? 'el documento requerido'));
@@ -3533,14 +4303,16 @@ class Legajos extends Controllers
 
             $documentoFormulario = $documentosFormulario[$idRequisito] ?? [];
             $documentoLegajo = $documentosExistentes[$idRequisito] ?? [];
+            $esCampoDocumento = $this->esCampoDocumento($regla);
             $rutaArchivoExistente = trim((string)($documentoLegajo['ruta_archivo'] ?? ''));
             $rutaArchivoTemporal = trim((string)($documentoFormulario['ruta_archivo'] ?? ''));
+            $valorCampo = $esCampoDocumento ? null : trim((string)($documentoFormulario['valor_campo'] ?? ($documentoLegajo['valor_campo'] ?? '')));
             $fechaExpedicion = trim((string)($documentoFormulario['fecha_expedicion'] ?? ''));
             $fechaVencimiento = trim((string)($documentoFormulario['fecha_vencimiento'] ?? ($documentoLegajo['fecha_vencimiento'] ?? '')));
             $observacion = trim((string)($documentoFormulario['observacion'] ?? ($documentoLegajo['observacion'] ?? '')));
-            $rutaFinal = $rutaArchivoExistente;
+            $rutaFinal = $esCampoDocumento ? $rutaArchivoExistente : '';
 
-            if ($rutaArchivoTemporal !== '') {
+            if ($esCampoDocumento && $rutaArchivoTemporal !== '') {
                 $rutaTemporalFisica = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $rutaArchivoTemporal);
                 if (is_file($rutaTemporalFisica)) {
                     $codigoDocumento = preg_replace('/[^A-Za-z0-9_-]+/', '', trim((string)($regla['codigo_interno'] ?? ('DOC' . $idRequisito))));
@@ -3581,17 +4353,21 @@ class Legajos extends Controllers
                 }
             }
 
-            if ($fechaVencimiento === '' && $fechaExpedicion !== '') {
+            if ($esCampoDocumento && $fechaVencimiento === '' && $fechaExpedicion !== '') {
                 $fechaVencimiento = (string)$this->calcularFechaVencimiento($fechaExpedicion, $regla);
             }
+            if (!$esCampoDocumento) {
+                $fechaVencimiento = '';
+            }
 
-            $estadoDocumento = $this->resolverEstadoDocumentoPorRegla($regla, $rutaFinal, $fechaVencimiento);
+            $estadoDocumento = $this->resolverEstadoDocumentoPorRegla($regla, $rutaFinal, $fechaVencimiento, $valorCampo);
             $estadoDocumentoGuardar = $estadoDocumento === 'por_vencer' ? 'cargado' : $estadoDocumento;
             $this->model->actualizarLegajoDocumento(
                 $idLegajo,
                 $idRequisito,
                 $rutaFinal,
                 $fechaVencimiento !== '' ? $fechaVencimiento : null,
+                $valorCampo,
                 $estadoDocumentoGuardar,
                 $observacion
             );
@@ -3847,5 +4623,3 @@ class Legajos extends Controllers
         $this->views->getView($this, "log_legajos", $data);
     }
 }
-
-

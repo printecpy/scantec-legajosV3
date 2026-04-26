@@ -53,6 +53,42 @@ function limpiar($cadena)
     return $cadena;
 }
 
+function scantecValidarUpload(array $archivo, array $extensionesPermitidas, array $mimesPermitidos, int $maxBytes): bool
+{
+    if (intval($archivo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return false;
+    }
+
+    $tmp = (string)($archivo['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) {
+        return false;
+    }
+
+    $size = intval($archivo['size'] ?? 0);
+    if ($size <= 0 || $size > $maxBytes) {
+        return false;
+    }
+
+    $extension = strtolower(pathinfo((string)($archivo['name'] ?? ''), PATHINFO_EXTENSION));
+    if ($extension === '' || !in_array($extension, $extensionesPermitidas, true)) {
+        return false;
+    }
+
+    if ($mimesPermitidos === []) {
+        return true;
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if ($finfo === false) {
+        return false;
+    }
+
+    $mime = finfo_file($finfo, $tmp);
+    finfo_close($finfo);
+
+    return is_string($mime) && in_array($mime, $mimesPermitidos, true);
+}
+
 function stringEncryption($string)
 {
     if (!$string) return false;

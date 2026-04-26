@@ -328,6 +328,20 @@
                             </div>
                             <i class="fa fa-chevron-right text-gray-300 group-hover:text-scantec-red"></i>
                         </a>
+
+                        <a href="<?php echo base_url(); ?>configuracion/base_datos_externa" 
+                           class="flex items-center justify-between p-4 rounded-xl border border-gray-200 hover:border-scantec-blue hover:bg-blue-50 transition-all group">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-blue-200 flex items-center justify-center mr-3 text-gray-600 group-hover:text-scantec-blue transition-colors">
+                                    <i class="fa fa-database"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-sm font-bold text-gray-700">Base externa usuarios</h4>
+                                    <p class="text-xs text-gray-500">Conexion y mapeo hacia .env</p>
+                                </div>
+                            </div>
+                            <i class="fa fa-chevron-right text-gray-300 group-hover:text-scantec-blue"></i>
+                        </a>
                     </div>
                 </div>
 

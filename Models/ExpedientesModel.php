@@ -44,7 +44,7 @@ class ExpedientesModel extends Mysql
     } */
     public function selectExpediente()
     {
-        $id_grupo = $_SESSION['id_grupo'];
+        $id_grupo = intval($_SESSION['id_grupo'] ?? 0);
         $sql = "SELECT v.indice_01, v.id_tipoDoc,
                 MIN(v.nombre_tipoDoc) AS nombre_tipoDoc,
                 COUNT(*) AS cant_documentos,
@@ -71,10 +71,10 @@ class ExpedientesModel extends Mysql
             ) AS sub ON v.indice_01 = sub.indice_01
             JOIN permisos_documentos pd ON pd.id_tipoDoc = v.id_tipoDoc
             WHERE v.estado = 'Activo' 
-            AND pd.id_grupo = $id_grupo
+            AND pd.id_grupo = ?
             GROUP BY v.indice_01, v.id_tipoDoc
             ORDER BY MIN(v.id_expediente) ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$id_grupo]);
         return $res;
     }
 
@@ -87,8 +87,8 @@ class ExpedientesModel extends Mysql
     }
     public function editExpediente(int $id_expediente)
     {
-        $sql = "SELECT * FROM expediente WHERE id_expediente = $id_expediente";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM expediente WHERE id_expediente = ?";
+        $res = $this->select($sql, [$id_expediente]);
         return $res;
     }
 
@@ -212,10 +212,12 @@ class ExpedientesModel extends Mysql
         // NO USA: $id_grupo = $_SESSION['id_grupo'];
         // 1. Configurar el WHERE para el filtro de grupo
         $where_group = "";
+        $params = [];
         if ($id_grupo_a_filtrar !== 'ALL') {
             // Filtro normal por grupo
             $id_grupo = intval($id_grupo_a_filtrar); // Limpieza de variable
-            $where_group = "AND pd.id_grupo = '$id_grupo'";
+            $where_group = "AND pd.id_grupo = ?";
+            $params[] = $id_grupo;
         }
         $sql = "SELECT sub.cant_documentos, v.id_proceso, 
                v.id_expediente,
@@ -244,19 +246,23 @@ class ExpedientesModel extends Mysql
         JOIN permisos_documentos pd ON pd.id_tipoDoc = v.id_tipoDoc
         WHERE v.estado = 'Activo' 
           {$where_group} 
-          AND v.nombre_tipoDoc = '$nombre_tipoDoc'
-          AND v.indice_01 = '$indice_01'";
+          AND v.nombre_tipoDoc = ?
+          AND v.indice_01 = ?";
+        $params[] = $nombre_tipoDoc;
+        $params[] = $indice_01;
         if (!empty($termino)) {
             $sql .= " AND (
-                v.indice_01 LIKE '$termino%' OR
-                v.indice_02 LIKE '$termino%' OR
-                v.indice_03 LIKE '$termino%' OR
-                v.indice_04 LIKE '$termino%'
+                v.indice_01 LIKE ? OR
+                v.indice_02 LIKE ? OR
+                v.indice_03 LIKE ? OR
+                v.indice_04 LIKE ?
             )";
+            $terminoLike = $termino . '%';
+            array_push($params, $terminoLike, $terminoLike, $terminoLike, $terminoLike);
         }
         $sql .= " ORDER BY v.id_expediente ASC";
         // ... (resto de la ejecución)
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, $params);
         return $res;
     }
 
@@ -264,8 +270,8 @@ class ExpedientesModel extends Mysql
     {
         $sql = "SELECT ubicacion, fecha_indexado, version, fecha_vencimiento 
                 FROM v_expedientes 
-                WHERE ruta_original = '$ruta'";
-        $res = $this->select($sql);
+                WHERE ruta_original = ?";
+        $res = $this->select($sql, [$ruta]);
         return $res;
     }
     public function buscarExpediente(string $indice_04)
@@ -334,9 +340,9 @@ class ExpedientesModel extends Mysql
                 FROM permisos_documentos a INNER JOIN usu_grupo b 
                 ON a.id_grupo = b.id_grupo INNER JOIN tipo_documento c 
                 ON a.id_tipoDoc = c.id_tipoDoc
-                WHERE a.estado = 'ACTIVO' AND a.id_grupo = $id_grupo
+                WHERE a.estado = 'ACTIVO' AND a.id_grupo = ?
                 ORDER BY a.id ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$id_grupo]);
         return $res;
     }
 
@@ -509,8 +515,8 @@ class ExpedientesModel extends Mysql
 
     public function renomExpediente(int $id_expediente)
     {
-        $sql = "SELECT * FROM expediente WHERE id_expediente = $id_expediente";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM expediente WHERE id_expediente = ?";
+        $res = $this->select($sql, [$id_expediente]);
         return $res;
     }
 
@@ -663,8 +669,8 @@ public function actualizarExpediente(
     {
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = "SELECT * FROM expediente WHERE indice_01 BETWEEN '$desde' AND '$hasta' order by indice_01 asc";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM expediente WHERE indice_01 BETWEEN ? AND ? order by indice_01 asc";
+        $res = $this->select_all($sql, [$desde, $hasta]);
         return $res;
     }
 

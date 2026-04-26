@@ -11,6 +11,8 @@ class ConfiguracionModel extends Mysql
         $this->ensureTipoLegajoDepartamentoColumn();
         $this->ensureTipoLegajoBrandingColumns();
         $this->ensureWatermarkColumns();
+        $this->ensureCatalogoDocumentoCampos();
+        $this->ensureLegajoDocumentoValorCampo();
     }
 
     public function selectConfiguracion()
@@ -274,6 +276,36 @@ class ConfiguracionModel extends Mysql
         }
     }
 
+    private function ensureCatalogoDocumentoCampos(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_catalogo_documentos') && !$this->existeColumna('cfg_catalogo_documentos', 'tipo_campo')) {
+                $this->update("ALTER TABLE cfg_catalogo_documentos ADD COLUMN tipo_campo VARCHAR(20) NOT NULL DEFAULT 'documento' AFTER codigo_interno", []);
+            }
+
+            if ($this->existeTabla('cfg_catalogo_documentos') && !$this->existeColumna('cfg_catalogo_documentos', 'opciones_campo')) {
+                $this->update("ALTER TABLE cfg_catalogo_documentos ADD COLUMN opciones_campo TEXT NULL DEFAULT NULL AFTER tipo_campo", []);
+            }
+
+            if ($this->existeTabla('cfg_catalogo_documentos') && $this->existeColumna('cfg_catalogo_documentos', 'tipo_campo')) {
+                $this->update("UPDATE cfg_catalogo_documentos SET tipo_campo = 'documento' WHERE tipo_campo IS NULL OR TRIM(tipo_campo) = ''", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aun no esta alineada.
+        }
+    }
+
+    private function ensureLegajoDocumentoValorCampo(): void
+    {
+        try {
+            if ($this->existeTabla('cfg_legajo_documento') && !$this->existeColumna('cfg_legajo_documento', 'valor_campo')) {
+                $this->update("ALTER TABLE cfg_legajo_documento ADD COLUMN valor_campo TEXT NULL DEFAULT NULL AFTER ruta_archivo", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aun no esta alineada.
+        }
+    }
+
     private function getCampoRelacionTipoLegajo(): string
     {
         return $this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo') ? 'id_tipo_legajo' : 'id_tipoDoc';
@@ -288,8 +320,14 @@ class ConfiguracionModel extends Mysql
 
     public function getCatalogoDocumentosLegajo()
     {
-        $sql = "SELECT id_documento_maestro, nombre, codigo_interno, tiene_vencimiento,
-                dias_vigencia_base, dias_alerta_previa, activo
+        $campoTipo = $this->existeColumna('cfg_catalogo_documentos', 'tipo_campo')
+            ? 'tipo_campo'
+            : "'documento' AS tipo_campo";
+        $campoOpciones = $this->existeColumna('cfg_catalogo_documentos', 'opciones_campo')
+            ? 'opciones_campo'
+            : 'NULL AS opciones_campo';
+        $sql = "SELECT id_documento_maestro, nombre, codigo_interno, $campoTipo,
+                $campoOpciones, tiene_vencimiento, dias_vigencia_base, dias_alerta_previa, activo
                 FROM cfg_catalogo_documentos
                 ORDER BY activo DESC, nombre ASC";
         return $this->select_all($sql);
@@ -547,20 +585,6 @@ class ConfiguracionModel extends Mysql
         try {
             $enUso = $this->contarUsoTipoLegajo($idTipoLegajo) > 0;
 
-            if ($accion === 'eliminar' && !$enUso) {
-                try {
-                    if ($this->existeTabla('permisos_legajos_tipos')) {
-                        $this->delete("DELETE FROM permisos_legajos_tipos WHERE id_tipo_legajo = ?", [$idTipoLegajo]);
-                    }
-                } catch (Throwable $e) {
-                    // Continuamos con la eliminaciÃ³n principal.
-                }
-
-                $query = "DELETE FROM cfg_tipo_legajo WHERE id_tipo_legajo = ?";
-                $ok = $this->update($query, [$idTipoLegajo]);
-                return $ok ? 'eliminado' : 'error';
-            }
-
             $ok = $this->actualizarEstadoTipoLegajo($idTipoLegajo, 0);
             if (!$ok) {
                 return 'error';
@@ -581,6 +605,8 @@ class ConfiguracionModel extends Mysql
         $this->ensureMatrizActivoColumn();
         $campoRelacion = $this->getCampoRelacionTipoLegajo();
         $campoPoliticaActualizacion = $this->getCampoPoliticaActualizacionSql();
+        $campoTipo = $this->existeColumna('cfg_catalogo_documentos', 'tipo_campo') ? 'cd.tipo_campo' : "'documento' AS tipo_campo";
+        $campoOpciones = $this->existeColumna('cfg_catalogo_documentos', 'opciones_campo') ? 'cd.opciones_campo' : 'NULL AS opciones_campo';
         $condicionTipo = "mr.$campoRelacion = ?";
         $params = [$idTipoDoc];
 
@@ -592,7 +618,7 @@ class ConfiguracionModel extends Mysql
         if ($this->existeTabla('cfg_tipo_legajo')) {
             $sql = "SELECT mr.id_requisito, mr.$campoRelacion AS id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
                     mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
-                    cd.nombre AS documento_nombre, cd.codigo_interno,
+                    cd.nombre AS documento_nombre, cd.codigo_interno, $campoTipo, $campoOpciones,
                     tl.nombre AS nombre_tipoDoc
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
@@ -604,7 +630,7 @@ class ConfiguracionModel extends Mysql
 
         $sql = "SELECT mr.id_requisito, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
                 mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
-                cd.nombre AS documento_nombre, cd.codigo_interno,
+                cd.nombre AS documento_nombre, cd.codigo_interno, $campoTipo, $campoOpciones,
                 td.nombre_tipoDoc
                 FROM cfg_matriz_requisitos mr
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
@@ -623,11 +649,13 @@ class ConfiguracionModel extends Mysql
         $this->ensureMatrizActivoColumn();
         $campoRelacion = $this->getCampoRelacionTipoLegajo();
         $campoPoliticaActualizacion = $this->getCampoPoliticaActualizacionSql();
+        $campoTipo = $this->existeColumna('cfg_catalogo_documentos', 'tipo_campo') ? 'cd.tipo_campo' : "'documento' AS tipo_campo";
+        $campoOpciones = $this->existeColumna('cfg_catalogo_documentos', 'opciones_campo') ? 'cd.opciones_campo' : 'NULL AS opciones_campo';
 
         if ($this->existeTabla('cfg_tipo_legajo')) {
             $sql = "SELECT mr.id_requisito, mr.$campoRelacion AS id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
                     mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
-                    cd.nombre AS documento_nombre, cd.codigo_interno,
+                    cd.nombre AS documento_nombre, cd.codigo_interno, $campoTipo, $campoOpciones,
                     tl.nombre AS nombre_tipoDoc
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
@@ -639,7 +667,7 @@ class ConfiguracionModel extends Mysql
 
         $sql = "SELECT mr.id_requisito, mr.id_tipoDoc, mr.id_documento_maestro, mr.rol_vinculado,
                 mr.es_obligatorio, mr.orden_visual, mr.permite_reemplazo, $campoPoliticaActualizacion, mr.activo,
-                cd.nombre AS documento_nombre, cd.codigo_interno,
+                cd.nombre AS documento_nombre, cd.codigo_interno, $campoTipo, $campoOpciones,
                 td.nombre_tipoDoc
                 FROM cfg_matriz_requisitos mr
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
@@ -649,20 +677,24 @@ class ConfiguracionModel extends Mysql
         return !empty($resultado[0]) ? $resultado[0] : null;
     }
 
-    public function insertarCatalogoDocumentoLegajo(
+            public function insertarCatalogoDocumentoLegajo(
         string $nombre,
         string $codigoInterno,
+        string $tipoCampo,
+        ?string $opcionesCampo,
         int $tieneVencimiento,
         ?int $diasVigenciaBase,
         ?int $diasAlertaPrevia,
         int $activo
     ) {
         $query = "INSERT INTO cfg_catalogo_documentos
-                (nombre, codigo_interno, tiene_vencimiento, dias_vigencia_base, dias_alerta_previa, activo)
-                VALUES (?, ?, ?, ?, ?, ?)";
+                (nombre, codigo_interno, tipo_campo, opciones_campo, tiene_vencimiento, dias_vigencia_base, dias_alerta_previa, activo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $data = [
             $nombre,
             $codigoInterno !== '' ? $codigoInterno : null,
+            $tipoCampo,
+            trim((string)$opcionesCampo) !== '' ? trim((string)$opcionesCampo) : null,
             $tieneVencimiento,
             $diasVigenciaBase,
             $diasAlertaPrevia,
@@ -686,14 +718,19 @@ class ConfiguracionModel extends Mysql
 
     public function eliminarCatalogoDocumentoLegajo(int $idDocumentoMaestro): bool
     {
-        $query = "DELETE FROM cfg_catalogo_documentos WHERE id_documento_maestro = ?";
-        return $this->update($query, [$idDocumentoMaestro]);
+        return (bool)$this->actualizarEstadoCatalogoDocumentoLegajo($idDocumentoMaestro, 0);
     }
 
     public function getCatalogoDocumentoLegajoById(int $idDocumentoMaestro)
     {
-        $sql = "SELECT id_documento_maestro, nombre, codigo_interno, tiene_vencimiento,
-                dias_vigencia_base, dias_alerta_previa, activo
+        $campoTipo = $this->existeColumna('cfg_catalogo_documentos', 'tipo_campo')
+            ? 'tipo_campo'
+            : "'documento' AS tipo_campo";
+        $campoOpciones = $this->existeColumna('cfg_catalogo_documentos', 'opciones_campo')
+            ? 'opciones_campo'
+            : 'NULL AS opciones_campo';
+        $sql = "SELECT id_documento_maestro, nombre, codigo_interno, $campoTipo,
+                $campoOpciones, tiene_vencimiento, dias_vigencia_base, dias_alerta_previa, activo
                 FROM cfg_catalogo_documentos
                 WHERE id_documento_maestro = ?";
         $result = $this->select($sql, [$idDocumentoMaestro]);
@@ -703,22 +740,26 @@ class ConfiguracionModel extends Mysql
         return $result;
     }
 
-    public function actualizarCatalogoDocumentoLegajo(
+            public function actualizarCatalogoDocumentoLegajo(
         int $idDocumentoMaestro,
         string $nombre,
         string $codigoInterno,
+        string $tipoCampo,
+        ?string $opcionesCampo,
         int $tieneVencimiento,
         ?int $diasVigenciaBase,
         ?int $diasAlertaPrevia,
         int $activo
     ) {
         $query = "UPDATE cfg_catalogo_documentos
-                SET nombre = ?, codigo_interno = ?, tiene_vencimiento = ?,
+                SET nombre = ?, codigo_interno = ?, tipo_campo = ?, opciones_campo = ?, tiene_vencimiento = ?,
                     dias_vigencia_base = ?, dias_alerta_previa = ?, activo = ?
                 WHERE id_documento_maestro = ?";
         return $this->update($query, [
             $nombre,
             $codigoInterno !== '' ? $codigoInterno : null,
+            $tipoCampo,
+            trim((string)$opcionesCampo) !== '' ? trim((string)$opcionesCampo) : null,
             $tieneVencimiento,
             $diasVigenciaBase,
             $diasAlertaPrevia,
@@ -891,16 +932,6 @@ class ConfiguracionModel extends Mysql
         }
 
         $enUso = $this->contarUsoMatrizRequisitoLegajo($idRequisito) > 0;
-        if ($accion === 'eliminar' && !$enUso) {
-            try {
-                $query = "DELETE FROM cfg_matriz_requisitos WHERE id_requisito = ?";
-                $ok = $this->update($query, [$idRequisito]);
-                return $ok ? 'eliminado' : 'error';
-            } catch (Throwable $e) {
-                return 'error';
-            }
-        }
-
         $ok = $this->cambiarEstadoMatrizRequisitoLegajo($idRequisito, 0);
         if (!$ok) {
             return 'error';
@@ -1072,7 +1103,7 @@ class ConfiguracionModel extends Mysql
             // 4. Ejecutar en segundo plano
             exec('start "" /B ' . $comando);
             
-            return ['status' => true, 'msg' => 'El respaldo fí­sico se iniciÃ³. Archivo: backup_documentos_' . $fecha . '.zip'];
+            return ['status' => true, 'msg' => 'El respaldo fisico se inicio. Archivo: backup_documentos_' . $fecha . '.zip'];
 
         } catch (Throwable $e) {
             return ['status' => false, 'msg' => 'Error en el modelo: ' . $e->getMessage()];
@@ -1255,15 +1286,6 @@ class ConfiguracionModel extends Mysql
         }
 
         $enUso = $this->contarUsoRelacion($nombre) > 0;
-        if ($accion === 'eliminar' && !$enUso) {
-            $query = "DELETE FROM cfg_relaciones WHERE id_relacion = ?";
-            try {
-                return $this->update($query, [$idRelacion]) ? 'eliminado' : 'error';
-            } catch (Throwable $e) {
-                return 'error';
-            }
-        }
-
         $ok = $this->cambiarEstadoRelacion($idRelacion, 0);
         if (!$ok) {
             return 'error';
@@ -1327,6 +1349,86 @@ class ConfiguracionModel extends Mysql
     {
         $query = "UPDATE cfg_politicas_actualizacion SET activo = ? WHERE id_politica = ?";
         return $this->update($query, [$activo, $idPolitica]);
+    }
+
+    public function vaciarTablasReinicio(array $modulos): bool
+    {
+        $tablas = [];
+
+        if (in_array('legajos', $modulos)) {
+            $tablas = array_merge($tablas, [
+                'cfg_legajo',
+                'cfg_legajo_documento',
+                'cfg_legajo_facturacion',
+                'cfg_legajo_log',
+                'cfg_legajo_documento_log',
+                'legajos_formularios_externos',
+                'legajos_formularios_externos_documentos'
+            ]);
+        }
+
+        if (in_array('matriz', $modulos)) {
+            $tablas = array_merge($tablas, [
+                'cfg_tipo_legajo',
+                'cfg_matriz_requisitos',
+                'cfg_catalogo_documentos',
+                'cfg_politicas_actualizacion',
+                'cfg_relaciones'
+            ]);
+        }
+
+        if (in_array('personas', $modulos)) {
+            $tablas[] = 'personas';
+        }
+
+        if (in_array('auditoria', $modulos)) {
+            $tablas = array_merge($tablas, [
+                'logs',
+                'logs_umango',
+                'intentos_login_fallidos',
+                'document_views',
+                'visitas',
+                'unirpdf',
+                'alerta_historial'
+            ]);
+        }
+
+        if (in_array('usuarios', $modulos)) {
+            $tablas = array_merge($tablas, [
+                'usu_grupo',
+                'funcionalidades_acceso_rol_departamento',
+                'permisos_legajos',
+                'permisos_legajos_tipos',
+                'rol_permisos'
+            ]);
+        }
+
+        $tablasUnicas = array_unique($tablas);
+
+        try {
+            $this->update("SET FOREIGN_KEY_CHECKS = 0;", []);
+
+            foreach ($tablasUnicas as $tabla) {
+                if ($this->existeTabla($tabla)) {
+                    $this->update("TRUNCATE TABLE $tabla", []);
+                }
+            }
+
+            if (in_array('usuarios', $modulos)) {
+                if ($this->existeTabla('usuarios')) {
+                    $this->update("DELETE FROM usuarios WHERE id != 1 AND usuario != 'root'", []);
+                }
+                if ($this->existeTabla('roles')) {
+                    $this->update("DELETE FROM roles WHERE id != 1", []);
+                }
+            }
+
+            $this->update("SET FOREIGN_KEY_CHECKS = 1;", []);
+            return true;
+        } catch (Throwable $e) {
+            $this->update("SET FOREIGN_KEY_CHECKS = 1;", []);
+            return false;
+        }
     }
 
 }

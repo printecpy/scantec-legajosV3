@@ -62,22 +62,22 @@ class ProcesosModel extends Mysql{
     }
     public function editProceso(int $id_proceso)
     {
-        $sql = "SELECT * FROM proceso WHERE id_proceso = $id_proceso";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM proceso WHERE id_proceso = ?";
+        $res = $this->select($sql, [$id_proceso]);
         return $res;
     }
 
     public function histoProceso(int $id_proceso)
     {
-        $sql = "SELECT * FROM historial_proceso WHERE id_proceso = $id_proceso";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM historial_proceso WHERE id_proceso = ?";
+        $res = $this->select($sql, [$id_proceso]);
         return $res;
         }
 
     public function detalleProceso(int $id_proceso)
     {
-        $sql = "SELECT * FROM detalle_proceso WHERE id_proceso = $id_proceso";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM detalle_proceso WHERE id_proceso = ?";
+        $res = $this->select($sql, [$id_proceso]);
         return $res;
     }
     
@@ -87,10 +87,11 @@ class ProcesosModel extends Mysql{
     {
         $this->id_proceso = $id_proceso;
         $id_proc = $id_proceso;
-        $sql = "SELECT SUM(total_pag) FROM `detalle_proceso` WHERE id_proceso= '%$id_proc%'";
-        $res = $this->select_all($sql);
-        $query = "UPDATE proceso SET estado='FINALIZADO', totalpag ='%$res%') WHERE id_proceso = ?";
-        $data = array($this->id_proceso);
+        $sql = "SELECT SUM(total_pag) AS total_paginas FROM detalle_proceso WHERE id_proceso = ?";
+        $res = $this->select($sql, [$id_proc]);
+        $totalPaginas = intval($res['total_paginas'] ?? 0);
+        $query = "UPDATE proceso SET estado = 'FINALIZADO', totalpag = ? WHERE id_proceso = ?";
+        $data = array($totalPaginas, $this->id_proceso);
         $this->update($query, $data);
         return true;
     }
@@ -139,8 +140,8 @@ class ProcesosModel extends Mysql{
     {
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = "SELECT * FROM v_procesos WHERE nro_caja BETWEEN '$desde' AND '$hasta' order by nro_caja asc";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM v_procesos WHERE nro_caja BETWEEN ? AND ? order by nro_caja asc";
+        $res = $this->select_all($sql, [$desde, $hasta]);
         return $res;
     }
 
@@ -148,8 +149,8 @@ class ProcesosModel extends Mysql{
     {
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = "SELECT * FROM v_procesos WHERE fecha_proceso BETWEEN '$desde' AND '$hasta' order by fecha_proceso asc";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM v_procesos WHERE fecha_proceso BETWEEN ? AND ? order by fecha_proceso asc";
+        $res = $this->select_all($sql, [$desde, $hasta]);
         return $res;
     }
 

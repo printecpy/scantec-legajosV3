@@ -36,9 +36,9 @@ class UnirpdfModel extends Mysql{
                 FROM permisos_documentos a INNER JOIN usu_grupo b 
                 ON a.id_grupo = b.id_grupo INNER JOIN tipo_documento c 
                 ON a.id_tipoDoc = c.id_tipoDoc
-                WHERE a.estado = 'ACTIVO' AND a.id_grupo = $id_grupo
+                WHERE a.estado = 'ACTIVO' AND a.id_grupo = ?
                 ORDER BY a.id ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$id_grupo]);
         return $res;
     }
     

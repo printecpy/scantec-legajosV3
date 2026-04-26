@@ -25,8 +25,8 @@ class AlertaModel extends Mysql {
 
     public function getDestinatariosPorTarea($id_tarea) {
         $id_limpio = intval($id_tarea);
-        $sql = "SELECT id, correo_destino FROM alerta_destinatarios WHERE id_tarea_programada = $id_limpio AND estado = 'activa'";
-        return $this->select_all($sql);
+        $sql = "SELECT id, correo_destino FROM alerta_destinatarios WHERE id_tarea_programada = ? AND estado = 'activa'";
+        return $this->select_all($sql, [$id_limpio]);
     }
 
     public function logHistorial(int $id_tarea, string $correo_destino, string $estado, string $detalle) {
@@ -55,8 +55,8 @@ class AlertaModel extends Mysql {
 
     public function getTareaById($id) {
         $id_limpio = intval($id);
-        $sql = "SELECT * FROM tarea_programada WHERE id = $id_limpio";
-        return $this->select($sql); 
+        $sql = "SELECT * FROM tarea_programada WHERE id = ?";
+        return $this->select($sql, [$id_limpio]); 
     }
 
     public function updateTarea(int $id, string $nombre, string $tipo, string $frecuencia) {
@@ -72,7 +72,7 @@ class AlertaModel extends Mysql {
     }
 
     public function deleteDestinatario(int $id_destinatario) {
-        $sql = "DELETE FROM alerta_destinatarios WHERE id = ?";
+        $sql = "UPDATE alerta_destinatarios SET estado = 'inactiva' WHERE id = ?";
         $data = array($id_destinatario);
         return $this->update($sql, $data); 
     }
@@ -99,9 +99,9 @@ class AlertaModel extends Mysql {
             $fecha_limite = date('Y-m-d H:i:s', strtotime("+$dias days"));            
             $query = "SELECT id_expediente, indice_01, fecha_vencimiento FROM expediente 
                       WHERE estado = 'Activo' 
-                      AND fecha_vencimiento BETWEEN CURDATE() AND '$fecha_limite' 
+                      AND fecha_vencimiento BETWEEN CURDATE() AND ? 
                       ORDER BY fecha_vencimiento ASC";
-            return $this->select_all($query);
+            return $this->select_all($query, [$fecha_limite]);
         }
         return []; 
     }

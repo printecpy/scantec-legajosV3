@@ -1,0 +1,1 @@
+<?php require "Libraries/Core/Mysql.php"; class DB extends Mysql { public function __construct() { parent::__construct();} public function q() { print_r($this->select_all("SHOW COLUMNS FROM unirpdf")); print_r($this->select_all("SHOW TABLES LIKE '%facturacion%'")); } } (new DB())->q();

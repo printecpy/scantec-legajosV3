@@ -499,7 +499,7 @@ class SeguridadLegajosModel extends Mysql
      */
     public function eliminarRol(int $id_rol): bool
     {
-        $sql = "DELETE FROM roles WHERE id_rol = ?";
+        $sql = "UPDATE roles SET estado = 'inactivo' WHERE id_rol = ?";
         return (bool)$this->update($sql, [$id_rol]);
     }
 

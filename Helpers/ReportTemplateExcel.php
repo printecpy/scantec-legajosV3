@@ -58,6 +58,11 @@ class ReportTemplateExcel
         return $this->sheet;
     }
 
+    public function createSheet()
+    {
+        return $this->spreadsheet->createSheet();
+    }
+
     public function setColumnWidths(array $widths)
     {
         foreach ($widths as $col => $width) {

@@ -10,7 +10,12 @@ $pdf_final_listo = $data['pdf_final_listo'] ?? null;
 $buscar_legajo = $data['buscar_legajo'] ?? '';
 $resultados_busqueda_legajo = $data['resultados_busqueda_legajo'] ?? [];
 $duplicado_desde = intval($data['duplicar_desde'] ?? 0);
+$personas_modulo_activo = !empty($data['personas_modulo_activo']);
+$personas_activas = $data['personas_activas'] ?? [];
+$personas_fuente = (string)($data['personas_fuente'] ?? 'ninguna');
+$selector_persona_valor_actual = (string)($data['selector_persona_valor_actual'] ?? '');
 $id_legajo_actual = intval($legajo['id_legajo'] ?? ($pdf_final_listo['id_legajo'] ?? 0));
+$id_persona_actual = intval($legajo['id_persona'] ?? 0);
 $estado_legajo_actual = strtolower(trim($legajo['estado'] ?? ''));
 $observacion_rechazo_legajo = trim((string)($legajo['observacion'] ?? ''));
 $legajo_bloqueado = in_array($estado_legajo_actual, ['aprobado', 'cerrado'], true);
@@ -33,6 +38,7 @@ foreach ($legajo_documentos as $legajo_documento) {
     $documentos_legajo_por_requisito[intval($legajo_documento['id_requisito'] ?? 0)] = [
         'estado' => strtolower(trim($legajo_documento['estado'] ?? 'pendiente')),
         'ruta_archivo' => $legajo_documento['ruta_archivo'] ?? '',
+        'valor_campo' => $legajo_documento['valor_campo'] ?? '',
         'fecha_vencimiento' => !empty($legajo_documento['fecha_vencimiento']) ? date('Y-m-d', strtotime($legajo_documento['fecha_vencimiento'])) : '',
         'observacion' => $legajo_documento['observacion'] ?? '',
     ];
@@ -54,6 +60,8 @@ foreach ($matriz_legajo as $regla) {
         'es_obligatorio' => !empty($regla['es_obligatorio']),
         'permite_reemplazo' => !empty($regla['permite_reemplazo']),
         'politica_actualizacion' => strtoupper(trim((string)($regla['politica_actualizacion'] ?? ''))),
+        'tipo_campo' => strtolower(trim((string)($regla['tipo_campo'] ?? 'documento'))),
+        'opciones_campo' => (string)($regla['opciones_campo'] ?? ''),
         'tiene_vencimiento' => !empty($regla['tiene_vencimiento']),
         'dias_vigencia_base' => intval($regla['dias_vigencia_base'] ?? 0),
         'orden_visual' => intval($regla['orden_visual'] ?? 0),
@@ -94,7 +102,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                     <i class="fas fa-folder-plus mr-3"></i>Armar Legajo
                 </h1>
                 <p class="text-sm text-gray-500 mt-1 ml-1">
-                    Complete los datos base para habilitar el checklist de documentos requeridos.
+                    Complete los datos base para habilitar el listado de documentos requeridos.
                 </p>
             </div>
             <a href="#" onclick="window.history.back(); return false;"
@@ -232,9 +240,44 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-5 mt-5">
+                            <?php if ($personas_modulo_activo): ?>
+                            <div class="md:col-span-12">
+                                <div class="flex justify-between items-end mb-1">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase">Persona *</label>
+                                    <?php if ($personas_fuente === 'interna'): ?>
+                                    <a href="<?php echo base_url(); ?>personas/listar" class="text-xs font-bold text-scantec-blue hover:text-blue-800 flex items-center transition-all bg-blue-50 px-2 py-1 rounded-md border border-blue-100 hover:bg-blue-100">
+                                        <i class="fas fa-plus mr-1"></i> Agregar nueva persona
+                                    </a>
+                                    <?php else: ?>
+                                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                                        Base externa habilitada
+                                    </span>
+                                    <?php endif; ?>
+                                </div>
+                                <select id="id_persona" name="id_persona" data-original-value="<?php echo htmlspecialchars($selector_persona_valor_actual); ?>" required <?php echo $legajo_bloqueado ? 'disabled' : ''; ?>
+                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white font-bold text-gray-700">
+                                    <option value=""><?php echo $personas_fuente === 'externa' ? 'Seleccione una persona de la base externa...' : 'Seleccione una persona...'; ?></option>
+                                    <?php foreach ($personas_activas as $persona): ?>
+                                    <?php
+                                    $valorSelectorPersona = (string)($persona['selector_valor'] ?? ($persona['id_persona'] ?? 0));
+                                    $nombrePersona = trim((string)($persona['nombre_completo'] ?? ''));
+                                    ?>
+                                    <option value="<?php echo htmlspecialchars($valorSelectorPersona); ?>"
+                                        data-ci="<?php echo htmlspecialchars((string)($persona['ci'] ?? '')); ?>"
+                                        data-nombre="<?php echo htmlspecialchars($nombrePersona); ?>"
+                                        <?php echo $valorSelectorPersona === $selector_persona_valor_actual ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($nombrePersona . ' - CI ' . ($persona['ci'] ?? '')); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if (empty($personas_activas)): ?>
+                                <p class="text-xs text-amber-700 mt-1 font-semibold"><?php echo $personas_fuente === 'externa' ? 'No hay registros disponibles en la base externa.' : 'No hay personas activas cargadas.'; ?></p>
+                                <?php endif; ?>
+                            </div>
+                            <?php endif; ?>
                             <div class="md:col-span-3 xl:col-span-2">
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nro CI *</label>
-                                <input type="text" id="ci_socio" name="ci_socio" value="<?php echo htmlspecialchars($legajo['ci_socio'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['ci_socio'] ?? '')); ?>" required <?php echo $legajo_bloqueado ? 'readonly' : ''; ?>
+                                <input type="text" id="ci_socio" name="ci_socio" value="<?php echo htmlspecialchars($legajo['ci_socio'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['ci_socio'] ?? '')); ?>" required <?php echo ($legajo_bloqueado || $personas_modulo_activo) ? 'readonly' : ''; ?>
                                     maxlength="15"
                                     data-format-millares
                                     class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all focus:bg-blue-50">
@@ -242,15 +285,15 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
 
                             <div class="md:col-span-6 xl:col-span-7">
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo *</label>
-                                <input type="text" id="nombre_socio" name="nombre_socio" value="<?php echo htmlspecialchars($legajo['nombre_completo'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['nombre_completo'] ?? '')); ?>" required <?php echo $legajo_bloqueado ? 'readonly' : ''; ?>
+                                <input type="text" id="nombre_socio" name="nombre_socio" value="<?php echo htmlspecialchars($legajo['nombre_completo'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['nombre_completo'] ?? '')); ?>" required <?php echo ($legajo_bloqueado || $personas_modulo_activo) ? 'readonly' : ''; ?>
                                     class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all focus:bg-blue-50">
                             </div>
 
                             <div id="grupo-nro-solicitud" class="md:col-span-3 xl:col-span-3">
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nro. Solicitud</label>
                                 <input type="text" id="nro_solicitud" name="nro_solicitud" value="<?php echo htmlspecialchars($legajo['nro_solicitud'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['nro_solicitud'] ?? '')); ?>" <?php echo $legajo_bloqueado ? 'readonly' : ''; ?>
-                                    maxlength="15"
-                                    data-format-millares
+                                    maxlength="50"
+                                    placeholder="Ej: ABC-12345"
                                     class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all">
                             </div>
                         </div>
@@ -280,7 +323,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="bg-gray-800 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
                             <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
-                                <i class="fas fa-tasks mr-2 text-yellow-500"></i> 2. Checklist de Documentos Requeridos
+                                <i class="fas fa-tasks mr-2 text-yellow-500"></i> 2. Listado de Documentos Requeridos
                             </h5>
                             <span id="estado-checklist-badge" class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">
                                 Faltan Obligatorios
@@ -292,11 +335,11 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Documento</th>
-                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Rol</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Rol</th>
                                         <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Fecha Exped.</th>
-                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Observación</th>
                                         <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Archivo</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Obs.</th>
                                     </tr>
                                 </thead>
                                 <tbody id="checklist-legajo-body" class="divide-y divide-gray-200">
@@ -387,7 +430,30 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
     const estadoLegajoActual = <?php echo json_encode($estado_legajo_actual, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const legajoBloqueado = <?php echo $legajo_bloqueado ? 'true' : 'false'; ?>;
     const pdfFinalDisponible = <?php echo $pdf_final_disponible ? 'true' : 'false'; ?>;
+    const personasModuloActivo = <?php echo $personas_modulo_activo ? 'true' : 'false'; ?>;
+    const personasFuente = <?php echo json_encode($personas_fuente, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const baseUrlLegajos = <?php echo json_encode(base_url(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+
+    function sincronizarPersonaSeleccionada() {
+        if (!personasModuloActivo) {
+            return;
+        }
+
+        const selectPersona = document.getElementById('id_persona');
+        const inputCi = document.getElementById('ci_socio');
+        const inputNombre = document.getElementById('nombre_socio');
+        if (!selectPersona || !inputCi || !inputNombre) {
+            return;
+        }
+
+        const opcion = selectPersona.options[selectPersona.selectedIndex];
+        inputCi.value = opcion ? (opcion.dataset.ci || '') : '';
+        inputNombre.value = opcion ? (opcion.dataset.nombre || '') : '';
+        aplicarFormatoMillares(inputCi);
+        if (typeof actualizarResumenChecklist === 'function') {
+            actualizarResumenChecklist();
+        }
+    }
 
     function restaurarScrollPagina() {
         const limpiar = () => {
@@ -443,13 +509,29 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
     }
 
     function obtenerEstadoFila(fila) {
+        const tipoCampo = String(fila.dataset.tipoCampo || 'documento').toLowerCase();
+        const inputValor = fila.querySelector('[data-field-input]');
         const inputArchivo = fila.querySelector('[data-file-input]');
         const inputFecha = fila.querySelector('[data-fecha-expedicion]');
         const rutaExistente = fila.dataset.rutaArchivo || '';
+        const valorExistente = fila.dataset.valorCampo || '';
         const fechaVencimientoGuardada = fila.dataset.fechaVencimiento || '';
         const archivoEliminado = fila.dataset.archivoEliminado === '1';
         const tieneVencimiento = fila.dataset.tieneVencimiento === '1';
         const diasVigenciaBase = Number(fila.dataset.diasVigenciaBase || 0);
+
+        if (tipoCampo !== 'documento') {
+            let valorActual = valorExistente;
+            if (inputValor) {
+                if (inputValor.type === 'checkbox') {
+                    valorActual = inputValor.checked ? '1' : '0';
+                } else {
+                    valorActual = String(inputValor.value || '').trim();
+                }
+            }
+            return (tipoCampo === 'casilla' ? valorActual === '1' : valorActual !== '') ? 'cargado' : 'pendiente';
+        }
+
         const tieneArchivoNuevo = !!(inputArchivo && inputArchivo.files && inputArchivo.files.length > 0);
         const tieneArchivo = tieneArchivoNuevo || (!archivoEliminado && rutaExistente !== '');
 
@@ -495,21 +577,26 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         }
 
         const estadoNormalizado = String(estado || 'pendiente').toLowerCase();
-        let claseEstado = 'bg-gray-100 text-gray-600';
-        let textoEstado = 'PENDIENTE';
+        let claseEstado = 'bg-gray-200 text-gray-700';
+        let textoEstado = 'P';
+        let tituloEstado = 'Pendiente';
         if (estadoNormalizado === 'cargado') {
             claseEstado = 'bg-green-200 text-green-800';
-            textoEstado = 'CARGADO';
+            textoEstado = 'C';
+            tituloEstado = 'Cargado';
         } else if (estadoNormalizado === 'por_vencer') {
             claseEstado = 'bg-yellow-200 text-yellow-800';
-            textoEstado = 'POR VENCER';
+            textoEstado = 'PV';
+            tituloEstado = 'Por Vencer';
         } else if (estadoNormalizado === 'vencido') {
             claseEstado = 'bg-red-200 text-red-800';
-            textoEstado = 'VENCIDO';
+            textoEstado = 'V';
+            tituloEstado = 'Vencido';
         }
 
-        badge.className = 'px-2 py-1 inline-flex text-xs leading-5 font-bold rounded ' + claseEstado;
+        badge.className = 'w-7 h-7 mx-auto inline-flex items-center justify-center text-xs font-bold rounded-full ' + claseEstado;
         badge.textContent = textoEstado;
+        badge.title = tituloEstado;
         fila.dataset.estadoActual = estadoNormalizado;
     }
 
@@ -568,7 +655,9 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 return false;
             }
 
-            const camposCabecera = ['tipo_legajo', 'ci_socio', 'nombre_socio', 'nro_solicitud'];
+            const camposCabecera = personasModuloActivo
+                ? ['tipo_legajo', 'id_persona', 'ci_socio', 'nombre_socio', 'nro_solicitud']
+                : ['tipo_legajo', 'ci_socio', 'nombre_socio', 'nro_solicitud'];
             for (const idCampo of camposCabecera) {
                 const campo = document.getElementById(idCampo);
                 if (!campo) {
@@ -581,12 +670,21 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
 
             return filas.some((fila) => {
                 const inputArchivo = fila.querySelector('[data-file-input]');
+                const inputValor = fila.querySelector('[data-field-input]');
                 const flagEliminar = fila.querySelector('[data-remove-file-flag]');
                 const fechaExpedicion = fila.querySelector('[data-fecha-expedicion]');
                 const observacion = fila.querySelector(`textarea[name="observacion_${fila.dataset.requisito}"]`);
 
                 if (inputArchivo && inputArchivo.files && inputArchivo.files.length > 0) {
                     return true;
+                }
+                if (inputValor) {
+                    const valorActual = inputValor.type === 'checkbox'
+                        ? (inputValor.checked ? '1' : '0')
+                        : String(inputValor.value || '').trim();
+                    if (valorActual !== String(inputValor.dataset.originalValue || '').trim()) {
+                        return true;
+                    }
                 }
                 if (flagEliminar && String(flagEliminar.value) === '1') {
                     return true;
@@ -799,33 +897,40 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             const documentoGuardado = documentosLegajoPorRequisito[String(regla.id_requisito)] || documentosLegajoPorRequisito[regla.id_requisito] || {};
             const documentoFormulario = formDocumentosPorRequisito[String(regla.id_requisito)] || formDocumentosPorRequisito[regla.id_requisito] || {};
             const estadoGuardado = String(documentoGuardado.estado || 'pendiente').toLowerCase();
-            let claseEstado = 'bg-gray-100 text-gray-600';
-            let textoEstado = 'PENDIENTE';
+            let claseEstado = 'bg-gray-200 text-gray-700';
+            let textoEstado = 'P';
+            let tituloEstado = 'Pendiente';
             if (estadoGuardado === 'cargado') {
                 claseEstado = 'bg-green-200 text-green-800';
-                textoEstado = 'CARGADO';
+                textoEstado = 'C';
+                tituloEstado = 'Cargado';
             } else if (estadoGuardado === 'por_vencer') {
                 claseEstado = 'bg-yellow-200 text-yellow-800';
-                textoEstado = 'POR VENCER';
+                textoEstado = 'PV';
+                tituloEstado = 'Por Vencer';
             } else if (estadoGuardado === 'vencido') {
                 claseEstado = 'bg-red-200 text-red-800';
-                textoEstado = 'VENCIDO';
+                textoEstado = 'V';
+                tituloEstado = 'Vencido';
             }
             const requeridoTexto = regla.es_obligatorio
                 ? '<div class="text-xs text-red-500 font-bold">* Obligatorio</div>'
                 : '<div class="text-xs text-gray-500 font-bold">Opcional</div>';
+            const tipoCampo = String(regla.tipo_campo || 'documento').toLowerCase();
+            const esCampoDocumento = tipoCampo === 'documento';
             const inputName = 'doc_' + regla.id_requisito + '_' + slugifyLegajo(regla.rol_vinculado) + '_' + slugifyLegajo(regla.documento_nombre);
+            const valorCampoInicial = String(documentoFormulario.valor_campo ?? documentoGuardado.valor_campo ?? '');
             let fechaExpedicionInicial = '';
             if (String(documentoFormulario.fecha_expedicion || '').trim() !== '') {
                 fechaExpedicionInicial = String(documentoFormulario.fecha_expedicion || '').trim();
-            } else if (regla.tiene_vencimiento && documentoGuardado.fecha_vencimiento && Number(regla.dias_vigencia_base || 0) > 0) {
+            } else if (esCampoDocumento && regla.tiene_vencimiento && documentoGuardado.fecha_vencimiento && Number(regla.dias_vigencia_base || 0) > 0) {
                 const fechaVencimiento = new Date(documentoGuardado.fecha_vencimiento + 'T00:00:00');
                 if (!Number.isNaN(fechaVencimiento.getTime())) {
                     fechaVencimiento.setFullYear(fechaVencimiento.getFullYear() - Number(regla.dias_vigencia_base));
                     fechaExpedicionInicial = fechaVencimiento.toISOString().slice(0, 10);
                 }
             }
-            const fechaExpedicionHtml = regla.tiene_vencimiento
+            const fechaExpedicionHtml = esCampoDocumento && regla.tiene_vencimiento
                 ? `<input type="date" name="fecha_expedicion_${regla.id_requisito}" value="${fechaExpedicionInicial}" class="w-full px-2 py-1.5 border rounded text-sm text-gray-700" data-fecha-expedicion data-original-value="${String(fechaExpedicionInicial || '').replace(/"/g, '&quot;')}" ${legajoBloqueado ? 'disabled' : ''}>`
                 : '<span class="text-xs text-gray-400 font-bold">No aplica</span>';
             let politicaInicial = String(regla.politica_actualizacion || '').toUpperCase();
@@ -860,15 +965,35 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         <i class="fas fa-times mr-1"></i> Quitar archivo
                    </button>`
                 : '';
+            const opcionesLista = String(regla.opciones_campo || '')
+                .split(/\r?\n/)
+                .map((item) => String(item || '').trim())
+                .filter((item) => item !== '');
+            let campoValorHtml = '';
+            if (!esCampoDocumento) {
+                if (tipoCampo === 'lista') {
+                    const opcionesHtml = opcionesLista.map((opcion) => {
+                        const seleccionada = opcion === valorCampoInicial ? 'selected' : '';
+                        return `<option value="${opcion.replace(/"/g, '&quot;')}" ${seleccionada}>${opcion}</option>`;
+                    }).join('');
+                    campoValorHtml = `<select name="valor_campo_${regla.id_requisito}" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700" data-field-input data-original-value="${valorCampoInicial.replace(/"/g, '&quot;')}" ${legajoBloqueado ? 'disabled' : ''}><option value="">Seleccione...</option>${opcionesHtml}</select>`;
+                } else if (tipoCampo === 'casilla') {
+                    campoValorHtml = `<label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700"><input type="checkbox" name="valor_campo_${regla.id_requisito}" value="1" ${valorCampoInicial === '1' ? 'checked' : ''} data-field-input data-original-value="${valorCampoInicial === '1' ? '1' : '0'}" ${legajoBloqueado ? 'disabled' : ''}> Confirmado</label>`;
+                } else {
+                    campoValorHtml = `<input type="text" name="valor_campo_${regla.id_requisito}" value="${valorCampoInicial.replace(/"/g, '&quot;')}" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700" data-field-input data-original-value="${valorCampoInicial.replace(/"/g, '&quot;')}" ${legajoBloqueado ? 'disabled' : ''}>`;
+                }
+            }
 
             return `
                 <tr class="hover:bg-gray-50 transition-colors"
                     data-checklist-row
                     data-requisito="${regla.id_requisito}"
+                    data-tipo-campo="${tipoCampo}"
                     data-es-obligatorio="${regla.esObligatorio ? 1 : (regla.es_obligatorio ? 1 : 0)}"
                     data-tiene-vencimiento="${regla.tiene_vencimiento ? 1 : 0}"
                     data-dias-vigencia-base="${Number(regla.dias_vigencia_base || 0)}"
                     data-ruta-archivo="${String(documentoGuardado.ruta_archivo || '').replace(/"/g, '&quot;')}"
+                    data-valor-campo="${String(documentoGuardado.valor_campo || '').replace(/"/g, '&quot;')}"
                     data-fecha-vencimiento="${String(documentoGuardado.fecha_vencimiento || '').replace(/"/g, '&quot;')}"
                     data-archivo-eliminado="0"
                     data-estado-actual="${estadoGuardado}">
@@ -876,25 +1001,16 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         <div class="text-sm font-bold text-gray-900">${regla.documento_nombre}</div>
                         ${requeridoTexto}
                     </td>
-                    <td class="px-4 py-4 text-sm text-gray-700 font-semibold">${regla.rol_vinculado}</td>
                     <td class="px-4 py-4 text-center">
-                        <span data-estado-badge class="px-2 py-1 inline-flex text-xs leading-5 font-bold rounded ${claseEstado}">
-                            ${textoEstado}
+                        <span title="${regla.rol_vinculado}" class="w-7 h-7 mx-auto inline-flex items-center justify-center text-xs font-bold rounded-lg bg-indigo-100 text-indigo-800">
+                            ${String(regla.rol_vinculado || ' ').charAt(0).toUpperCase()}
                         </span>
                     </td>
+                    ${esCampoDocumento ? `
                     <td class="px-4 py-4 text-center">
                         ${fechaExpedicionHtml}
                     </td>
-                    <td class="px-4 py-4">
-                        <textarea
-                            name="observacion_${regla.id_requisito}"
-                            rows="2"
-                            class="w-full px-2 py-1.5 border rounded text-sm text-gray-700 resize-none"
-                            data-original-value="${observacionInicial}"
-                            placeholder="Agregar observacion"
-                            ${legajoBloqueado ? 'disabled' : ''}>${observacionInicial}</textarea>
-                    </td>
-                    <td class="px-6 py-4 text-right">
+                    <td class="px-6 py-4 text-right w-[30%]">
                         <input type="hidden" name="ruta_existente_${regla.id_requisito}" value="${String(documentoGuardado.ruta_archivo || '').replace(/"/g, '&quot;')}">
                         <input type="hidden" name="eliminar_archivo_${regla.id_requisito}" value="0" data-remove-file-flag>
                         <input type="hidden" name="accion_archivo_${regla.id_requisito}" value="${politicaInicial}" data-file-action>
@@ -902,6 +1018,29 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         ${nombreArchivoHtml}
                         ${botonVerArchivoHtml}
                         ${botonEliminarArchivoHtml}
+                    </td>
+                    ` : `
+                    <td class="px-4 py-4" colspan="2">
+                        <input type="hidden" name="ruta_existente_${regla.id_requisito}" value="${String(documentoGuardado.ruta_archivo || '').replace(/"/g, '&quot;')}">
+                        <input type="hidden" name="eliminar_archivo_${regla.id_requisito}" value="0" data-remove-file-flag>
+                        <input type="hidden" name="accion_archivo_${regla.id_requisito}" value="${politicaInicial}" data-file-action>
+                        <div class="flex justify-end w-full">
+                            <div class="w-full max-w-sm text-left">
+                                ${campoValorHtml}
+                            </div>
+                        </div>
+                    </td>
+                    `}
+                    <td class="px-4 py-4 text-center">
+                        <span data-estado-badge title="${tituloEstado}" class="w-7 h-7 mx-auto inline-flex items-center justify-center text-xs font-bold rounded-full ${claseEstado}">
+                            ${textoEstado}
+                        </span>
+                    </td>
+                    <td class="px-4 py-4 text-center">
+                        <textarea name="observacion_${regla.id_requisito}" class="hidden" data-original-value="${observacionInicial}">${observacionInicial}</textarea>
+                        <button type="button" class="w-9 h-9 rounded-full inline-flex items-center justify-center transition-all shadow-sm ${observacionInicial ? 'bg-blue-100 text-scantec-blue hover:bg-blue-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'} ${legajoBloqueado ? 'opacity-50 cursor-not-allowed' : ''}" data-obs-btn="${regla.id_requisito}" title="${observacionInicial ? 'Ver/Editar observación' : 'Agregar observación'}" ${legajoBloqueado ? 'disabled' : ''}>
+                            <i class="fas fa-comment${observacionInicial ? '' : '-dots'}"></i>
+                        </button>
                     </td>
                 </tr>
             `;
@@ -1051,6 +1190,13 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             });
         });
 
+        body.querySelectorAll('[data-field-input]').forEach((input) => {
+            const evento = input.type === 'checkbox' ? 'change' : 'input';
+            input.addEventListener(evento, function () {
+                refrescarEstadosChecklist();
+            });
+        });
+
         body.querySelectorAll('[data-remove-file-btn]').forEach((button) => {
             button.addEventListener('click', function () {
                 const fila = this.closest('[data-checklist-row]');
@@ -1114,6 +1260,57 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             });
         });
 
+        body.querySelectorAll('[data-obs-btn]').forEach((btn) => {
+            btn.addEventListener('click', async function () {
+                const idRequisito = this.dataset.obsBtn;
+                const textarea = body.querySelector(`textarea[name="observacion_${idRequisito}"]`);
+                if (!textarea) return;
+
+                if (typeof Swal !== 'undefined') {
+                    const { value: text } = await Swal.fire({
+                        title: 'Observación',
+                        input: 'textarea',
+                        inputLabel: 'Detalles de la observación',
+                        inputValue: textarea.value,
+                        inputPlaceholder: 'Escribe aquí tu observación...',
+                        inputAttributes: {
+                            'aria-label': 'Escribe aquí tu observación'
+                        },
+                        showCancelButton: true,
+                        confirmButtonText: 'Guardar',
+                        cancelButtonText: 'Cancelar',
+                        didOpen: () => {
+                            if (legajoBloqueado) Swal.getInput().disabled = true;
+                        }
+                    });
+
+                    if (text !== undefined) {
+                        textarea.value = text;
+                        if (text.trim() !== '') {
+                            this.className = 'w-9 h-9 rounded-full inline-flex items-center justify-center transition-all shadow-sm bg-blue-100 text-scantec-blue hover:bg-blue-200 ' + (legajoBloqueado ? 'opacity-50 cursor-not-allowed' : '');
+                            this.innerHTML = '<i class="fas fa-comment"></i>';
+                            this.title = 'Ver/Editar observación';
+                        } else {
+                            this.className = 'w-9 h-9 rounded-full inline-flex items-center justify-center transition-all shadow-sm bg-gray-100 text-gray-500 hover:bg-gray-200 ' + (legajoBloqueado ? 'opacity-50 cursor-not-allowed' : '');
+                            this.innerHTML = '<i class="fas fa-comment-dots"></i>';
+                            this.title = 'Agregar observación';
+                        }
+                        refrescarEstadosChecklist();
+                    }
+                } else {
+                    if (legajoBloqueado) {
+                        alert(textarea.value || 'Sin observación');
+                        return;
+                    }
+                    const texto = prompt('Observación:', textarea.value);
+                    if (texto !== null) {
+                        textarea.value = texto;
+                        refrescarEstadosChecklist();
+                    }
+                }
+            });
+        });
+
         refrescarEstadosChecklist();
     }
 
@@ -1123,8 +1320,23 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         const submitActionInput = document.getElementById('submit_action');
         const btnGuardarBorrador = document.getElementById('btn-guardar-borrador');
         const btnFinalizarLegajo = document.getElementById('btn-finalizar-legajo');
+        const selectPersona = document.getElementById('id_persona');
         if (!selectTipoLegajo) {
             return;
+        }
+
+        if (selectPersona) {
+            if (typeof jQuery !== 'undefined' && $.fn.select2) {
+                $(selectPersona).select2({
+                    width: '100%',
+                    placeholder: personasFuente === 'externa'
+                        ? 'Seleccione o busque una persona de la base externa...'
+                        : 'Seleccione o busque una persona...'
+                }).on('change', sincronizarPersonaSeleccionada);
+            } else {
+                selectPersona.addEventListener('change', sincronizarPersonaSeleccionada);
+            }
+            sincronizarPersonaSeleccionada();
         }
 
         renderChecklistLegajo(selectTipoLegajo.value);

@@ -7,9 +7,8 @@
  * Must be separate to prevent deprecation warning on PHP 7.2
  */
 
-function __autoload($class)
-{
-    return HTMLPurifier_Bootstrap::autoload($class);
+if (function_exists('spl_autoload_register')) {
+    spl_autoload_register(array('HTMLPurifier_Bootstrap', 'autoload'));
 }
 
 // vim: et sw=4 sts=4

@@ -31,8 +31,8 @@ class OrdenamientoModel extends Mysql{
     }
     public function editOrdenamiento(int $id)
     {
-        $sql = "SELECT * FROM archivos_fisicos WHERE id = $id";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM archivos_fisicos WHERE id = ?";
+        $res = $this->select($sql, [$id]);
         return $res;
     }
 
@@ -69,15 +69,15 @@ class OrdenamientoModel extends Mysql{
     }
     public function selectExpCant(int $id_lote)
     {
-        $sql = "SELECT COUNT(*) AS cant_expediente FROM detalle_proceso WHERE id_registro = $id_lote";
-        $res = $this->select($sql);
+        $sql = "SELECT COUNT(*) AS cant_expediente FROM detalle_proceso WHERE id_registro = ?";
+        $res = $this->select($sql, [$id_lote]);
         return $res;
     }
 
     public function selectCantPag(int $id_lote)
     {
-        $sql = "SELECT SUM(total_pag) AS total_paginas FROM detalle_proceso WHERE id_registro = $id_lote";
-        $res = $this->select($sql);
+        $sql = "SELECT SUM(total_pag) AS total_paginas FROM detalle_proceso WHERE id_registro = ?";
+        $res = $this->select($sql, [$id_lote]);
         return $res;
     }
     

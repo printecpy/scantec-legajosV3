@@ -104,6 +104,17 @@ class Unirpdf extends Controllers
             for ($i = 0; $i < $total_files; $i++) {
                 if ($_FILES['archivos']['error'][$i] !== UPLOAD_ERR_OK) continue;
 
+                $archivoValidar = [
+                    'name' => $_FILES['archivos']['name'][$i],
+                    'type' => $_FILES['archivos']['type'][$i] ?? '',
+                    'tmp_name' => $_FILES['archivos']['tmp_name'][$i],
+                    'error' => $_FILES['archivos']['error'][$i],
+                    'size' => $_FILES['archivos']['size'][$i] ?? 0,
+                ];
+                if (!scantecValidarUpload($archivoValidar, ['pdf', 'jpg', 'jpeg', 'png'], ['application/pdf', 'image/jpeg', 'image/png'], 50 * 1024 * 1024)) {
+                    continue;
+                }
+
                 $tmpName = $_FILES['archivos']['tmp_name'][$i];
                 $ext = strtolower(pathinfo($_FILES['archivos']['name'][$i], PATHINFO_EXTENSION));
 

@@ -25,8 +25,8 @@ class FuncionariosModel extends Mysql{
     }
     public function editFuncionario(int $id)
     {
-        $sql = "SELECT * FROM funcionario WHERE id = $id";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM funcionario WHERE id = ?";
+        $res = $this->select($sql, [$id]);
         return $res;
     }
     public function actualizarFuncionario(String $documento, String $nombre, String $direccion, String $telefono, int $id)    {

@@ -37,6 +37,12 @@ use setasign\Fpdi\Fpdi;
         $hora=date("H:i:s");
         $fecha=$day.'/'.$mont.'/'.$year.' '.$hora;
         $usuario = $_SESSION['usuario'];
+        if (!isset($_FILES['pdf1']) || !scantecValidarUpload($_FILES['pdf1'], ['pdf'], ['application/pdf'], 50 * 1024 * 1024)) {
+            setAlert('error', "El archivo debe ser un PDF valido y no superar 50 MB.");
+            header("Location: " . base_url());
+            die();
+        }
+
         // Lista de archivos PDF a combinar
         // Agregar los archivos PDF
         $files = array($_FILES['pdf1']['tmp_name']); 

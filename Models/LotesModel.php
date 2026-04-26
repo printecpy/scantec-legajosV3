@@ -52,8 +52,8 @@ class LotesModel extends Mysql{
     }
     public function editLote(int $id_registro)
     {
-        $sql = "SELECT * FROM lote WHERE id_registro = $id_registro";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM lote WHERE id_registro = ?";
+        $res = $this->select($sql, [$id_registro]);
         return $res;
     }
 
@@ -98,15 +98,15 @@ class LotesModel extends Mysql{
 
     public function selectExpCant(int $id_registro)
     {
-        $sql = "SELECT COUNT(*) AS cant_expediente FROM detalle_proceso WHERE id_registro = $id_registro";
-        $res = $this->select($sql);
+        $sql = "SELECT COUNT(*) AS cant_expediente FROM detalle_proceso WHERE id_registro = ?";
+        $res = $this->select($sql, [$id_registro]);
         return $res;
     }
 
     public function selectCantPag(int $id_registro)
     {
-        $sql = "SELECT SUM(total_pag) AS total_paginas FROM detalle_proceso WHERE id_registro = $id_registro";
-        $res = $this->select($sql);
+        $sql = "SELECT SUM(total_pag) AS total_paginas FROM detalle_proceso WHERE id_registro = ?";
+        $res = $this->select($sql, [$id_registro]);
         return $res;
     }
 
@@ -114,8 +114,8 @@ class LotesModel extends Mysql{
     {
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = "SELECT * FROM lote WHERE inicio_lote BETWEEN '$desde' AND '$hasta' order by inicio_lote asc";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM lote WHERE inicio_lote BETWEEN ? AND ? order by inicio_lote asc";
+        $res = $this->select_all($sql, [$desde, $hasta]);
         return $res;
     }
 
@@ -123,8 +123,8 @@ class LotesModel extends Mysql{
     {
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = "SELECT * FROM lote WHERE fecha_recibido BETWEEN '$desde' AND '$hasta' order by fecha_recibido asc";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM lote WHERE fecha_recibido BETWEEN ? AND ? order by fecha_recibido asc";
+        $res = $this->select_all($sql, [$desde, $hasta]);
         return $res;
     }
 

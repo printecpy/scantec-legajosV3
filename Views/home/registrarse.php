@@ -8,6 +8,23 @@
 
     <?php include "Views/template/config_tailwind.php"; ?>
 
+    <!-- PWA -->
+    <link rel="manifest" href="<?php echo base_url(); ?>manifest.json">
+    <meta name="theme-color" content="#182541">
+    <link rel="apple-touch-icon" href="<?php echo base_url(); ?>Assets/img/icoScantec2.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('<?php echo base_url(); ?>sw.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    }, function(err) {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 

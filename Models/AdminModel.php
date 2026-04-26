@@ -18,8 +18,8 @@ class AdminModel extends Mysql{
     }
     public function selectExpedienteCantidad(int $id_expediente)
     {
-        $sql = "SELECT * FROM expediente WHERE id_expediente = $id_expediente";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM expediente WHERE id_expediente = ?";
+        $res = $this->select($sql, [$id_expediente]);
         return $res;
     }
     public function selectFuncionarios()

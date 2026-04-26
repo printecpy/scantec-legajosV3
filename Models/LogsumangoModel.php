@@ -14,8 +14,8 @@ class LogsumangoModel extends Mysql{
     public function reporteLogFecha(string $desde)
     {
         $this->desde = $desde;
-        $sql = "SELECT * FROM logs_umango WHERE fecha_finalizacion LIKE '%$desde%' order by idlog_umango asc;";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM logs_umango WHERE fecha_finalizacion LIKE ? order by idlog_umango asc;";
+        $res = $this->select_all($sql, ['%' . $desde . '%']);
         return $res;
     }
 

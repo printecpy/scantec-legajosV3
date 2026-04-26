@@ -1,0 +1,1 @@
+<?php require "Config/Config.php"; require "Config/config.local.php"; $c = $GLOBALS["SCANTEC_APP_CONFIG"] ?? []; $pdo = new PDO("mysql:host={$c["host"]};dbname={$c["db"]};charset={$c["charset"]}", $c["user"], $c["password"]); print_r($pdo->query("SHOW TABLES LIKE '%legajo%'")->fetchAll(PDO::FETCH_COLUMN));

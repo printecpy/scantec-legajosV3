@@ -208,11 +208,11 @@ class UsuariosModel extends Mysql
     public function selectUsuariosActivos()
     {
         $ip = $_SERVER["REMOTE_ADDR"] ?? "";
-        $servidor = gethostbyaddr($_SERVER['REMOTE_ADDR']);
+        $servidor = gethostbyaddr($_SERVER['REMOTE_ADDR'] ?? '') ?: '';
         $sql = "SELECT a.id_visita, a.fecha, a.ip, a.servidor, a.id, b.nombre, a.fecha_cierre, 
-        a.estado FROM visitas a, usuarios b WHERE a.id=b.id AND a.servidor NOT LIKE '%$servidor%' 
-        AND a.ip NOT LIKE '%$ip%'AND estado='ACTIVO' ORDER BY a.fecha ASC;";
-        $res = $this->select_all($sql);
+        a.estado FROM visitas a, usuarios b WHERE a.id=b.id AND a.servidor NOT LIKE ? 
+        AND a.ip NOT LIKE ? AND estado='ACTIVO' ORDER BY a.fecha ASC;";
+        $res = $this->select_all($sql, ['%' . $servidor . '%', '%' . $ip . '%']);
         return $res;
     }
 
@@ -415,20 +415,6 @@ class UsuariosModel extends Mysql
             $totalAccesos = $this->contarAccesosDepartamento($idDepartamento);
             $enUso = ($totalUsuarios + $totalRoles + $totalAccesos) > 0;
 
-            if ($accion === 'eliminar' && !$enUso) {
-                try {
-                    $tablaAccesos = $this->select_all("SHOW TABLES LIKE 'funcionalidades_acceso_rol_departamento'");
-                    if (!empty($tablaAccesos)) {
-                        $this->delete("DELETE FROM funcionalidades_acceso_rol_departamento WHERE id_departamento = ?", [$idDepartamento]);
-                    }
-                } catch (\Throwable $e) {
-                    // Continuamos con la eliminación principal.
-                }
-
-                $ok = (bool)$this->delete("DELETE FROM departamentos WHERE id_departamento = ?", [$idDepartamento]);
-                return $ok ? 'eliminado' : 'error';
-            }
-
             $ok = $this->cambiarEstadoDepartamento($idDepartamento, 'INACTIVO');
             if (!$ok) {
                 return 'error';
@@ -578,8 +564,8 @@ class UsuariosModel extends Mysql
         $sql = "SELECT u.*, COALESCE(d.nombre, u.departamento) AS departamento
                 FROM usuarios u
                 LEFT JOIN departamentos d ON d.id_departamento = u.id_departamento
-                WHERE u.id = $id";
-        $res = $this->select($sql);
+                WHERE u.id = ?";
+        $res = $this->select($sql, [$id]);
         if (empty($res)) {
             return [];
         }
@@ -678,8 +664,8 @@ class UsuariosModel extends Mysql
     {
         $this->id_grupo = $id_grupo;
         $this->id_tipoDoc = $id_tipoDoc;
-        $sql = "SELECT COUNT(*) as total FROM permisos_documentos WHERE id_grupo = $id_grupo AND id_tipoDoc = $id_tipoDoc;";
-        $res = $this->select($sql);
+        $sql = "SELECT COUNT(*) as total FROM permisos_documentos WHERE id_grupo = ? AND id_tipoDoc = ?;";
+        $res = $this->select($sql, [$id_grupo, $id_tipoDoc]);
         return $res;
     }
 
@@ -745,8 +731,8 @@ class UsuariosModel extends Mysql
     // Obtener solo la contrase�a actual (Más ligero y seguro)
     public function getPassword(int $id)
     {
-        $sql = "SELECT clave FROM usuarios WHERE id = $id";
-        $request = $this->select($sql);
+        $sql = "SELECT clave FROM usuarios WHERE id = ?";
+        $request = $this->select($sql, [$id]);
         // Retornamos directamente el array o vacío
         return $request;
     }
@@ -901,21 +887,24 @@ class UsuariosModel extends Mysql
     // Obtener config
     public function getLdapConfigById($id)
     {
-        $sql = "SELECT * FROM ldap_datos WHERE id = $id AND estado = 'activo';";
-        return $this->select($sql);
+        $sql = "SELECT * FROM ldap_datos WHERE id = ? AND estado = 'activo';";
+        return $this->select($sql, [$id]);
     }
 
     // Función inteligente Insertar/Actualizar
     public function sincronizarUsuarioLDAP($usuario, $nombre, $email, $password, $id_rol)
     {
         // 1. Buscar si existe por username
-        $sql = "SELECT id FROM usuarios WHERE usuario = '$usuario'";
-        $existe = $this->select($sql);
+        $sql = "SELECT id FROM usuarios WHERE usuario = ?";
+        $existe = $this->select($sql, [$usuario]);
 
         if (!empty($existe)) {
             // ACTUALIZAR: Si el usuario ya existe, actualizamos su nombre y correo (por si cambiaron en el AD)
             // NO actualizamos la contraseña ni el rol para no pisar configuraciones locales
-            $id_user = $existe['id'];
+            $id_user = $existe[0]['id'] ?? null;
+            if ($id_user === null) {
+                return false;
+            }
             $sql_update = "UPDATE usuarios SET nombre=?, email=?, clave_actualizacion=NOW() WHERE id=?";
             $arrData = array($nombre, $email, $id_user);
             $this->update($sql_update, $arrData);

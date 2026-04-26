@@ -47,8 +47,8 @@ class OperadoresModel extends Mysql{
     }
     public function editOperador(int $id_operador)
     {
-        $sql = "SELECT * FROM op_operador WHERE id_operador = $id_operador";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM op_operador WHERE id_operador = ?";
+        $res = $this->select($sql, [$id_operador]);
         return $res;
     }
     public function actualizarOperador(string $nombre, string $apellido, string $direccion, string $proyecto, int $id_operador)
@@ -81,15 +81,15 @@ class OperadoresModel extends Mysql{
     }
     public function selectExpCant(int $id_lote)
     {
-        $sql = "SELECT COUNT(*) AS cant_expediente FROM detalle_proceso WHERE id_registro = $id_lote";
-        $res = $this->select($sql);
+        $sql = "SELECT COUNT(*) AS cant_expediente FROM detalle_proceso WHERE id_registro = ?";
+        $res = $this->select($sql, [$id_lote]);
         return $res;
     }
 
     public function selectCantPag(int $id_lote)
     {
-        $sql = "SELECT SUM(total_pag) AS total_paginas FROM detalle_proceso WHERE id_registro = $id_lote";
-        $res = $this->select($sql);
+        $sql = "SELECT SUM(total_pag) AS total_paginas FROM detalle_proceso WHERE id_registro = ?";
+        $res = $this->select($sql, [$id_lote]);
         return $res;
     }
     

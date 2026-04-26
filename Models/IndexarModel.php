@@ -51,8 +51,8 @@ class IndexarModel extends Mysql{
     }
     public function editIndexar(int $id_index)
     {
-        $sql = "SELECT * FROM op_indexado WHERE id_index = $id_index";
-        $res = $this->select($sql);
+        $sql = "SELECT * FROM op_indexado WHERE id_index = ?";
+        $res = $this->select($sql, [$id_index]);
         return $res;
     }
 
@@ -90,8 +90,8 @@ class IndexarModel extends Mysql{
     {
         $this->desde = $desde;
         $this->hasta = $hasta;
-        $sql = "SELECT * FROM v_indexado WHERE fecha BETWEEN '$desde' AND '$hasta' order by id_index asc";
-        $res = $this->select_all($sql);
+        $sql = "SELECT * FROM v_indexado WHERE fecha BETWEEN ? AND ? order by id_index asc";
+        $res = $this->select_all($sql, [$desde, $hasta]);
         return $res;
     }
 
@@ -116,14 +116,14 @@ class IndexarModel extends Mysql{
                         CONCAT(YEAR(fecha), '-', MONTHNAME(fecha)) AS mes_anio,
                                 MIN(fecha) AS fecha_orden
                 FROM v_indexado
-                WHERE (YEAR(fecha) = $anio_desde AND MONTH(fecha) >= $mes_desde)
-                    OR (YEAR(fecha) = $anio_hasta AND MONTH(fecha) <= $mes_hasta)
-                    OR (YEAR(fecha) > $anio_desde AND YEAR(fecha) < $anio_hasta)
+                WHERE (YEAR(fecha) = ? AND MONTH(fecha) >= ?)
+                    OR (YEAR(fecha) = ? AND MONTH(fecha) <= ?)
+                    OR (YEAR(fecha) > ? AND YEAR(fecha) < ?)
                 GROUP BY YEAR(fecha), MONTH(fecha), mes_anio
             ) AS derived_table
             ORDER BY fecha_orden ASC;";
         // Ejecutar la consulta y devolver el resultado
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$anio_desde, $mes_desde, $anio_hasta, $mes_hasta, $anio_desde, $anio_hasta]);
         return $res;
     }
 
@@ -139,11 +139,11 @@ class IndexarModel extends Mysql{
                     (YEAR(MIN(fecha)) * 100 + MONTH(MIN(fecha))) AS month_number, 
                     operador
             FROM v_indexado 
-            WHERE id_operador = $id_operador
+            WHERE id_operador = ?
             GROUP BY YEAR(fecha), MONTH(fecha), operador 
         ) AS derived_table 
         ORDER BY month_number ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$id_operador]);
         return $res;
     }
 
@@ -161,11 +161,11 @@ class IndexarModel extends Mysql{
                             (YEAR(MIN(fecha)) * 100 + MONTH(MIN(fecha))) AS month_number, 
                             id_est, nombre_pc
                     FROM v_indexado 
-                    WHERE id_est = $id_est
+                    WHERE id_est = ?
                     GROUP BY YEAR(fecha), MONTH(fecha), id_est, nombre_pc
                 ) AS derived_table 
                 ORDER BY month_number ASC;";
-        $res = $this->select_all($sql);
+        $res = $this->select_all($sql, [$id_est]);
         return $res;
     }
 

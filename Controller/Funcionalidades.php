@@ -31,6 +31,7 @@ class Funcionalidades extends Controllers
             'administrar_legajos' => 'legajos',
             'permisos_legajos' => 'legajos',
             'log_legajos' => 'legajos',
+            'personas' => 'personas',
         ];
 
         foreach ($accesosDisponibles as $clave => $info) {

@@ -1,6 +1,40 @@
 <?php
 class Logs extends Controllers
 {
+    private function fechaIsoValida(string $fecha): bool
+    {
+        $fecha = trim($fecha);
+        if ($fecha === '') {
+            return false;
+        }
+
+        $date = DateTime::createFromFormat('Y-m-d', $fecha);
+        return $date instanceof DateTime && $date->format('Y-m-d') === $fecha;
+    }
+
+    private function resolverFiltrosReportePaginasLegajos(): array
+    {
+        $desde = trim((string)($_GET['desde'] ?? ''));
+        $hasta = trim((string)($_GET['hasta'] ?? ''));
+
+        if (!$this->fechaIsoValida($desde)) {
+            $desde = date('Y-m-01');
+        }
+
+        if (!$this->fechaIsoValida($hasta)) {
+            $hasta = date('Y-m-t');
+        }
+
+        if ($desde > $hasta) {
+            [$desde, $hasta] = [$hasta, $desde];
+        }
+
+        return [
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ];
+    }
+
     private function asegurarAccesoAuditoria(string $itemKey): void
     {
         $idRol = intval($_SESSION['id_rol'] ?? 0);
@@ -28,7 +62,9 @@ class Logs extends Controllers
 
     public function __construct()
     {
-        session_start();
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
         }
@@ -85,6 +121,21 @@ class Logs extends Controllers
         $registro_views = $this->model->selectViews();
         $data = ['registro_views' => $registro_views];
         $this->views->getView($this, "registro_views", $data);
+    }
+
+    public function reporte_paginas_legajos()
+    {
+        $this->asegurarAccesoAuditoria('reporte_paginas_legajos');
+        $filtros = $this->resolverFiltrosReportePaginasLegajos();
+
+        $data = [
+            'filtros' => $filtros,
+            'totales' => $this->model->selectTotalesPaginasLegajos($filtros['desde'], $filtros['hasta']),
+            'resumen_periodos' => $this->model->selectResumenPaginasLegajosPorPeriodo($filtros['desde'], $filtros['hasta']),
+            'detalle_legajos' => $this->model->selectDetallePaginasLegajos($filtros['desde'], $filtros['hasta']),
+        ];
+
+        $this->views->getView($this, "reporte_paginas_legajos", $data);
     }
 
     public function registro_sesiones()
@@ -238,6 +289,52 @@ class Logs extends Controllers
         }
         
         $pdf->Output("Views_Documentos.pdf", "I");
+    }
+
+    public function reporte_paginas_legajosPdf()
+    {
+        $this->asegurarAccesoAuditoria('reporte_paginas_legajos');
+        $filtros = $this->resolverFiltrosReportePaginasLegajos();
+        $totales = $this->model->selectTotalesPaginasLegajos($filtros['desde'], $filtros['hasta']);
+        $detalle = $this->model->selectDetallePaginasLegajos($filtros['desde'], $filtros['hasta']);
+
+        if (ob_get_length()) ob_end_clean();
+        require_once 'Helpers/ReportTemplatePDF.php';
+
+        $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Reporte de paginas procesadas de legajos', 'L', 'A4');
+        $pdf->SetFont('Arial', 'B', 11);
+        $pdf->Cell(0, 8, utf8_decode('Periodo: ' . $filtros['desde'] . ' a ' . $filtros['hasta']), 0, 1, 'L');
+
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(90, 7, utf8_decode('Legajos contabilizados: ' . intval($totales['total_legajos'] ?? 0)), 0, 0, 'L');
+        $pdf->Cell(90, 7, utf8_decode('Paginas procesadas: ' . intval($totales['total_paginas'] ?? 0)), 0, 0, 'L');
+        $pdf->Cell(90, 7, utf8_decode('Promedio por legajo: ' . number_format((float)($totales['promedio_paginas'] ?? 0), 2, ',', '.')), 0, 1, 'L');
+        $pdf->Ln(3);
+
+        $pdf->SetFont('Arial', 'B', 8);
+        $pdf->SetFillColor(192, 192, 192);
+        $pdf->Cell(18, 6, 'ID', 1, 0, 'C', true);
+        $pdf->Cell(28, 6, utf8_decode('Fecha'), 1, 0, 'C', true);
+        $pdf->Cell(42, 6, utf8_decode('Tipo'), 1, 0, 'C', true);
+        $pdf->Cell(38, 6, utf8_decode('CI'), 1, 0, 'C', true);
+        $pdf->Cell(70, 6, utf8_decode('Nombre'), 1, 0, 'C', true);
+        $pdf->Cell(32, 6, utf8_decode('Solicitud'), 1, 0, 'C', true);
+        $pdf->Cell(20, 6, utf8_decode('Paginas'), 1, 0, 'C', true);
+        $pdf->Cell(26, 6, utf8_decode('Estado'), 1, 1, 'C', true);
+
+        $pdf->SetFont('Arial', '', 7);
+        foreach ($detalle as $row) {
+            $pdf->Cell(18, 6, strval($row['id_legajo']), 1, 0, 'C');
+            $pdf->Cell(28, 6, utf8_decode(substr((string)$row['fecha_creacion'], 0, 10)), 1, 0, 'C');
+            $pdf->Cell(42, 6, utf8_decode((string)($row['nombre_tipo_legajo'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(38, 6, utf8_decode((string)($row['ci_socio'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(70, 6, utf8_decode((string)($row['nombre_completo'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(32, 6, utf8_decode((string)($row['nro_solicitud'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(20, 6, strval(intval($row['cantidad_paginas_procesadas'] ?? 0)), 1, 0, 'C');
+            $pdf->Cell(26, 6, utf8_decode((string)($row['estado'] ?? '')), 1, 1, 'C');
+        }
+
+        $pdf->Output("Paginas_Legajos.pdf", "I");
     }
 
     public function excel()
@@ -412,5 +509,72 @@ class Logs extends Controllers
         ]);
 
         $excel->output('Visualizaciones_' . date('Y_m_d_His'));
+    }
+
+    public function reporte_paginas_legajosExcel()
+    {
+        $this->asegurarAccesoAuditoria('reporte_paginas_legajos');
+        $filtros = $this->resolverFiltrosReportePaginasLegajos();
+        $totales = $this->model->selectTotalesPaginasLegajos($filtros['desde'], $filtros['hasta']);
+        $detalle = $this->model->selectDetallePaginasLegajos($filtros['desde'], $filtros['hasta']);
+
+        ob_start();
+        require_once 'Helpers/ReportTemplateExcel.php';
+        date_default_timezone_set('America/Asuncion');
+
+        $excel = new ReportTemplateExcel('Paginas procesadas de legajos', 'SCANTEC');
+        $sheet = $excel->getSheet();
+
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '878787']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
+        ];
+
+        $sheet->setCellValue('A2', 'Periodo');
+        $sheet->setCellValue('B2', $filtros['desde'] . ' a ' . $filtros['hasta']);
+        $sheet->setCellValue('A3', 'Legajos contabilizados');
+        $sheet->setCellValue('B3', intval($totales['total_legajos'] ?? 0));
+        $sheet->setCellValue('C3', 'Paginas procesadas');
+        $sheet->setCellValue('D3', intval($totales['total_paginas'] ?? 0));
+
+        $sheet->setCellValue('A5', 'ID');
+        $sheet->setCellValue('B5', 'Fecha');
+        $sheet->setCellValue('C5', 'Tipo de legajo');
+        $sheet->setCellValue('D5', 'CI');
+        $sheet->setCellValue('E5', 'Nombre completo');
+        $sheet->setCellValue('F5', 'Nro solicitud');
+        $sheet->setCellValue('G5', 'Paginas procesadas');
+        $sheet->setCellValue('H5', 'Estado');
+        $sheet->setCellValue('I5', 'Usuario');
+        $sheet->getStyle('A5:I5')->applyFromArray($headerStyle);
+
+        $row = 6;
+        foreach ($detalle as $value) {
+            $sheet->setCellValue('A' . $row, intval($value['id_legajo'] ?? 0));
+            $sheet->setCellValue('B' . $row, (string)($value['fecha_creacion'] ?? ''));
+            $sheet->setCellValue('C' . $row, (string)($value['nombre_tipo_legajo'] ?? ''));
+            $sheet->setCellValue('D' . $row, (string)($value['ci_socio'] ?? ''));
+            $sheet->setCellValue('E' . $row, (string)($value['nombre_completo'] ?? ''));
+            $sheet->setCellValue('F' . $row, (string)($value['nro_solicitud'] ?? ''));
+            $sheet->setCellValue('G' . $row, intval($value['cantidad_paginas_procesadas'] ?? 0));
+            $sheet->setCellValue('H' . $row, (string)($value['estado'] ?? ''));
+            $sheet->setCellValue('I' . $row, (string)($value['usuario_responsable'] ?? ''));
+            $row++;
+        }
+
+        $excel->setColumnWidths([
+            'A' => 'auto',
+            'B' => 20,
+            'C' => 28,
+            'D' => 18,
+            'E' => 36,
+            'F' => 18,
+            'G' => 18,
+            'H' => 18,
+            'I' => 24,
+        ]);
+
+        $excel->output('Paginas_Legajos_' . date('Y_m_d_His'));
     }
 }

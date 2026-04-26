@@ -78,5 +78,44 @@ define('BD_DEFAULT', 'scantec');
 define('DB_APP_USER_DEFAULT', '');
 define('DB_APP_PASS_DEFAULT', '');
 
+// Configuración de base de datos de usuarios
+if (!function_exists('scantecConfigDbUsuarios')) {
+    function scantecConfigDbUsuarios(): array
+    {
+        $config = $GLOBALS['SCANTEC_APP_CONFIG'] ?? [];
+
+        return [
+            'db_name' => preg_replace('/[^A-Za-z0-9_]/', '', (string) ($config['db_usuarios_name'] ?? '')),
+            'db_host' => trim((string) ($config['db_usuarios_host'] ?? '')),
+            'db_port' => trim((string) ($config['db_usuarios_port'] ?? '')),
+            'db_user' => trim((string) ($config['db_usuarios_user'] ?? '')),
+            'db_password' => (string) ($config['db_usuarios_password'] ?? ''),
+        ];
+    }
+}
+
+if (!function_exists('obtenerConfiguracionUsuarios')) {
+    function obtenerConfiguracionUsuarios(): array
+    {
+        $config = scantecConfigDbUsuarios();
+
+        return [
+            'host' => $config['db_host'] !== '' ? $config['db_host'] : DB_HOST_DEFAULT,
+            'port' => $config['db_port'] !== '' ? $config['db_port'] : DB_PORT_DEFAULT,
+            'user' => $config['db_user'] !== '' ? $config['db_user'] : DB_APP_USER_DEFAULT,
+            'password' => $config['db_password'],
+        ];
+    }
+}
+
+if (!function_exists('obtenerBaseDatosUsuariosSeleccionada')) {
+    function obtenerBaseDatosUsuariosSeleccionada(string $basePorDefecto = 'usuarios'): string
+    {
+        $config = scantecConfigDbUsuarios();
+        $base = $config['db_name'] !== '' ? $config['db_name'] : preg_replace('/[^A-Za-z0-9_]/', '', (string) $basePorDefecto);
+        return $base !== '' ? $base : 'usuarios';
+    }
+}
+
 define('DB_USER_ROOT', DB_APP_USER_DEFAULT);
 define('ROOT_PASS', DB_APP_PASS_DEFAULT);

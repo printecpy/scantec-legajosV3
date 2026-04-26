@@ -3,6 +3,9 @@ Options -MultiViews
 Options -Indexes
 RewriteEngine On
 
+# CODIFICACIÓN UTF-8 (previene problemas con tildes y caracteres especiales)
+AddDefaultCharset UTF-8
+
 # 2. SOPORTE PARA FUENTES (Resuelve el error "Rejected by Sanitizer")
 # Esto asegura que Apache entregue el archivo binario y no un HTML de error
 <IfModule mod_mime.c>
@@ -25,14 +28,18 @@ RewriteEngine On
 
 # 4. ENRUTAMIENTO MVC (Mantiene tus reglas originales)
 # El flag [QSA] es vital para que ?msg= no se pierda
+RewriteRule ^scripts/ - [F,L]
+RewriteRule ^scrips/ - [F,L]
+
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
 
 # 5. PROTECCIÓN DE ARCHIVOS SENSIBLES
-<FilesMatch "^(phpinfo\.php|phpmyadmin)">
+<FilesMatch "^(phpinfo\.php|phpmyadmin|clean\.php|revert\.php|update_gen\.php|rename_da\.php|fix_.*\.php|temp_.*\.php|.*\.tmp\.php|.*\.bak|.*\.old|.*\.orig|.*\.ps1|.*\.bat|.*\.cmd|.*\.sh)$">
     Order allow,deny
     Deny from all
+    Require all denied
 </FilesMatch>
 
 <Files config.php>

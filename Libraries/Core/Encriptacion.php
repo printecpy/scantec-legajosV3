@@ -125,8 +125,10 @@
             return substr($data, 0, -1 * $last);
         }
     }
-    //Note that I'm using a function added in PHP 5.6: hash_equals. If you're on lower than 5.6, you can use this substitute function which implements a timing-safe comparison function using double HMAC verification:
-    function hash_equals($a, $b) {
-        $key = mcrypt_create_iv(128, MCRYPT_DEV_URANDOM);
-        return hash_hmac('sha512', $a, $key) === hash_hmac('sha512', $b, $key);
+    // Fallback para entornos donde hash_equals no exista.
+    if (!function_exists('hash_equals')) {
+        function hash_equals($a, $b) {
+            $key = mcrypt_create_iv(128, MCRYPT_DEV_URANDOM);
+            return hash_hmac('sha512', $a, $key) === hash_hmac('sha512', $b, $key);
+        }
     }

@@ -123,8 +123,13 @@ $formatearCi = static function ($valor) {
                         <?php if (!empty($resultados)): ?>
                             <?php foreach ($resultados as $resultado): ?>
                                 <tr class="hover:bg-slate-50 transition-colors">
-                                    <td class="px-6 py-3 font-bold text-gray-800 text-sm">
-                                        <?php echo htmlspecialchars($formatearCi($resultado['ci_socio'] ?? '')); ?>
+                                    <td class="px-6 py-3 font-bold text-sm">
+                                        <a href="<?php echo base_url(); ?>personas/listar?termino=<?php echo urlencode($resultado['ci_socio'] ?? ''); ?>" 
+                                           class="text-scantec-blue hover:text-blue-800 hover:underline transition-colors flex items-center w-max group"
+                                           title="Ver datos de la persona">
+                                            <?php echo htmlspecialchars($formatearCi($resultado['ci_socio'] ?? '')); ?>
+                                            <i class="fas fa-external-link-alt ml-2 opacity-0 group-hover:opacity-100 text-[10px] transition-opacity"></i>
+                                        </a>
                                     </td>
                                     <td class="px-6 py-3 text-gray-700 text-sm">
                                         <?php echo htmlspecialchars($resultado['nombre_completo'] ?? ''); ?>

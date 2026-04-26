@@ -375,6 +375,9 @@ if (isset($_SESSION['alert'])) {
                     <?php if ($__esAdministradorScantec || $__accesoItem('funcionalidades_accesos')): ?>
                     <a href="<?php echo base_url(); ?>funcionalidades/accesos" class="block py-2 text-xs text-white/60 hover:text-white">Accesos por rol y departamento</a>
                     <?php endif; ?>
+                    <?php if ($__esAdministradorScantec || $__accesoItem('reinicio_sistema')): ?>
+                    <a href="<?php echo base_url(); ?>configuracion/reinicio_sistema" class="block py-2 text-xs text-scantec-red hover:text-red-300 font-bold uppercase">Reinicio</a>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endif; ?>

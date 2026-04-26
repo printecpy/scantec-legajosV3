@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 $mensajeFlash = $mensajeFlash ?? null;
 $envioExitoso = is_array($mensajeFlash) && (($mensajeFlash['type'] ?? '') === 'success') && (($mensajeFlash['action'] ?? '') === 'sent');
 ?>
@@ -39,6 +39,22 @@ $envioExitoso = is_array($mensajeFlash) && (($mensajeFlash['type'] ?? '') === 's
             .wrap { padding: 16px; }
         }
     </style>
+    <!-- PWA -->
+    <link rel="manifest" href="<?php echo htmlspecialchars($baseUrl); ?>manifest.json">
+    <meta name="theme-color" content="#182541">
+    <link rel="apple-touch-icon" href="<?php echo htmlspecialchars($baseUrl); ?>Assets/img/icoScantec2.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('<?php echo htmlspecialchars($baseUrl); ?>sw.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    }, function(err) {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="wrap">
@@ -127,7 +143,7 @@ $envioExitoso = is_array($mensajeFlash) && (($mensajeFlash['type'] ?? '') === 's
                                 <thead>
                                     <tr>
                                         <th>Documento</th>
-                                        <th>Archivo</th>
+                                        <th>Carga / valor</th>
                                         <th>Fecha expedición</th>
                                         <th>Observación</th>
                                     </tr>
@@ -136,6 +152,10 @@ $envioExitoso = is_array($mensajeFlash) && (($mensajeFlash['type'] ?? '') === 's
                                     <?php foreach ($matriz as $regla): ?>
                                     <?php $idRequisito = intval($regla['id_requisito'] ?? 0); ?>
                                     <?php $documento = $documentos[$idRequisito] ?? []; ?>
+                                    <?php $tipoCampo = strtolower(trim((string)($regla['tipo_campo'] ?? 'documento'))); ?>
+                                    <?php $esCampoDocumento = $tipoCampo === 'documento'; ?>
+                                    <?php $valorCampo = (string)($documento['valor_campo'] ?? ''); ?>
+                                    <?php $opcionesCampo = preg_split('/\r\n|\r|\n/', (string)($regla['opciones_campo'] ?? '')); ?>
                                     <tr>
                                         <td>
                                             <strong><?php echo htmlspecialchars($regla['documento_nombre'] ?? 'Documento'); ?></strong>
@@ -144,16 +164,36 @@ $envioExitoso = is_array($mensajeFlash) && (($mensajeFlash['type'] ?? '') === 's
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?php if (!empty($documento['ruta_archivo'])): ?>
-                                            <div style="font-size:12px;color:#166534;margin-bottom:8px;">Archivo cargado</div>
-                                            <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;font-weight:500;color:#374151;">
-                                                <input type="checkbox" name="eliminar_archivo_<?php echo $idRequisito; ?>" value="1"> Eliminar archivo actual
-                                            </label>
+                                            <?php if ($esCampoDocumento): ?>
+                                                <?php if (!empty($documento['ruta_archivo'])): ?>
+                                                <div style="font-size:12px;color:#166534;margin-bottom:8px;">Archivo cargado</div>
+                                                <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;font-weight:500;color:#374151;">
+                                                    <input type="checkbox" name="eliminar_archivo_<?php echo $idRequisito; ?>" value="1"> Eliminar archivo actual
+                                                </label>
+                                                <?php endif; ?>
+                                                <input type="file" name="doc_<?php echo $idRequisito; ?>[]" multiple accept=".pdf,.jpg,.jpeg,.png,.jfif">
+                                            <?php elseif ($tipoCampo === 'lista'): ?>
+                                                <select name="valor_campo_<?php echo $idRequisito; ?>" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #d1d5db;border-radius:12px;font-size:14px;">
+                                                    <option value="">Seleccione...</option>
+                                                    <?php foreach ($opcionesCampo as $opcion): ?>
+                                                        <?php $opcion = trim((string)$opcion); if ($opcion === '') { continue; } ?>
+                                                        <option value="<?php echo htmlspecialchars($opcion); ?>" <?php echo $opcion === $valorCampo ? 'selected' : ''; ?>><?php echo htmlspecialchars($opcion); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            <?php elseif ($tipoCampo === 'casilla'): ?>
+                                                <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;font-weight:500;color:#374151;">
+                                                    <input type="checkbox" name="valor_campo_<?php echo $idRequisito; ?>" value="1" <?php echo $valorCampo === '1' ? 'checked' : ''; ?>> Confirmado
+                                                </label>
+                                            <?php else: ?>
+                                                <input type="text" name="valor_campo_<?php echo $idRequisito; ?>" value="<?php echo htmlspecialchars($valorCampo); ?>">
                                             <?php endif; ?>
-                                            <input type="file" name="doc_<?php echo $idRequisito; ?>[]" multiple accept=".pdf,.jpg,.jpeg,.png,.jfif">
                                         </td>
                                         <td>
+                                            <?php if ($esCampoDocumento): ?>
                                             <input type="date" name="fecha_expedicion_<?php echo $idRequisito; ?>" value="<?php echo htmlspecialchars($documento['fecha_expedicion'] ?? ''); ?>" <?php echo !empty($regla['tiene_vencimiento']) ? 'required' : ''; ?>>
+                                            <?php else: ?>
+                                            <span style="font-size:12px;color:#6b7280;font-weight:700;">No aplica</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <textarea name="observacion_<?php echo $idRequisito; ?>"><?php echo htmlspecialchars($documento['observacion'] ?? ''); ?></textarea>
@@ -176,3 +216,5 @@ $envioExitoso = is_array($mensajeFlash) && (($mensajeFlash['type'] ?? '') === 's
     </div>
 </body>
 </html>
+
+

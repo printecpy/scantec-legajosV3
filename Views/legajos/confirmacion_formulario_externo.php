@@ -24,6 +24,22 @@ if ($mensaje === '') {
         .state-ok { background: #dcfce7; color: #166534; }
         .state-error { background: #fee2e2; color: #b91c1c; }
     </style>
+    <!-- PWA -->
+    <link rel="manifest" href="<?php echo defined('BASE_URL') ? BASE_URL : '/'; ?>manifest.json">
+    <meta name="theme-color" content="#182541">
+    <link rel="apple-touch-icon" href="<?php echo defined('BASE_URL') ? BASE_URL : '/'; ?>Assets/img/icoScantec2.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('<?php echo defined('BASE_URL') ? BASE_URL : '/'; ?>sw.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    }, function(err) {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="wrap">

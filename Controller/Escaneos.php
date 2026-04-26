@@ -74,14 +74,17 @@ class Escaneos extends Controllers
               }  
         // Verifica si se ha enviado un archivo
         if (isset($_FILES["file"])) {
-            $file_type = $_FILES["file"]["type"];
             $file_name = $_FILES["file"]["name"];
-            $file_size = $_FILES["file"]["size"];
             $file_tmp = $_FILES["file"]["tmp_name"];
-            $file_ext = pathinfo($file_name, PATHINFO_EXTENSION);
+            $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
             // Verifica si la extensión del archivo es .xls o .xlsx
-            if ($file_ext == 'xls' || $file_ext == 'xlsx') {
+            if (scantecValidarUpload(
+                $_FILES["file"],
+                ['xls', 'xlsx'],
+                ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'],
+                10 * 1024 * 1024
+            )) {
                 require_once 'Libraries/vendor/autoload.php';
 
                 $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();

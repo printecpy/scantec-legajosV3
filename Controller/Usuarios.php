@@ -1268,6 +1268,16 @@ class Usuarios extends Controllers
 
         // 2. Verificar que se subió un archivo sin errores
         if (isset($_FILES["file"]) && $_FILES["file"]["error"] === UPLOAD_ERR_OK) {
+            if (!scantecValidarUpload(
+                $_FILES["file"],
+                ['csv', 'xls', 'xlsx'],
+                ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'],
+                10 * 1024 * 1024
+            )) {
+                $_SESSION['alert'] = ['type' => 'error', 'message' => 'El archivo debe ser CSV, XLS o XLSX valido y no superar 10 MB.'];
+                header("Location: " . base_url() . "usuarios/listar");
+                die();
+            }
 
             $file_tmp = $_FILES["file"]["tmp_name"];
             $file_name = $_FILES["file"]["name"];

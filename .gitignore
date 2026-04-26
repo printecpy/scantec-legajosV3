@@ -6,6 +6,8 @@ mysql/
 Temp/
 Expedientes/
 .env
+.env.*
+!.env.example
 .env.local
 node_modules/
 vendor/
@@ -19,3 +21,17 @@ backups/
 *.cache
 test_ldap.php
 documentacion/
+fix_*.php
+temp_*.php
+clean.php
+revert.php
+update_gen.php
+rename_da.php
+*.tmp.php
+*.bak
+*.old
+*.orig
+*.ps1
+*.bat
+*.cmd
+*.sh
