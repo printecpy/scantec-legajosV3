@@ -4073,6 +4073,7 @@ class Legajos extends Controllers
             $contentType = 'image/png';
         }
 
+
         header('Content-Type: ' . $contentType);
         header('Content-Disposition: inline; filename="' . basename($rutaArchivoReal) . '"');
         header('Content-Length: ' . filesize($rutaArchivoReal));
@@ -4080,8 +4081,176 @@ class Legajos extends Controllers
         exit();
     }
 
+    public function generar_pdf_texto()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        if (empty($_SESSION['id'])) {
+            echo json_encode(['ok' => false, 'error' => 'No autenticado.']);
+            exit();
+        }
+
+        $tokenPost   = trim((string)($_POST['token'] ?? ''));
+        $tokenSesion = trim((string)($_SESSION['csrf_token'] ?? ''));
+        if ($tokenPost === '' || $tokenSesion === '' || $tokenPost !== $tokenSesion) {
+            echo json_encode(['ok' => false, 'error' => 'Token inválido.']);
+            exit();
+        }
+
+        $idLegajo    = intval($_POST['id_legajo'] ?? 0);
+        $idRequisito = intval($_POST['id_requisito'] ?? 0);
+        $valorCampo  = trim($_POST['valor_campo'] ?? '');
+        $nombreCampo = trim($_POST['nombre_campo'] ?? 'Campo');
+
+        if ($idLegajo <= 0 || $idRequisito <= 0 || $valorCampo === '') {
+            echo json_encode(['ok' => false, 'error' => 'Datos insuficientes.']);
+            exit();
+        }
+
+        $this->asegurarAccesoLegajo($idLegajo, '');
+        $legajo = $this->model->selectLegajoPorId($idLegajo);
+        if (empty($legajo)) {
+            echo json_encode(['ok' => false, 'error' => 'Legajo no encontrado.']);
+            exit();
+        }
+
+        if (!defined('RUTA_BASE')) {
+            require_once 'Config/Config.php';
+        }
+
+        $rutaBaseDir = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . 'Legajos' . DIRECTORY_SEPARATOR . $idLegajo . DIRECTORY_SEPARATOR;
+        if (!is_dir($rutaBaseDir)) {
+            @mkdir($rutaBaseDir, 0777, true);
+        }
+
+        $cedula = preg_replace('/[^0-9]+/', '', (string)($legajo['ci_socio'] ?? ''));
+        if ($cedula === '') {
+            $cedula = 'SINCI';
+        }
+        $sol       = preg_replace('/[^0-9A-Za-z]+/', '', (string)($legajo['nro_solicitud'] ?? ''));
+        $slug      = preg_replace('/[^A-Za-z0-9]+/', '_', $nombreCampo);
+        $slug      = strtoupper(trim($slug, '_'));
+        $slug      = $slug !== '' ? $slug : 'CAMPO';
+        $segmentos = ['DG', $slug, 'REQ' . $idRequisito, $cedula];
+        if ($sol !== '') {
+            $segmentos[] = $sol;
+        }
+        $nombreArchivo = implode('_', $segmentos) . '.pdf';
+        $rutaFisica    = $rutaBaseDir . $nombreArchivo;
+        $rutaRelativa  = 'Legajos/' . $idLegajo . '/' . $nombreArchivo;
+
+        try {
+            $pdf = $this->crearInstanciaPdf();
+            $pdf->SetTitle('Datos Generales - ' . $nombreCampo, true);
+            $pdf->SetMargins(20, 25, 20);
+            $pdf->SetAutoPageBreak(true, 20);
+            $pdf->AddPage('P', 'A4');
+
+            $this->aplicarMarcaAguaSiCorresponde($pdf, intval($legajo['id_tipo_legajo'] ?? 0), true);
+
+            $rutaLogo = $this->obtenerRutaLogoReducidoEmpresa();
+            if (!empty($rutaLogo) && is_file($rutaLogo)) {
+                try {
+                    $pdf->Image($rutaLogo, 20, 12, 22);
+                } catch (Throwable $ignored) {
+                }
+            }
+
+            $pdf->SetY(15);
+            $pdf->SetFont('Arial', 'B', 18);
+            $pdf->SetTextColor(24, 37, 65);
+            $pdf->Cell(0, 12, $this->pdfText('DATOS GENERALES'), 0, 1, 'C');
+
+            $pdf->SetFont('Arial', 'B', 13);
+            $pdf->SetTextColor(50, 90, 150);
+            $pdf->Cell(0, 8, $this->pdfText($nombreCampo), 0, 1, 'C');
+
+            $titular = trim((string)($legajo['nombre_completo'] ?? ''));
+            $ci      = trim((string)($legajo['ci_socio'] ?? ''));
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->SetTextColor(110, 120, 135);
+            $pdf->Cell(0, 5, $this->pdfText('Titular: ' . $titular . '   |   CI: ' . $ci), 0, 1, 'C');
+            $pdf->Ln(3);
+
+            $pdf->SetDrawColor(170, 190, 215);
+            $pdf->SetLineWidth(0.5);
+            $pdf->Line(20, $pdf->GetY(), 190, $pdf->GetY());
+            $pdf->Ln(7);
+
+            $pdf->SetFont('Arial', '', 11);
+            $pdf->SetTextColor(30, 30, 30);
+            $pdf->SetFillColor(247, 250, 253);
+            $pdf->SetDrawColor(200, 215, 230);
+            $pdf->MultiCell(170, 7, $this->pdfText($valorCampo), 1, 'L', true);
+
+            $pdf->Ln(8);
+            $pdf->SetFont('Arial', 'I', 8);
+            $pdf->SetTextColor(150, 155, 165);
+            $pdf->Cell(0, 5, $this->pdfText('Generado el ' . date('d/m/Y H:i')), 0, 1, 'R');
+
+            $pdf->Output('F', $rutaFisica);
+        } catch (Throwable $e) {
+            echo json_encode(['ok' => false, 'error' => 'Error al generar el PDF: ' . $e->getMessage()]);
+            exit();
+        }
+
+        if (!file_exists($rutaFisica)) {
+            echo json_encode(['ok' => false, 'error' => 'No se pudo guardar el PDF en el servidor.']);
+            exit();
+        }
+
+        $documentoActual = null;
+        foreach ($this->model->selectLegajoDocumentosPorLegajo($idLegajo) as $doc) {
+            if (intval($doc['id_requisito'] ?? 0) === $idRequisito) {
+                $documentoActual = $doc;
+                break;
+            }
+        }
+        $estadoAnterior = trim((string)($documentoActual['estado'] ?? 'pendiente'));
+        $rutaAnterior   = trim((string)($documentoActual['ruta_archivo'] ?? ''));
+
+        $this->model->actualizarLegajoDocumento(
+            $idLegajo,
+            $idRequisito,
+            $rutaRelativa,
+            null,
+            $valorCampo,
+            'cargado',
+            null
+        );
+
+        $this->invalidarPdfFinalLegajo($idLegajo);
+
+        $auditoria = $this->obtenerContextoAuditoria();
+        if (method_exists($this->model, 'registrarLogLegajoDocumento')) {
+            $this->model->registrarLogLegajoDocumento(
+                $idLegajo,
+                $idRequisito,
+                'DOCUMENTO_GENERADO',
+                'Se generó PDF desde campo de texto: ' . $nombreCampo,
+                $rutaAnterior,
+                $rutaRelativa,
+                $estadoAnterior,
+                'cargado',
+                null,
+                $auditoria['id_usuario'],
+                $auditoria['nombre_host'],
+                $auditoria['ip_host'],
+                null
+            );
+        }
+
+        echo json_encode([
+            'ok'             => true,
+            'ruta_relativa'  => $rutaRelativa,
+            'nombre_archivo' => $nombreArchivo,
+        ]);
+        exit();
+    }
+
     private function persistirBorradorFormularioExterno(array $formulario, array $matriz): array
     {
+
         $idFormulario = intval($formulario['id_formulario'] ?? 0);
         $ciSocio = trim((string)($_POST['ci_socio'] ?? ($formulario['ci_validacion'] ?? '')));
         $nombreCompleto = trim((string)($_POST['nombre_socio'] ?? ($formulario['nombre_referencia'] ?? '')));

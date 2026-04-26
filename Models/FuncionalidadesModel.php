@@ -131,7 +131,7 @@ class FuncionalidadesModel extends Mysql
                 'ruta' => 'legajos/armar_legajo',
                 'descripcion' => 'Permite crear y cargar un legajo.',
                 'grupo' => 'Legajos',
-                'rutas' => ['legajos/armar_legajo*', 'legajos/cargar_documento*', 'legajos/ver_archivo_checklist*'],
+                'rutas' => ['legajos/armar_legajo*', 'legajos/cargar_documento*', 'legajos/ver_archivo_checklist*', 'legajos/ver_documento_checklist*', 'legajos/validar_solicitud_duplicada*', 'legajos/generar_pdf_texto*'],
             ],
             'buscar_legajos' => [
                 'etiqueta' => 'Buscar legajos',

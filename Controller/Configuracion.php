@@ -948,6 +948,13 @@ class Configuracion extends Controllers
             $filtrarTiposPorDepartamento ? $idDepartamentoActual : null
         );
         if ($insert) {
+            if (!$this->esAdministradorScantec()) {
+                if (!class_exists('SeguridadLegajosModel')) {
+                    require_once 'Models/SeguridadLegajosModel.php';
+                }
+                $seguridadModel = new SeguridadLegajosModel();
+                $seguridadModel->agregarPermisoTipoLegajo(intval($_SESSION['id_rol'] ?? 0), $insert);
+            }
             setAlert('success', "Tipo de legajo registrado correctamente.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
             exit();

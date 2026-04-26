@@ -851,6 +851,24 @@ class SeguridadLegajosModel extends Mysql
         }
     }
 
+    public function agregarPermisoTipoLegajo(int $id_rol, int $id_tipo_legajo): bool
+    {
+        if (!$this->existeTabla('permisos_legajos_tipos')) {
+            return false;
+        }
+
+        try {
+            $sql = "INSERT INTO permisos_legajos_tipos (id_rol, id_tipo_legajo, permitido)
+                    VALUES (?, ?, 1)
+                    ON DUPLICATE KEY UPDATE permitido = 1, actualizado_en = NOW()";
+            $this->insert($sql, [$id_rol, $id_tipo_legajo]);
+            return true;
+        } catch (Throwable $e) {
+            error_log("Error agregando permiso de legajo para rol $id_rol: " . $e->getMessage());
+            return false;
+        }
+    }
+
     /**
      * Registra un cambio de permiso en el log.
      */
