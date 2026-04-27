@@ -985,18 +985,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 } else if (tipoCampo === 'casilla') {
                     campoValorHtml = `<label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700"><input type="checkbox" name="valor_campo_${regla.id_requisito}" value="1" ${valorCampoInicial === '1' ? 'checked' : ''} data-field-input data-original-value="${valorCampoInicial === '1' ? '1' : '0'}" ${legajoBloqueado ? 'disabled' : ''}> Confirmado</label>`;
                 } else {
-                    campoValorHtml = `
-                        <div class="space-y-2">
-                            <textarea name="valor_campo_${regla.id_requisito}" rows="3" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 resize-y" data-field-input data-original-value="${valorCampoInicial.replace(/"/g, '&quot;')}" ${legajoBloqueado ? 'disabled' : ''}>${valorCampoInicial.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
-                            <button type="button"
-                                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-all text-xs font-bold ${legajoBloqueado ? 'opacity-50 cursor-not-allowed' : ''}"
-                                data-generar-pdf-texto
-                                data-requisito="${regla.id_requisito}"
-                                data-campo-nombre="${regla.documento_nombre.replace(/"/g, '&quot;')}"
-                                ${legajoBloqueado ? 'disabled' : ''}>
-                                <i class="fas fa-file-pdf"></i> Generar PDF
-                            </button>
-                        </div>`;
+                    campoValorHtml = `<textarea name="valor_campo_${regla.id_requisito}" rows="3" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 resize-y" data-field-input data-original-value="${valorCampoInicial.replace(/"/g, '&quot;')}" ${legajoBloqueado ? 'disabled' : ''}>${valorCampoInicial.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>`;
                 }
             }
 
@@ -1210,90 +1199,6 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             const evento = input.type === 'checkbox' ? 'change' : 'input';
             input.addEventListener(evento, function () {
                 refrescarEstadosChecklist();
-            });
-        });
-
-        body.querySelectorAll('[data-generar-pdf-texto]').forEach((btn) => {
-            btn.addEventListener('click', async function () {
-                const idRequisito = this.dataset.requisito;
-                const nombreCampo = this.dataset.campoNombre;
-                const fila = this.closest('[data-checklist-row]');
-                const textarea = fila ? fila.querySelector(`[name="valor_campo_${idRequisito}"]`) : null;
-                const texto = textarea ? textarea.value.trim() : '';
-
-                if (!texto) {
-                    if (typeof Swal !== 'undefined') {
-                        await Swal.fire({ title: 'Atención', text: 'Debe escribir un texto antes de generar el PDF.', icon: 'warning', confirmButtonText: 'Aceptar' });
-                        restaurarScrollPagina();
-                    } else {
-                        alert('Debe escribir un texto antes de generar el PDF.');
-                    }
-                    return;
-                }
-
-                const idLegajoInput = document.querySelector('[name="id_legajo"]');
-                const tokenInput = document.querySelector('[name="token"]');
-                const idLegajo = idLegajoInput ? idLegajoInput.value : '0';
-                const token = tokenInput ? tokenInput.value : '';
-
-                if (!idLegajo || idLegajo === '0') {
-                    if (typeof Swal !== 'undefined') {
-                        await Swal.fire({ title: 'Atención', text: 'Primero guarde el legajo antes de generar el PDF.', icon: 'warning', confirmButtonText: 'Aceptar' });
-                        restaurarScrollPagina();
-                    }
-                    return;
-                }
-
-                const btnOrig = this;
-                const textoOrigBtn = btnOrig.innerHTML;
-                btnOrig.disabled = true;
-                btnOrig.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
-
-                try {
-                    const formData = new FormData();
-                    formData.append('token', token);
-                    formData.append('id_legajo', idLegajo);
-                    formData.append('id_requisito', idRequisito);
-                    formData.append('valor_campo', texto);
-                    formData.append('nombre_campo', nombreCampo);
-
-                    const resp = await fetch(`${baseUrlLegajos}legajos/generar_pdf_texto`, {
-                        method: 'POST',
-                        body: formData,
-                        credentials: 'same-origin'
-                    });
-                    const data = await resp.json();
-
-                    if (data && data.ok) {
-                        if (fila) {
-                            fila.dataset.rutaArchivo = data.ruta_relativa;
-                            fila.setAttribute('data-ruta-archivo', data.ruta_relativa);
-                            fila.dataset.estadoActual = 'cargado';
-                            fila.setAttribute('data-estado-actual', 'cargado');
-                        }
-                        if (textarea) {
-                            textarea.dataset.originalValue = texto;
-                        }
-                        refrescarEstadosChecklist();
-                        if (typeof Swal !== 'undefined') {
-                            await Swal.fire({ title: 'PDF generado', text: 'El PDF fue generado correctamente y asociado al legajo.', icon: 'success', confirmButtonText: 'Aceptar', timer: 2500, timerProgressBar: true });
-                            restaurarScrollPagina();
-                        }
-                    } else {
-                        if (typeof Swal !== 'undefined') {
-                            await Swal.fire({ title: 'Error', text: (data && data.error) ? data.error : 'No se pudo generar el PDF.', icon: 'error', confirmButtonText: 'Aceptar' });
-                            restaurarScrollPagina();
-                        }
-                    }
-                } catch (e) {
-                    if (typeof Swal !== 'undefined') {
-                        await Swal.fire({ title: 'Error de conexión', text: 'No se pudo comunicar con el servidor.', icon: 'error', confirmButtonText: 'Aceptar' });
-                        restaurarScrollPagina();
-                    }
-                } finally {
-                    btnOrig.disabled = !!legajoBloqueado;
-                    btnOrig.innerHTML = textoOrigBtn;
-                }
             });
         });
 
