@@ -1662,7 +1662,7 @@ class Legajos extends Controllers
         $rowTopY  = $pdf->GetY();
 
         foreach ($camposNoDoc as $campo) {
-            $nombreCampo = $this->pdfText(trim((string)($campo['campo_nombre'] ?? 'Campo')));
+            $nombreCampo = $this->pdfText(trim((string)($campo['nombre'] ?? $campo['documento_nombre'] ?? $campo['campo_nombre'] ?? 'Campo' )));
             $tipoCampo   = strtolower(trim((string)($campo['tipo_campo'] ?? 'texto')));
             $valorRaw    = trim((string)($campo['valor_campo'] ?? ''));
 
@@ -4139,60 +4139,6 @@ class Legajos extends Controllers
         $rutaFisica    = $rutaBaseDir . $nombreArchivo;
         $rutaRelativa  = 'Legajos/' . $idLegajo . '/' . $nombreArchivo;
 
-        try {
-            $pdf = $this->crearInstanciaPdf();
-            $pdf->SetTitle('Datos Generales - ' . $nombreCampo, true);
-            $pdf->SetMargins(20, 25, 20);
-            $pdf->SetAutoPageBreak(true, 20);
-            $pdf->AddPage('P', 'A4');
-
-            $this->aplicarMarcaAguaSiCorresponde($pdf, intval($legajo['id_tipo_legajo'] ?? 0), true);
-
-            $rutaLogo = $this->obtenerRutaLogoReducidoEmpresa();
-            if (!empty($rutaLogo) && is_file($rutaLogo)) {
-                try {
-                    $pdf->Image($rutaLogo, 20, 12, 22);
-                } catch (Throwable $ignored) {
-                }
-            }
-
-            $pdf->SetY(15);
-            $pdf->SetFont('Arial', 'B', 18);
-            $pdf->SetTextColor(24, 37, 65);
-            $pdf->Cell(0, 12, $this->pdfText('DATOS GENERALES'), 0, 1, 'C');
-
-            $pdf->SetFont('Arial', 'B', 13);
-            $pdf->SetTextColor(50, 90, 150);
-            $pdf->Cell(0, 8, $this->pdfText($nombreCampo), 0, 1, 'C');
-
-            $titular = trim((string)($legajo['nombre_completo'] ?? ''));
-            $ci      = trim((string)($legajo['ci_socio'] ?? ''));
-            $pdf->SetFont('Arial', '', 9);
-            $pdf->SetTextColor(110, 120, 135);
-            $pdf->Cell(0, 5, $this->pdfText('Titular: ' . $titular . '   |   CI: ' . $ci), 0, 1, 'C');
-            $pdf->Ln(3);
-
-            $pdf->SetDrawColor(170, 190, 215);
-            $pdf->SetLineWidth(0.5);
-            $pdf->Line(20, $pdf->GetY(), 190, $pdf->GetY());
-            $pdf->Ln(7);
-
-            $pdf->SetFont('Arial', '', 11);
-            $pdf->SetTextColor(30, 30, 30);
-            $pdf->SetFillColor(247, 250, 253);
-            $pdf->SetDrawColor(200, 215, 230);
-            $pdf->MultiCell(170, 7, $this->pdfText($valorCampo), 1, 'L', true);
-
-            $pdf->Ln(8);
-            $pdf->SetFont('Arial', 'I', 8);
-            $pdf->SetTextColor(150, 155, 165);
-            $pdf->Cell(0, 5, $this->pdfText('Generado el ' . date('d/m/Y H:i')), 0, 1, 'R');
-
-            $pdf->Output('F', $rutaFisica);
-        } catch (Throwable $e) {
-            echo json_encode(['ok' => false, 'error' => 'Error al generar el PDF: ' . $e->getMessage()]);
-            exit();
-        }
 
         if (!file_exists($rutaFisica)) {
             echo json_encode(['ok' => false, 'error' => 'No se pudo guardar el PDF en el servidor.']);
