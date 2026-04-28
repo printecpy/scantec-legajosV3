@@ -140,7 +140,7 @@ class Configuracion extends Controllers
 
     private function asegurarAccesoBaseUsuariosExterna(): void
     {
-        if ($this->esAdministradorScantec() || $this->puedeAccederItemConfiguracion('conexiones')) {
+        if ($this->esAdministradorScantec() || $this->puedeAccederItemConfiguracion('base_datos_externa')) {
             return;
         }
 

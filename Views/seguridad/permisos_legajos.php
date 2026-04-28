@@ -328,6 +328,122 @@
                 </div>
             </div>
 
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
+                    <h5 class="font-bold text-white flex items-center">
+                        <i class="fas fa-cash-register mr-2 text-white"></i> Vista Facturación por Rol
+                    </h5>
+                    <p class="text-xs text-white/80 mt-1">
+                        Define qué roles pueden ver la vista Facturación dentro del sistema.
+                    </p>
+                </div>
+
+                <div class="p-4 overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-100">
+                                <th class="text-left py-2.5 pr-4 font-bold text-xs uppercase tracking-wider text-gray-600 sticky left-0 bg-white z-10 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Rol</th>
+                                <th class="text-left py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-gray-600">Puede ver Vista Facturación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $facturacionPorRol = $data['facturacion_por_rol'] ?? [];
+                            foreach ($roles as $rol):
+                                $idRol = intval($rol['id_rol']);
+                                $esAdmin = $idRol === 1;
+                                $valorFacturacion = $esAdmin ? '1' : strval(intval($facturacionPorRol[$idRol] ?? 1));
+                            ?>
+                                <tr class="border-b border-gray-100 role-filter-row" data-rol="<?php echo $idRol; ?>">
+                                    <td class="py-2.5 pr-4 align-middle sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                        <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?></div>
+                                        <?php if ($esAdmin): ?>
+                                            <div class="text-xs text-gray-500 mt-0.5">El administrador del sistema conserva acceso total.</div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="py-2.5 px-4 align-middle">
+                                        <select
+                                            name="vista_facturacion[<?php echo $idRol; ?>]"
+                                            class="w-full md:w-40 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none"
+                                            <?php echo $esAdmin ? 'disabled' : ''; ?>>
+                                            <option value="1" <?php echo $valorFacturacion === '1' ? 'selected' : ''; ?>>Si</option>
+                                            <option value="0" <?php echo $valorFacturacion === '0' ? 'selected' : ''; ?>>No</option>
+                                        </select>
+                                        <?php if ($esAdmin): ?>
+                                            <input type="hidden" name="vista_facturacion[<?php echo $idRol; ?>]" value="1">
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <button type="button"
+                        class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
+                        <i class="fas fa-save mr-2"></i> Guardar permisos
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">
+                    <h5 class="font-bold text-white flex items-center">
+                        <i class="fas fa-database mr-2 text-white"></i> Base de datos externa por Rol
+                    </h5>
+                    <p class="text-xs text-white/80 mt-1">
+                        Define qué roles pueden ver y usar la vista Base de datos externa dentro de Funcionalidades.
+                    </p>
+                </div>
+
+                <div class="p-4 overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-100">
+                                <th class="text-left py-2.5 pr-4 font-bold text-xs uppercase tracking-wider text-gray-600 sticky left-0 bg-white z-10 min-w-[180px] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Rol</th>
+                                <th class="text-left py-2.5 px-4 font-bold text-xs uppercase tracking-wider text-gray-600">Puede ver Base de datos externa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $baseDatosExternaPorRol = $data['base_datos_externa_por_rol'] ?? [];
+                            foreach ($roles as $rol):
+                                $idRol = intval($rol['id_rol']);
+                                $esAdmin = $idRol === 1;
+                                $valorBaseDatosExterna = $esAdmin ? '1' : strval(intval($baseDatosExternaPorRol[$idRol] ?? 1));
+                            ?>
+                                <tr class="border-b border-gray-100 role-filter-row" data-rol="<?php echo $idRol; ?>">
+                                    <td class="py-2.5 pr-4 align-middle sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                        <div class="font-semibold text-gray-800"><?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?></div>
+                                        <?php if ($esAdmin): ?>
+                                            <div class="text-xs text-gray-500 mt-0.5">El administrador del sistema conserva acceso total.</div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="py-2.5 px-4 align-middle">
+                                        <select
+                                            name="vista_base_datos_externa[<?php echo $idRol; ?>]"
+                                            class="w-full md:w-40 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 focus:border-scantec-blue focus:outline-none"
+                                            <?php echo $esAdmin ? 'disabled' : ''; ?>>
+                                            <option value="1" <?php echo $valorBaseDatosExterna === '1' ? 'selected' : ''; ?>>Si</option>
+                                            <option value="0" <?php echo $valorBaseDatosExterna === '0' ? 'selected' : ''; ?>>No</option>
+                                        </select>
+                                        <?php if ($esAdmin): ?>
+                                            <input type="hidden" name="vista_base_datos_externa[<?php echo $idRol; ?>]" value="1">
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <button type="button"
+                        class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
+                        <i class="fas fa-save mr-2"></i> Guardar permisos
+                    </button>
+                </div>
+            </div>
+
             <button type="button" id="btnGuardarPermisos" class="hidden" aria-hidden="true" tabindex="-1"></button>
         </form>
 

@@ -35,11 +35,12 @@ class FuncionalidadesModel extends Mysql
             'buscar_legajos' => ['etiqueta' => 'Buscar legajos', 'ruta' => 'legajos/buscar_legajos', 'modulo' => 'legajos'],
             'verificar_legajos' => ['etiqueta' => 'Verificar legajos', 'ruta' => 'legajos/verificar_legajos', 'modulo' => 'legajos'],
             'administrar_legajos' => ['etiqueta' => 'Administrar legajos', 'ruta' => 'legajos/administrar_legajos', 'modulo' => 'legajos'],
-            'permisos_legajos' => ['etiqueta' => 'Permisos Legajos', 'ruta' => 'seguridad/permisos_legajos', 'modulo' => 'legajos'],
+            'permisos_legajos' => ['etiqueta' => 'Permisos de Vistas', 'ruta' => 'seguridad/permisos_legajos', 'modulo' => 'legajos'],
             'log_legajos' => ['etiqueta' => 'Log Legajos', 'ruta' => 'legajos/log_legajos', 'modulo' => 'legajos'],
             'personas' => ['etiqueta' => 'Personas', 'ruta' => 'personas/listar', 'modulo' => 'personas'],
             'empresa' => ['etiqueta' => 'Empresa', 'ruta' => 'configuracion/listar', 'modulo' => 'sistema'],
             'facturacion' => ['etiqueta' => 'Facturación', 'ruta' => 'legajos/facturacion', 'modulo' => 'sistema'],
+            'base_datos_externa' => ['etiqueta' => 'Base de datos externa', 'ruta' => 'configuracion/base_datos_externa', 'modulo' => 'sistema'],
             'backup' => ['etiqueta' => 'Backup', 'ruta' => 'configuracion/mantenimiento', 'modulo' => 'sistema'],
             'matriz_legajos' => ['etiqueta' => 'Matriz de legajos', 'ruta' => 'configuracion/configuracion_legajos', 'modulo' => 'sistema'],
             'gestion_usuarios' => ['etiqueta' => 'Gestión de usuarios', 'ruta' => 'usuarios/listar', 'modulo' => 'sistema'],
@@ -109,7 +110,7 @@ class FuncionalidadesModel extends Mysql
                 'etiqueta' => 'Páginas de legajos',
                 'ruta' => 'logs/reporte_paginas_legajos',
                 'descripcion' => 'Muestra el reporte de páginas procesadas de legajos por período.',
-                'grupo' => 'AuditorÃ­a',
+                'grupo' => 'Auditorí­a',
                 'rutas' => ['logs/reporte_paginas_legajos*', 'logs/reporte_paginas_legajosPdf*', 'logs/reporte_paginas_legajosExcel*'],
             ],
             'unir_pdf' => [
@@ -155,7 +156,7 @@ class FuncionalidadesModel extends Mysql
                 'rutas' => ['legajos/administrar_legajos*', 'legajos/cerrar_legajo*', 'legajos/eliminar_legajo*'],
             ],
             'permisos_legajos' => [
-                'etiqueta' => 'Permisos Legajos',
+                'etiqueta' => 'Permisos de Vistas',
                 'ruta' => 'seguridad/permisos_legajos',
                 'descripcion' => 'Administra permisos y visibilidad de legajos.',
                 'grupo' => 'Seguridad',
@@ -188,6 +189,13 @@ class FuncionalidadesModel extends Mysql
                 'descripcion' => 'Permite consultar el contador facturable de páginas procesadas por fecha.',
                 'grupo' => 'Facturación',
                 'rutas' => ['legajos/facturacion*', 'legajos/facturacionPdf*', 'legajos/facturacionExcel*'],
+            ],
+            'base_datos_externa' => [
+                'etiqueta' => 'Base de datos externa',
+                'ruta' => 'configuracion/base_datos_externa',
+                'descripcion' => 'Permite configurar la fuente externa de datos para Legajos.',
+                'grupo' => 'Configuración',
+                'rutas' => ['configuracion/base_datos_externa*', 'configuracion/probar_base_datos_externa*', 'configuracion/guardar_base_datos_externa*'],
             ],
             'backup' => [
                 'etiqueta' => 'Backup',
@@ -525,7 +533,7 @@ class FuncionalidadesModel extends Mysql
     public function selectAccesosRolDepartamentoConfigurados(int $idRol, int $idDepartamento): array
     {
         $this->asegurarTablaAccesosRolDepartamento();
-        if ($idRol <= 0 || $idDepartamento <= 0) {
+        if ($idRol <= 0 || $idDepartamento < 0) {
             return [];
         }
 
@@ -572,7 +580,7 @@ class FuncionalidadesModel extends Mysql
         }
 
         $idDepartamento = $this->resolverDepartamentoRol($idRol, $idDepartamento);
-        if ($idDepartamento <= 0) {
+        if ($idDepartamento < 0) {
             return $accesos;
         }
 
@@ -589,7 +597,7 @@ class FuncionalidadesModel extends Mysql
     public function guardarAccesosRolDepartamento(int $idRol, int $idDepartamento, array $items, int $idUsuario): bool
     {
         $this->asegurarTablaAccesosRolDepartamento();
-        if ($idRol <= 0 || $idDepartamento <= 0) {
+        if ($idRol <= 0 || $idDepartamento < 0) {
             return false;
         }
 
@@ -607,6 +615,33 @@ class FuncionalidadesModel extends Mysql
             return true;
         } catch (Throwable $e) {
             error_log('Error guardando accesos por rol y departamento: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function guardarAccesoItemPorRol(int $idRol, int $idDepartamento, string $itemKey, bool $habilitado, int $idUsuario): bool
+    {
+        $this->asegurarTablaAccesosRolDepartamento();
+        if ($idRol <= 0 || $idDepartamento < 0) {
+            return false;
+        }
+
+        $definiciones = self::getAccesosDisponibles();
+        if (!isset($definiciones[$itemKey])) {
+            return false;
+        }
+
+        try {
+            $sql = "INSERT INTO funcionalidades_acceso_rol_departamento (id_rol, id_departamento, item_key, habilitado, actualizado_por)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        habilitado = VALUES(habilitado),
+                        actualizado_por = VALUES(actualizado_por),
+                        actualizado_en = NOW()";
+            $this->insert($sql, [$idRol, $idDepartamento, $itemKey, $habilitado ? 1 : 0, $idUsuario]);
+            return true;
+        } catch (Throwable $e) {
+            error_log('Error guardando acceso individual por rol/departamento: ' . $e->getMessage());
             return false;
         }
     }

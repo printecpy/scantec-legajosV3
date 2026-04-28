@@ -3765,6 +3765,7 @@ class Legajos extends Controllers
                 || $rutaNuevaDocumento !== $rutaAnterior
                 || $fechaNuevaDocumento !== $fechaAnteriorDocumento
                 || trim((string)$valorCampo) !== $valorAnteriorDocumento
+                || trim((string)$observacionDocumento) !== $observacionAnteriorDocumento // 🔥 AGREGADO
             ) {
                 $huboCambiosParaRearmarPdf = true;
                 if ($legajoEstabaVerificado) {
@@ -3875,14 +3876,18 @@ class Legajos extends Controllers
             $auditoria['ip_host']
         );
 
-        // Siempre generar y guardar el archivo ADICIONALES para los campos de texto
+        // Generar y guardar el archivo ADICIONALES para los campos de texto usando datos actualizados
         $camposNoDocForced = $this->model->obtenerCamposNoDocumentoConValor(intval($idLegajo));
         $rutaBaseLegajoForced = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . 'Legajos' . DIRECTORY_SEPARATOR . intval($idLegajo) . DIRECTORY_SEPARATOR;
         if (!is_dir($rutaBaseLegajoForced)) {
             @mkdir($rutaBaseLegajoForced, 0777, true);
         }
-        
-        $legajoInfoF = $legajoAntesGuardar ?? $this->model->selectLegajoPorId(intval($idLegajo));
+
+        // Siempre usar datos frescos del legajo (post-actualización) para el encabezado del PDF adicional
+        $legajoInfoF = $this->model->selectLegajoPorId(intval($idLegajo));
+        if (empty($legajoInfoF)) {
+            $legajoInfoF = $legajoAntesGuardar ?: [];
+        }
         $ciLF = $legajoInfoF['ci_socio'] ?? '';
         $solLF = $legajoInfoF['nro_solicitud'] ?? '';
         $cedulaLF = preg_replace('/[^0-9]+/', '', $ciLF);
@@ -4139,8 +4144,15 @@ class Legajos extends Controllers
         $rutaFisica    = $rutaBaseDir . $nombreArchivo;
         $rutaRelativa  = 'Legajos/' . $idLegajo . '/' . $nombreArchivo;
 
+        $campoPdf = [
+            'documento_nombre' => $nombreCampo,
+            'tipo_campo' => 'texto',
+            'valor_campo' => $valorCampo,
+        ];
 
-        if (!file_exists($rutaFisica)) {
+        $rutaGenerada = $this->generarPdfCamposNoDocumento($legajo, [$campoPdf], $rutaBaseDir, $nombreArchivo);
+
+        if ($rutaGenerada === null || !file_exists($rutaFisica)) {
             echo json_encode(['ok' => false, 'error' => 'No se pudo guardar el PDF en el servidor.']);
             exit();
         }

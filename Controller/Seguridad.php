@@ -52,8 +52,10 @@ class Seguridad extends Controllers
     {
         require_once 'Models/SeguridadLegajosModel.php';
         require_once 'Models/UsuariosModel.php';
+        require_once 'Models/FuncionalidadesModel.php';
         $seguridadModel = new SeguridadLegajosModel();
         $usuariosModel = new UsuariosModel();
+        $funcionalidadesModel = new FuncionalidadesModel();
 
         // Verificar permiso para gestionar permisos
         if (!$this->puedeAccederItemSeguridad('permisos_legajos', 'permisos_legajos')) {
@@ -74,6 +76,19 @@ class Seguridad extends Controllers
         $legajosModel = new LegajosModel();
         $tiposLegajo = $legajosModel->selectTiposLegajo();
         $tiposLegajoPorRol = $seguridadModel->selectTiposLegajoVisiblesPorRol();
+        $facturacionPorRol = [];
+        $baseDatosExternaPorRol = [];
+        foreach ($roles as $rol) {
+            $idRol = intval($rol['id_rol'] ?? 0);
+            $idDepartamento = intval($rol['id_departamento'] ?? 0);
+            $accesosRol = $funcionalidadesModel->selectAccesosPorRolDepartamento($idRol, $idDepartamento);
+            $facturacionPorRol[$idRol] = $idRol === 1
+                ? 1
+                : intval($accesosRol['facturacion'] ?? 1);
+            $baseDatosExternaPorRol[$idRol] = $idRol === 1
+                ? 1
+                : intval($accesosRol['base_datos_externa'] ?? 1);
+        }
 
         $data = [
             'roles'    => $roles,
@@ -84,6 +99,8 @@ class Seguridad extends Controllers
             'dashboard_cards_por_rol' => $dashboardCardsPorRol,
             'tipos_legajo' => $tiposLegajo,
             'tipos_legajo_por_rol' => $tiposLegajoPorRol,
+            'facturacion_por_rol' => $facturacionPorRol,
+            'base_datos_externa_por_rol' => $baseDatosExternaPorRol,
             'selected_role_id' => intval($_GET['id_rol'] ?? 0),
         ];
         $this->views->getView($this, "permisos_legajos", $data);
@@ -107,7 +124,9 @@ class Seguridad extends Controllers
         }
 
         require_once 'Models/SeguridadLegajosModel.php';
+        require_once 'Models/FuncionalidadesModel.php';
         $seguridadModel = new SeguridadLegajosModel();
+        $funcionalidadesModel = new FuncionalidadesModel();
 
         // Verificar permiso para gestionar permisos
         if (!$this->puedeAccederItemSeguridad('permisos_legajos', 'gestionar_permisos')) {
@@ -122,6 +141,8 @@ class Seguridad extends Controllers
         $visibilidadPost = $_POST['visibilidad_legajos_otros'] ?? [];
         $dashboardCardsPost = $_POST['dashboard_cards'] ?? [];
         $tiposLegajoPost = $_POST['tipos_legajo_visibles'] ?? [];
+        $facturacionPost = $_POST['vista_facturacion'] ?? [];
+        $baseDatosExternaPost = $_POST['vista_base_datos_externa'] ?? [];
         $legajosModel = new LegajosModel();
         $tiposLegajo = $legajosModel->selectTiposLegajo();
 
@@ -186,6 +207,23 @@ class Seguridad extends Controllers
                 : ($tiposLegajoPost[$idRol] ?? []);
             if (!$seguridadModel->guardarTiposLegajoVisiblesPorRol($idRol, $tiposRol, $tiposLegajo)) {
                 setAlert('error', 'Error al guardar tipos de legajo visibles para el rol: ' . htmlspecialchars($rol['descripcion']));
+                session_write_close();
+                header("Location: " . base_url() . "seguridad/permisos_legajos");
+                exit();
+            }
+
+            $idDepartamentoRol = intval($rol['id_departamento'] ?? 0);
+            $puedeVerFacturacion = $idRol === 1 ? true : (($facturacionPost[$idRol] ?? '1') === '1');
+            if (!$funcionalidadesModel->guardarAccesoItemPorRol($idRol, $idDepartamentoRol, 'facturacion', $puedeVerFacturacion, intval($_SESSION['id'] ?? 0))) {
+                setAlert('error', 'Error al guardar acceso a Vista Facturación para el rol: ' . htmlspecialchars($rol['descripcion']));
+                session_write_close();
+                header("Location: " . base_url() . "seguridad/permisos_legajos");
+                exit();
+            }
+
+            $puedeVerBaseDatosExterna = $idRol === 1 ? true : (($baseDatosExternaPost[$idRol] ?? '1') === '1');
+            if (!$funcionalidadesModel->guardarAccesoItemPorRol($idRol, $idDepartamentoRol, 'base_datos_externa', $puedeVerBaseDatosExterna, intval($_SESSION['id'] ?? 0))) {
+                setAlert('error', 'Error al guardar acceso a Base de datos externa para el rol: ' . htmlspecialchars($rol['descripcion']));
                 session_write_close();
                 header("Location: " . base_url() . "seguridad/permisos_legajos");
                 exit();

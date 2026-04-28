@@ -89,8 +89,8 @@ $queryExport = http_build_query([
                                 <?php foreach ($resumenFechas as $fila): ?>
                                     <tr class="hover:bg-blue-50/30 transition-colors">
                                         <td class="px-6 py-4 text-sm font-semibold text-gray-800"><?php echo htmlspecialchars((string)($fila['fecha'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td class="px-6 py-4 text-sm text-gray-600"><?php echo intval($fila['total_movimientos'] ?? 0); ?></td>
-                                        <td class="px-6 py-4 text-sm text-gray-600"><?php echo intval($fila['total_legajos'] ?? 0); ?></td>
+                                        <td class="px-6 py-4 text-sm text-gray-600"><?php echo intval($fila['cantidad_movimientos'] ?? 0); ?></td>
+                                        <td class="px-6 py-4 text-sm text-gray-600"><?php echo intval($fila['cantidad_legajos'] ?? 0); ?></td>
                                         <td class="px-6 py-4 text-sm text-gray-600"><?php echo intval($fila['total_paginas'] ?? 0); ?></td>
                                     </tr>
                                 <?php endforeach; ?>

@@ -146,7 +146,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">CI</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nro. Solicitud</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nro. secuencia</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
                                 <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th>
                             </tr>

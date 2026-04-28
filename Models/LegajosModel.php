@@ -360,7 +360,9 @@ class LegajosModel extends Mysql
 
             $sql = "SELECT mr.id_requisito, mr.id_documento_maestro, mr.rol_vinculado,
                     mr.es_obligatorio, mr.permite_reemplazo, mr.orden_visual, $campoPoliticaActualizacion, $campoActivo,
-                    cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
+                    cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base,
+                    " . ($this->existeColumna('cfg_catalogo_documentos', 'tipo_campo') ? 'cd.tipo_campo' : "'documento' AS tipo_campo") . ",
+                    " . ($this->existeColumna('cfg_catalogo_documentos', 'opciones_campo') ? 'cd.opciones_campo' : 'NULL AS opciones_campo') . "
                     FROM cfg_matriz_requisitos mr
                     INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
                     WHERE $filtroTipo$filtroActivo
@@ -372,7 +374,9 @@ class LegajosModel extends Mysql
         $filtroActivo = $this->existeColumna('cfg_matriz_requisitos', 'activo') ? ' AND mr.activo = 1' : '';
         $sql = "SELECT mr.id_requisito, mr.id_documento_maestro, mr.rol_vinculado,
                 mr.es_obligatorio, mr.permite_reemplazo, mr.orden_visual, $campoPoliticaActualizacion, $campoActivo,
-                cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base
+                cd.nombre AS documento_nombre, cd.codigo_interno, cd.tiene_vencimiento, cd.dias_vigencia_base,
+                " . ($this->existeColumna('cfg_catalogo_documentos', 'tipo_campo') ? 'cd.tipo_campo' : "'documento' AS tipo_campo") . ",
+                " . ($this->existeColumna('cfg_catalogo_documentos', 'opciones_campo') ? 'cd.opciones_campo' : 'NULL AS opciones_campo') . "
                 FROM cfg_matriz_requisitos mr
                 INNER JOIN cfg_catalogo_documentos cd ON cd.id_documento_maestro = mr.id_documento_maestro
                 WHERE mr.id_tipoDoc = ?$filtroActivo
@@ -983,7 +987,7 @@ class LegajosModel extends Mysql
                   AND ld.valor_campo IS NOT NULL
                   AND TRIM(ld.valor_campo) <> ''
                 ORDER BY ld.id_requisito ASC, ld.id_legajo_doc ASC";
-        return $this->select($sql, [$idLegajo]);
+        return $this->select_all($sql, [$idLegajo]);
     }
 
     public function marcarLegajoFinalizado(int $idLegajo)
@@ -1385,9 +1389,12 @@ class LegajosModel extends Mysql
 
         $sqlUltima = "SELECT paginas_totales FROM cfg_legajo_facturacion WHERE id_legajo = ? ORDER BY id_facturacion DESC LIMIT 1";
         $resUltima = $this->select($sqlUltima, [$idLegajo]);
-        $paginasAnteriores = !empty($resUltima) ? intval($resUltima[0]['paginas_totales']) : 0;
+        $paginasAnteriores = !empty($resUltima) ? intval($resUltima['paginas_totales'] ?? 0) : 0;
         
         $paginasIncrementales = max(0, $paginasTotales - $paginasAnteriores);
+        if ($paginasIncrementales === 0 && $paginasTotales === $paginasAnteriores) {
+            return false;
+        }
 
         $sql = "INSERT INTO cfg_legajo_facturacion (id_legajo, paginas_totales, paginas_incrementales, usuario_generador) VALUES (?, ?, ?, ?)";
         return $this->insert($sql, [$idLegajo, $paginasTotales, $paginasIncrementales, $usuarioGenerador]);
@@ -1400,7 +1407,7 @@ class LegajosModel extends Mysql
         }
 
         $sql = "SELECT 
-                    COUNT(id_facturacion) as total_movimientos, 
+                    COUNT(DISTINCT CASE WHEN paginas_incrementales > 0 THEN id_legajo END) as total_movimientos, 
                     COUNT(DISTINCT id_legajo) as total_legajos, 
                     COALESCE(SUM(paginas_incrementales), 0) as total_paginas 
                 FROM cfg_legajo_facturacion 
@@ -1417,7 +1424,7 @@ class LegajosModel extends Mysql
 
         $sql = "SELECT 
                     DATE(fecha_generacion) as fecha,
-                    COUNT(id_facturacion) as cantidad_movimientos, 
+                    COUNT(DISTINCT CASE WHEN paginas_incrementales > 0 THEN id_legajo END) as cantidad_movimientos, 
                     COUNT(DISTINCT id_legajo) as cantidad_legajos, 
                     COALESCE(SUM(paginas_incrementales), 0) as total_paginas 
                 FROM cfg_legajo_facturacion 

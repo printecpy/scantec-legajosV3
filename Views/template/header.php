@@ -310,6 +310,13 @@ if (isset($_SESSION['alert'])) {
             <?php if ($__mostrarMenuSistema): ?>
             <div class="pt-4 pb-2 px-3 text-[12px] uppercase font-bold text-scantec-white tracking-widest border-t border-white/5 mt-4">Sistema</div>
 
+            <?php if ($__accesoItem('facturacion')): ?>
+            <a href="<?php echo base_url(); ?>legajos/facturacion" class="flex items-center px-3 py-3 rounded-lg hover:bg-white/10 transition-colors">
+                <span class="w-8 text-center"><i class="fas fa-cash-register text-scantec-white"></i></span>
+                <span class="ml-3 font-medium text-sm">Facturación</span>
+            </a>
+            <?php endif; ?>
+
             <?php if ($__mostrarAdministracion): ?>
             <div class="menu-group">
                 <button onclick="toggleMenu('menu-admin')" class="w-full flex items-center px-3 py-3 rounded-lg hover:bg-white/10 transition-all">
@@ -354,7 +361,23 @@ if (isset($_SESSION['alert'])) {
                     <a href="<?php echo base_url(); ?>configuracion/mantenimiento" class="block py-2 text-xs text-white/60 hover:text-white">Backup</a>
                     <?php endif; ?>
                     <?php if ($__seccionHabilitada('legajos') && $__puedeVerLegajo('permisos_legajos')): ?>
-                    <a href="<?php echo base_url(); ?>seguridad/permisos_legajos" class="block py-2 text-xs text-white/60 hover:text-white">Permisos Legajos</a>
+                    <a href="<?php echo base_url(); ?>seguridad/permisos_legajos" class="block py-2 text-xs text-white/60 hover:text-white">Permisos de Vistas</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php $__mostrarConfiguracion = $__esAdministradorScantec || $__accesoItem('base_datos_externa'); ?>
+            <?php if ($__mostrarConfiguracion): ?>
+            <div class="menu-group">
+                <button onclick="toggleMenu('menu-configuracion-sistema')" class="w-full flex items-center px-3 py-3 rounded-lg hover:bg-white/10 transition-all">
+                    <span class="w-8 text-center"><i class="fas fa-sliders-h text-scantec-white"></i></span>
+                    <span class="ml-3 font-medium flex-1 text-left text-[11px] uppercase tracking-wider">Configuración</span>
+                    <i class="fas fa-chevron-down text-[10px] rotate-icon" id="icon-menu-configuracion-sistema"></i>
+                </button>
+                <div id="menu-configuracion-sistema" class="hidden pl-11 space-y-1 mt-1">
+                    <?php if ($__esAdministradorScantec || $__accesoItem('base_datos_externa')): ?>
+                    <a href="<?php echo base_url(); ?>configuracion/base_datos_externa" class="block py-2 text-xs text-white/60 hover:text-white">Base de datos externa</a>
                     <?php endif; ?>
                 </div>
             </div>
