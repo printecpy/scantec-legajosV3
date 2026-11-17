@@ -46,19 +46,19 @@
                             ?>
                                 <tr class="hover:bg-blue-50/30 transition-colors group">
                                     <td class="px-6 py-4 text-xs font-bold text-gray-800 whitespace-nowrap">
-                                        <i class="fas fa-user text-gray-400 mr-1.5"></i> <?php echo $vista['usuario']; ?>
+                                        <i class="fas fa-user text-gray-400 mr-1.5"></i> <?php echo escapar($vista['usuario']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-blue-600 font-medium whitespace-nowrap max-w-sm truncate" title="<?php echo htmlspecialchars($vista['nombre_expediente']); ?>">
-                                        <i class="fas fa-file-alt mr-1.5 opacity-70"></i> <?php echo $vista['nombre_expediente']; ?>
+                                        <i class="fas fa-file-alt mr-1.5 opacity-70"></i> <?php echo escapar($vista['nombre_expediente']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
-                                        <i class="fas fa-desktop mr-1 opacity-50"></i> <?php echo $vista['nombre_pc']; ?>
+                                        <i class="fas fa-desktop mr-1 opacity-50"></i> <?php echo escapar($vista['nombre_pc']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs font-mono text-gray-500 whitespace-nowrap">
-                                        <?php echo $vista['direccion_ip']; ?>
+                                        <?php echo escapar($vista['direccion_ip']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
-                                        <i class="far fa-clock mr-1 opacity-50"></i> <?php echo $vista['fecha']; ?>
+                                        <i class="far fa-clock mr-1 opacity-50"></i> <?php echo escapar($vista['fecha']); ?>
                                     </td>
                                 </tr>
                             <?php 

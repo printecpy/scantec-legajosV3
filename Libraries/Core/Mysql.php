@@ -33,13 +33,7 @@ class Mysql extends Conexion
         }
         return $lastInsert;
     }
-    /* public function select(string $query){
-        $this->strquery = $query;
-        $result = $this->conexion->prepare($this->strquery);
-        $result->execute();
-        $data = $result->fetch(PDO::FETCH_ASSOC);
-        return $data;
-    } */
+
     public function select(string $query, array $arr_params = [])
     {
         $this->ensureConnection();

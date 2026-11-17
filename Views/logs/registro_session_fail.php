@@ -46,21 +46,21 @@
                             ?>
                                 <tr class="hover:bg-red-50/30 transition-colors group">
                                     <td class="px-6 py-4 text-xs font-bold text-gray-800 whitespace-nowrap">
-                                        <i class="fas fa-user text-gray-400 mr-1.5"></i> <?php echo $fallo['usuario']; ?>
+                                        <i class="fas fa-user text-gray-400 mr-1.5"></i> <?php echo escapar($fallo['usuario']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
-                                        <i class="fas fa-desktop mr-1 opacity-50"></i> <?php echo $fallo['nombre_pc']; ?>
+                                        <i class="fas fa-desktop mr-1 opacity-50"></i> <?php echo escapar($fallo['nombre_pc']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs font-mono text-gray-500 whitespace-nowrap">
-                                        <?php echo $fallo['direccion_ip']; ?>
+                                        <?php echo escapar( $fallo['direccion_ip']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
-                                        <i class="far fa-clock mr-1 opacity-50 text-red-400"></i> <?php echo $fallo['timestamp']; ?>
+                                        <i class="far fa-clock mr-1 opacity-50 text-red-400"></i> <?php echo escapar( $fallo['timestamp']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs font-medium text-red-600">
                                         <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-red-50 border border-red-100">
                                             <i class="fas fa-exclamation-triangle mr-1.5 opacity-70"></i>
-                                            <?php echo $fallo['motivo']; ?>
+                                            <?php echo escapar( $fallo['motivo']); ?>
                                         </span>
                                     </td>
                                 </tr>

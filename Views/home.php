@@ -8,24 +8,7 @@
 
     <?php include "Views/template/config_tailwind.php"; ?>
 
-    <!-- PWA -->
-    <link rel="manifest" href="<?php echo base_url(); ?>manifest.json">
-    <meta name="theme-color" content="#182541">
-    <link rel="apple-touch-icon" href="<?php echo base_url(); ?>Assets/img/icoScantec2.png">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('<?php echo base_url(); ?>sw.js')
-                    .then(function(registration) {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    }, function(err) {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-    </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="<?php echo base_url(); ?>Assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
 </head>
 
 <body class="bg-login-custom font-sans min-h-screen flex items-center justify-center p-4">
@@ -34,9 +17,9 @@
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 Swal.fire({
-                    icon: <?php echo json_encode((string)($_SESSION['alert']['type'] ?? 'info')); ?>,
+                    icon: '<?php echo $_SESSION['alert']['type']; ?>',
                     title: 'Atención',
-                    text: <?php echo json_encode((string)($_SESSION['alert']['message'] ?? '')); ?>,
+                    text: '<?php echo $_SESSION['alert']['message']; ?>',
                     confirmButtonColor: '#182541',
                     confirmButtonText: 'Entendido'
                 });
@@ -56,17 +39,7 @@
                 Acceso al Sistema</h2>
             <p class="text-scantec-gray text-center text-sm mb-8">Por favor, ingrese sus credenciales para continuar.</p>
 
-            <?php if (!empty($data['licencia_estado']) && empty($data['licencia_estado']['status'])): ?>
-                <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-amber-800">Estado de licencia</p>
-                    <p><?php echo htmlspecialchars((string) ($data['licencia_estado']['msg'] ?? 'No se pudo validar la licencia.'), ENT_QUOTES, 'UTF-8'); ?></p>
-                    <p class="mt-1 text-[12px] text-amber-700">La pagina de acceso sigue disponible, pero el ingreso al sistema permanece bloqueado hasta corregir la licencia.</p>
-                </div>
-            <?php endif; ?>
-
             <form id="loginForm" action="<?php echo base_url(); ?>Usuarios/login" method="POST" class="space-y-6">
-                <input type="hidden" name="fuente_registro" value="scantec">
-
                 <div>
                     <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Usuario</label>
                     <input type="text" name="usuario" required
@@ -78,14 +51,10 @@
                     <label class="block text-xs font-bold text-scantec-blue uppercase tracking-widest mb-2 px-1">Contraseña</label>
                     <input type="password" name="clave" required
                         class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50"
-                        placeholder="********">
+                        placeholder="••••••••">
                 </div>
 
-                <div class="flex items-center justify-between gap-4">
-                    <a href="<?php echo base_url(); ?>home/registrarse"
-                        class="text-scantec-blue hover:underline font-bold text-xs uppercase">
-                        Registrarse
-                    </a>
+                <div class="flex items-center justify-end">
                     <a href="<?php echo base_url(); ?>home/restablecer_pw"
                         class="text-scantec-red hover:underline font-bold text-xs uppercase">¿Olvidaste tu contraseña?</a>
                 </div>
@@ -103,7 +72,7 @@
             </p>
         </div>
     </div>
+
 </body>
 
 </html>
-

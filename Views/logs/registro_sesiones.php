@@ -47,25 +47,25 @@
                             ?>
                                 <tr class="hover:bg-gray-50/70 transition-colors group">
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
-                                        <i class="far fa-calendar-alt mr-1 opacity-50"></i> <?php echo $sesion['fecha']; ?>
+                                        <i class="far fa-calendar-alt mr-1 opacity-50"></i> <?php echo escapar($sesion['fecha']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs font-mono text-gray-500 whitespace-nowrap">
-                                        <?php echo $sesion['ip']; ?>
+                                        <?php echo escapar($sesion['ip']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
-                                        <i class="fas fa-desktop mr-1 opacity-50"></i> <?php echo $sesion['servidor']; ?>
+                                        <i class="fas fa-desktop mr-1 opacity-50"></i> <?php echo escapar($sesion['servidor']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs font-bold text-gray-800 whitespace-nowrap">
-                                        <?php echo $sesion['nombre']; ?>
+                                        <?php echo escapar($sesion['nombre']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
                                         <span class="px-2 py-1 bg-gray-100 rounded-md border border-gray-200">
-                                            @<?php echo $sesion['usuario']; ?>
+                                            @<?php echo escapar($sesion['usuario']); ?>
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap">
                                         <?php if (!empty($sesion['fecha_cierre'])): ?>
-                                            <i class="far fa-calendar-check mr-1 opacity-50"></i> <?php echo $sesion['fecha_cierre']; ?>
+                                            <i class="far fa-calendar-check mr-1 opacity-50"></i> <?php echo escapar($sesion['fecha_cierre']); ?>
                                         <?php else: ?>
                                             <span class="text-green-600 font-semibold italic">Sesión Activa</span>
                                         <?php endif; ?>

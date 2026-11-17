@@ -17,11 +17,11 @@ class Home extends Controllers
         }
 
         if (!empty($_SESSION['ACTIVO']) && $_SESSION['ACTIVO'] === true) {
-            if (isset($_SESSION['id_rol']) && ($_SESSION['id_rol'] == 3 || $_SESSION['id_rol'] == 4)) {
-                header('location: ' . base_url() . 'expedientes/indice_busqueda');
-            } else {
-                header('location: ' . base_url() . 'dashboard/listar');
-            }
+            require_once 'Models/FuncionalidadesModel.php';
+            header('location: ' . base_url() . FuncionalidadesModel::obtenerRutaRedireccionSegura(
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            ));
             exit();
         }
 
@@ -49,19 +49,7 @@ class Home extends Controllers
     }
     public function restablecer_pw()
     {
-        date_default_timezone_set('America/Asuncion');
-        $expirationTime = time() + (60 * 3); // 3 minutos ahora
-        $_SESSION['csrf_expiration'] = $expirationTime;
-
-        // Genera el token CSRF
-        $csrf_token = bin2hex(random_bytes(32)); // Generar token CSRF único
-        $_SESSION['csrf_token'] = $csrf_token; // Almacenar en la sesión del usuario
-
-        // Pasa el token a la vista
-        $data['csrf_token'] = $csrf_token;
-        $data['csrf_expiration'] = $expirationTime;
-        // Carga la vista
-        $this->views->getView($this, "restablecer_pw", $data);
+        $this->views->getView($this, "restablecer_pw", []);
     }
 
     public function registrarse()
@@ -96,76 +84,73 @@ class Home extends Controllers
             session_start();
         }
 
-        if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || ($_SESSION['csrf_expiration'] ?? 0) < time()) {
-            setAlert('error', 'Token de seguridad invalido o expirado.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+        if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], (string) $_POST['token']) || ($_SESSION['csrf_expiration'] ?? 0) < time()) {
+            $this->rechazarRegistro('Token de seguridad inválido o expirado.', 'error');
         }
 
         $usuariosModel = $this->obtenerUsuariosModelPublico();
-        $nombre = htmlspecialchars(trim((string)($_POST['nombre'] ?? '')), ENT_QUOTES, 'UTF-8');
+        $nombre = htmlspecialchars(trim((string) ($_POST['nombre'] ?? '')), ENT_QUOTES, 'UTF-8');
+        $usuario = htmlspecialchars(trim((string) ($_POST['usuario'] ?? '')), ENT_QUOTES, 'UTF-8');
+        $email = trim((string) ($_POST['email'] ?? ''));
+        $clave = (string) ($_POST['clave'] ?? '');
+        $claveConfirm = (string) ($_POST['clave_confirm'] ?? '');
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
-        $usuario = htmlspecialchars(trim((string)($_POST['usuario'] ?? '')), ENT_QUOTES, 'UTF-8');
-        $email = htmlspecialchars(trim((string)($_POST['email'] ?? '')), ENT_QUOTES, 'UTF-8');
-        $clave = (string)($_POST['clave'] ?? '');
-        $claveConfirm = (string)($_POST['clave_confirm'] ?? '');
         $idRol = intval($_POST['id_rol'] ?? 0);
 
+        // 1. Formato (validaciones que no consultan la base)
         if ($nombre === '' || $usuario === '' || $email === '' || $clave === '' || $claveConfirm === '' || $idRol <= 0 || $idDepartamento <= 0) {
-            setAlert('warning', 'Complete todos los campos obligatorios.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+            $this->rechazarRegistro('Complete todos los campos obligatorios.');
         }
-
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            setAlert('warning', 'Ingrese un correo electronico valido.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+            $this->rechazarRegistro('Ingrese un correo electrónico válido.');
         }
-
+        if (esUsuarioReservado($usuario)) {
+            $this->rechazarRegistro('Ese nombre de usuario no está disponible.');
+        }
         if ($clave !== $claveConfirm) {
-            setAlert('warning', 'Las contrasenas no coinciden.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+            $this->rechazarRegistro('Las contraseñas no coinciden.');
+        }
+        if (mb_strlen($clave) < 10) {
+            $this->rechazarRegistro('La contraseña debe tener al menos 10 caracteres.');
+        }
+        if (strcasecmp($clave, $usuario) === 0) {
+            $this->rechazarRegistro('La contraseña no puede ser igual al usuario.');
         }
 
-        $rolesRegistrables = array_column($usuariosModel->selectRolesRegistrables(), 'id_rol');
-        if (!in_array($idRol, array_map('intval', $rolesRegistrables), true)) {
-            setAlert('warning', 'El rol seleccionado no esta disponible para registro.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+        // 2. Reglas que consultan la base
+        $rolesRegistrables = array_map('intval', array_column($usuariosModel->selectRolesRegistrables(), 'id_rol'));
+        if (!in_array($idRol, $rolesRegistrables, true)) {
+            $this->rechazarRegistro('El rol seleccionado no está disponible para registro.');
         }
-
         if (intval($usuariosModel->verificarUsuarioExistente($usuario)['total'] ?? 0) > 0) {
-            setAlert('warning', 'Ese usuario ya existe.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+            $this->rechazarRegistro('Ese usuario ya existe.');
         }
-
         if (intval($usuariosModel->verificarEmailExistente($email)['total'] ?? 0) > 0) {
-            setAlert('warning', 'Ese correo ya esta registrado.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+            $this->rechazarRegistro('Ese correo ya está registrado.');
         }
 
         $idGrupo = $usuariosModel->obtenerGrupoRegistroPorDefecto();
         if ($idGrupo <= 0) {
-            setAlert('error', 'No hay un grupo disponible para completar el registro. Contacte al administrador.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+            $this->rechazarRegistro('No hay un grupo disponible para completar el registro. Contacte al administrador.', 'error');
         }
 
+        // 3. Guardar (queda PENDIENTE hasta que un administrador lo apruebe)
         $hash = password_hash($clave, PASSWORD_BCRYPT, ['cost' => 12]);
-        $registro = $usuariosModel->insertarUsuarioPendiente($nombre, $idDepartamento, $usuario, $hash, $idRol, $idGrupo, $email);
-
-        if (!$registro) {
-            setAlert('error', 'No se pudo completar el registro. Intente nuevamente.');
-            header("Location: " . base_url() . "home/registrarse");
-            exit();
+        if (!$usuariosModel->insertarUsuarioPendiente($nombre, $idDepartamento, $usuario, $hash, $idRol, $idGrupo, $email)) {
+            $this->rechazarRegistro('No se pudo completar el registro. Intente nuevamente.', 'error');
         }
 
-        setAlert('success', 'Su usuario fue registrado y quedo pendiente de aprobacion por un administrador.');
-        header("Location: " . base_url());
+        unset($_SESSION['csrf_token']);   // el token del formulario público no se reutiliza
+        setAlert('success', 'Su usuario fue registrado y quedó pendiente de aprobación por un administrador.');
+        header('Location: ' . base_url());
+        exit();
+    }
+
+    // Corta el registro con un aviso y vuelve al formulario.
+    private function rechazarRegistro(string $mensaje, string $tipo = 'warning'): void
+    {
+        setAlert($tipo, $mensaje);
+        header('Location: ' . base_url() . 'home/registrarse');
         exit();
     }
 
@@ -175,42 +160,18 @@ class Home extends Controllers
         exit();
     }
 
+    // Controller/Home.php — mientras no exista flujo por correo
     public function restaurarPass()
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
-        }
-
-        // 1. Validación CSRF
-        if (!isset($_POST['token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            setAlert('error', "Token de seguridad inválido o expirado. Por favor, reintente.");
-            header("Location: " . base_url() . "home/restablecer_pw");
-            exit();
-        }
-
-        // 2. Limpieza de entradas
-        $nombre = htmlspecialchars($_POST['nombre'], ENT_QUOTES, 'UTF-8');
-        $usuario = htmlspecialchars($_POST['usuario'], ENT_QUOTES, 'UTF-8');
-
-        // 3. Hashear nueva contraseña
-        $nueva = password_hash($_POST['nueva'], PASSWORD_BCRYPT, ['cost' => 12]);
-
-        // 4. Verificación y Proceso
-        $data = $this->model->consultarPW($nombre, $usuario);
-
-        if (!empty($data)) {
-            $cambio = $this->model->restaurar_pw($nueva, $nombre, $usuario);
-            if ($cambio == 1) {
-                setAlert('success', "Contraseña restablecida con éxito. Ya puede ingresar al sistema.");
-                header("Location: " . base_url()); // Redirige al Login tras el éxito
-                exit();
-            }
-        }
-
-        // 5. Caso de error genérico (Usuario no encontrado o fallo en DB)
-        setAlert('error', "Los datos ingresados no coinciden con nuestros registros.");
-        header("Location: " . base_url() . "home/restablecer_pw");
+        setAlert('info', 'Solicite el restablecimiento de su contraseña al administrador del sistema.');
+        header('Location: ' . base_url());
         exit();
     }
+
+    // Flujo definitivo (esquema):
+// 1) solicitar: usuario -> se genera $token = bin2hex(random_bytes(32)); se guarda hash('sha256',$token),
+//    id_usuario, expira = NOW() + 15 min, usado = 0. Se envía enlace por correo. Respuesta idéntica exista o no.
+// 2) confirmar: se valida hash, expiración y usado = 0; se marca usado = 1 y se exige política de contraseñas.
+
 
 }

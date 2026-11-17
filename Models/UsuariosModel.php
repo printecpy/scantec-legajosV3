@@ -12,56 +12,36 @@ class UsuariosModel extends Mysql
         $this->migrarDepartamentosUsuarios();
     }
 
+    /**
+     * Asegura que existan los roles base (1 = Administrador Scantec, 2 = Administrador).
+     * Es una migración: se ejecuta una sola vez por base de datos (marca en funcionalidades_parametros).
+     * NO asigna roles a usuarios: el superadmin se crea solo por consola (tools/crear_superadmin.php).
+     */
     public function asegurarJerarquiaRolesScantec(): void
     {
         try {
-            $tablaRoles = $this->select_all("SHOW TABLES LIKE 'roles'");
-            $tablaUsuarios = $this->select_all("SHOW TABLES LIKE 'usuarios'");
-            if (empty($tablaRoles) || empty($tablaUsuarios)) {
-                return;
+            $marca = $this->select_all(
+                "SELECT valor FROM funcionalidades_parametros WHERE clave = 'migracion_roles_base_v1' LIMIT 1"
+            );
+            if (!empty($marca)) {
+                return;   // ya se aplicó en esta base
             }
 
-            $columnaEstadoRoles = $this->select_all("SHOW COLUMNS FROM roles LIKE 'estado'");
-            if (empty($columnaEstadoRoles)) {
+            if (empty($this->select_all("SHOW COLUMNS FROM roles LIKE 'estado'"))) {
                 $this->update("ALTER TABLE roles ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'activo'", []);
             }
 
-            $rolScantec = $this->select("SELECT id_rol FROM roles WHERE id_rol = 1 LIMIT 1");
-            if (empty($rolScantec)) {
-                $this->insert(
-                    "INSERT INTO roles (id_rol, descripcion, estado) VALUES (1, 'Administrador Scantec', 'activo')",
-                    []
-                );
-            } else {
-                $this->update(
-                    "UPDATE roles SET descripcion = 'Administrador Scantec', estado = 'activo' WHERE id_rol = 1",
-                    []
-                );
-            }
-
-            $rolAdministrador = $this->select("SELECT id_rol FROM roles WHERE id_rol = 2 LIMIT 1");
-            if (empty($rolAdministrador)) {
-                $this->insert(
-                    "INSERT INTO roles (id_rol, descripcion, estado) VALUES (2, 'Administrador', 'activo')",
-                    []
-                );
-            }
-
-            $this->update(
-                "UPDATE usuarios
-                 SET id_rol = 2
-                 WHERE id_rol = 1
-                   AND LOWER(TRIM(usuario)) NOT IN ('root', 'scantec')",
+            $this->insert(
+                "INSERT IGNORE INTO roles (id_rol, descripcion, estado) VALUES (1, 'Administrador Scantec', 'activo'), (2, 'Administrador', 'activo')",
                 []
             );
-            $this->update(
-                "UPDATE usuarios
-                 SET id_rol = 1
-                 WHERE LOWER(TRIM(usuario)) IN ('root', 'scantec')",
+
+            $this->insert(
+                "INSERT INTO funcionalidades_parametros (clave, valor) VALUES ('migracion_roles_base_v1', NOW())",
                 []
             );
         } catch (\Throwable $e) {
-            error_log('No se pudo asegurar la jerarquia de roles Scantec: ' . $e->getMessage());
+            error_log('No se pudo aplicar la migración de roles base: ' . $e->getMessage());
         }
     }
 
@@ -137,7 +117,7 @@ class UsuariosModel extends Mysql
             $usuarios = $this->select_all("SELECT id, departamento, id_departamento FROM usuarios");
             foreach ($usuarios as $usuario) {
                 $idUsuario = intval($usuario['id'] ?? 0);
-                $nombreDepartamento = trim((string)($usuario['departamento'] ?? ''));
+                $nombreDepartamento = trim((string) ($usuario['departamento'] ?? ''));
                 $idDepartamento = intval($usuario['id_departamento'] ?? 0);
 
                 if ($idUsuario <= 0) {
@@ -263,9 +243,10 @@ class UsuariosModel extends Mysql
     public function selectTodosDepartamentos(): array
     {
         try {
-            $sql = "SELECT d.*, (SELECT COUNT(*) FROM usuarios u WHERE u.id_departamento = d.id_departamento) AS total_usuarios
+            $sql = "SELECT d.*, (SELECT COUNT(*) FROM usuarios u WHERE u.id_departamento = d.id_departamento AND u.estado_usuario = 'ACTIVO' 
+                    AND u.id_rol != 1) AS total_usuarios
                     FROM departamentos d
-                    ORDER BY d.nombre ASC";
+                    ORDER BY d.nombre ASC;";
             return $this->select_all($sql);
         } catch (\Throwable $e) {
             return [];
@@ -283,7 +264,7 @@ class UsuariosModel extends Mysql
             if (is_array($row) && isset($row[0]) && is_array($row[0])) {
                 $row = $row[0];
             }
-            return trim((string)($row['nombre'] ?? ''));
+            return trim((string) ($row['nombre'] ?? ''));
         } catch (\Throwable $e) {
             return '';
         }
@@ -345,7 +326,7 @@ class UsuariosModel extends Mysql
                 return false;
             }
 
-            $ok = (bool)$this->update("UPDATE departamentos SET nombre = ?, estado = ? WHERE id_departamento = ?", [$nombre, $estado, $idDepartamento]);
+            $ok = (bool) $this->update("UPDATE departamentos SET nombre = ?, estado = ? WHERE id_departamento = ?", [$nombre, $estado, $idDepartamento]);
             if ($ok) {
                 $this->update("UPDATE usuarios SET departamento = ? WHERE id_departamento = ?", [$nombre, $idDepartamento]);
             }
@@ -437,7 +418,7 @@ class UsuariosModel extends Mysql
         }
 
         try {
-            return (bool)$this->update("UPDATE departamentos SET estado = ? WHERE id_departamento = ?", [$estado, $idDepartamento]);
+            return (bool) $this->update("UPDATE departamentos SET estado = ? WHERE id_departamento = ?", [$estado, $idDepartamento]);
         } catch (\Throwable $e) {
             return false;
         }
@@ -481,6 +462,17 @@ class UsuariosModel extends Mysql
         return $this->select($sql, [$email]);
     }
 
+    public function existeGrupoActivo(int $idGrupo): bool
+    {
+        if ($idGrupo <= 0) {
+            return false;
+        }
+        $res = $this->select_all(
+            "SELECT COUNT(*) AS total FROM usu_grupo WHERE id_grupo = ? AND (estado IS NULL OR UPPER(estado) = 'ACTIVO')",
+            [$idGrupo]
+        );
+        return intval($res[0]['total'] ?? 0) > 0;
+    }
     /**
      * Verifica las credenciales de un usuario activo.
      * Busca el hash de la contraseña y lo compara con la clave proporcionada.
@@ -490,26 +482,50 @@ class UsuariosModel extends Mysql
      */
     public function verificarCredenciales(string $usuario, string $clave)
     {
-        $sql = "SELECT u.id, u.id_rol, u.nombre, COALESCE(d.nombre, u.departamento) AS departamento, u.usuario, u.clave, u.id_grupo
-                FROM usuarios u
-                LEFT JOIN departamentos d ON d.id_departamento = u.id_departamento
-                WHERE u.usuario = ? AND u.estado_usuario='ACTIVO';";
+        $sql = "SELECT u.id, u.id_rol, u.nombre, COALESCE(d.nombre, u.departamento) AS departamento, u.usuario, u.clave, u.id_grupo, u.fuente_registro
+            FROM usuarios u
+            LEFT JOIN departamentos d ON d.id_departamento = u.id_departamento
+            WHERE u.usuario = ? AND u.estado_usuario='ACTIVO';";
         $data = [$usuario];
         $res = $this->select($sql, $data);
-        //Verificar si se encontró al usuario
+
         if (empty($res)) {
-            return false; // Usuario no existe o está inactivo
+            return false;
         }
-        //Extraer los datos de la primera (y única) fila
+
         $usuarioDb = $res[0];
-        //Verificar la contrase�a usando password_verify (comparación segura con el hash)
-        // $usuarioDb['password'] debe contener el hash bcrypt
+
         if (password_verify($clave, $usuarioDb['clave'])) {
-            // Éxito: Retorna todos los datos necesarios (id, id_rol, nombre, etc.)
             return $usuarioDb;
         }
-        // Falla: contraseña incorrecta
+
         return false;
+    }
+
+    public function obtenerUsuarioApiPorId(int $idUsuario): array
+    {
+        $sql = "SELECT id, id_rol, id_grupo, fuente_registro
+            FROM usuarios
+            WHERE id = ? AND estado_usuario = 'ACTIVO' AND fuente_registro = 'API'
+            LIMIT 1";
+        $res = $this->select($sql, [$idUsuario]);
+        if (is_array($res) && isset($res[0]) && is_array($res[0])) {
+            $res = $res[0];
+        }
+        return !empty($res) && isset($res['id']) ? $res : [];
+    }
+
+    public function contarTiposDocumentoActivos(): int
+    {
+        $sql = "SELECT COUNT(*) as total FROM tipo_documento WHERE activo = 1;";
+        $res = $this->select($sql);
+        if (isset($res['total'])) {
+            return intval($res['total']);
+        }
+        if (isset($res[0]['total'])) {
+            return intval($res[0]['total']);
+        }
+        return 0;
     }
 
     public function selectPerDoc()
@@ -543,6 +559,7 @@ class UsuariosModel extends Mysql
             return $resul;
 
         } catch (\PDOException $e) {
+            error_log('[insertarUsuarios] FALLÓ: ' . $e->getMessage());
             return false;
         }
     }
@@ -628,16 +645,16 @@ class UsuariosModel extends Mysql
                 LEFT JOIN usu_grupo c ON a.id_grupo = c.id_grupo
                 LEFT JOIN departamentos d ON d.id_departamento = a.id_departamento
                 WHERE TRIM(a.usuario) = TRIM(?)";
-                
+
         $data = [$usuario];
         $res = $this->select($sql, $data);
-        
+
         return (!empty($res) && isset($res[0])) ? $res[0] : [];
     }
 
     public function contarUsuariosActivos()
     {
-        $sql = "SELECT COUNT(*) as total FROM usuarios WHERE estado_usuario = 'ACTIVO';";
+        $sql = "SELECT COUNT(*) as total FROM usuarios WHERE estado_usuario = 'ACTIVO' AND id_rol != 1;";
         $res = $this->select($sql);
         return $res;
     }
@@ -702,6 +719,45 @@ class UsuariosModel extends Mysql
         return $request;
     }
 
+    // --- MÉTODOS PARA GRUPO ---
+
+    public function obtenerGrupo(int $id_grupo)
+    {
+        $sql = "SELECT * FROM usu_grupo WHERE id_grupo = ?";
+        $res = $this->select($sql, [$id_grupo]);
+        // Retornamos solo la primera fila si existe
+        return !empty($res) ? $res[0] : [];
+    }
+
+    public function actualizarGrupo(int $id_grupo, string $descripcion)
+    {
+        $query = "UPDATE usu_grupo SET descripcion = ? WHERE id_grupo = ?";
+        $data = [$descripcion, $id_grupo];
+        // Asumo que tu framework interno usa un método update(), similar a insert()
+        $this->update($query, $data);
+        return true;
+    }
+
+
+    // --- MÉTODOS PARA TIPO DE DOCUMENTO ---
+
+    public function obtenerTipoDoc(int $id_tipoDoc)
+    {
+        $sql = "SELECT * FROM tipo_documento WHERE id_tipoDoc = ?";
+        $res = $this->select($sql, [$id_tipoDoc]);
+        return !empty($res) ? $res[0] : [];
+    }
+
+    public function actualizarTipoDoc(int $id_tipoDoc, string $nombre, string $i1, string $i2, string $i3, string $i4, string $i5, string $i6)
+    {
+        $query = "UPDATE tipo_documento 
+                  SET nombre_tipoDoc = ?, indice_1 = ?, indice_2 = ?, indice_3 = ?, indice_4 = ?, indice_5 = ?, indice_6 = ? 
+                  WHERE id_tipoDoc = ?";
+        $data = [$nombre, $i1, $i2, $i3, $i4, $i5, $i6, $id_tipoDoc];
+        $this->update($query, $data);
+        return true;
+    }
+
     public function reingresarUsuarios(int $id)
     {
         $return = "";
@@ -728,7 +784,7 @@ class UsuariosModel extends Mysql
         return $this->update($query, $ids);
     }
 
-    // Obtener solo la contrase�a actual (Más ligero y seguro)
+    // Obtener solo la contrase�a actual (Más ligero y seguro)
     public function getPassword(int $id)
     {
         $sql = "SELECT clave FROM usuarios WHERE id = ?";
@@ -737,7 +793,7 @@ class UsuariosModel extends Mysql
         return $request;
     }
 
-    // Actualizar contrase�a y fecha de modificación
+    // Actualizar contrase�a y fecha de modificación
     public function cambiarContra(string $clave, int $id)
     {
         $sql = "UPDATE usuarios SET clave = ?, clave_actualizacion = NOW(), forzar_cambio_clave = 0 WHERE id = ?";
@@ -755,7 +811,7 @@ class UsuariosModel extends Mysql
         }
         if (empty($res)) {
             return [
-                'nombre' => 'SIN DATOS DE EMPRESA', // Mensaje informativo
+                'nombre' => 'SIN DATOS DE EMPRESA',
                 'telefono' => '',
                 'direccion' => '',
                 'correo' => '',
@@ -766,7 +822,7 @@ class UsuariosModel extends Mysql
     }
     public function bloquearUsuarios($usuarioOId)
     {
-        $valor = trim((string)$usuarioOId);
+        $valor = trim((string) $usuarioOId);
         if ($valor === '') {
             return false;
         }
@@ -782,16 +838,17 @@ class UsuariosModel extends Mysql
     public function bloquearPC_IP(string $usuario, string $motivo)
     {
         date_default_timezone_set('America/Asuncion');
-        $this->usuario = $usuario;
-        $this->motivo = $motivo;
-        $ip = $_SERVER["REMOTE_ADDR"] ?? "";
-        $query = "INSERT INTO intentos_login_fallidos (usuario, direccion_ip, nombre_pc, motivo) 
-              VALUES (?, ?, ?, ?)";
-        // Corregir el nombre de la variable para el nombre de PC
-        $nombre_pc = gethostname(); // Suponiendo que quieres obtener el nombre del PC local
-        $data = array($this->usuario, $ip, $nombre_pc, $this->motivo); // Corregir la asignación de valores
-        $resul = $this->update($query, $data);
-        return $resul;
+
+        // Defensa en profundidad: largo máximo y sin caracteres de control.
+        // El escape para HTML se hace en la vista con escapar(); esto solo evita basura y textos gigantes.
+        $usuario = mb_substr(preg_replace('/[^\p{L}\p{N} ._@\-]/u', '?', $usuario), 0, 100);
+        $motivo = mb_substr(preg_replace('/[\x00-\x1F\x7F]/u', ' ', $motivo), 0, 255);
+
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $nombre_pc = gethostname();   // (hallazgo H-06: se revisa en la Fase 2, con la nueva auditoría)
+
+        $query = "INSERT INTO intentos_login_fallidos (usuario, direccion_ip, nombre_pc, motivo) VALUES (?, ?, ?, ?)";
+        return $this->update($query, [$usuario, $ip, $nombre_pc, $motivo]);
     }
     public function bloquarPC_IP(string $usuario, string $motivo)
     {
@@ -807,7 +864,7 @@ class UsuariosModel extends Mysql
         // CRÍTICO: Capturamos el ID único de esta sesión específica
         $sessionId = session_id();
         // Insertamos el session_id para poder identificar esta conexión luego
-        // Asumo que la columna FK de tu usuario en la tabla visitas se llama 'id' según tu C�digo anterior
+        // Asumo que la columna FK de tu usuario en la tabla visitas se llama 'id' según tu C�digo anterior
         $query = "INSERT INTO visitas (fecha, ip, servidor, id, estado, session_id) VALUES (?, ?, ?, ?, 'ACTIVO', ?)";
         $data = array($fecha, $ip, $servidor, $id_usuario, $sessionId);
         $resul = $this->insert($query, $data);
@@ -891,16 +948,38 @@ class UsuariosModel extends Mysql
         return $this->select($sql, [$id]);
     }
 
-    // Función inteligente Insertar/Actualizar
+    public function ensureFechaRegistroUsuarios()
+    {
+        try {
+            $columna = $this->select(
+                "SELECT COUNT(*) AS total 
+             FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = DATABASE() 
+               AND TABLE_NAME = 'usuarios' 
+               AND COLUMN_NAME = 'fecha_registro'"
+            );
+
+            $existe = !empty($columna) && intval($columna[0]['total'] ?? ($columna['total'] ?? 0)) > 0;
+
+            if (!$existe) {
+                $this->update(
+                    "ALTER TABLE usuarios ADD COLUMN fecha_registro TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP AFTER fuente_registro",
+                    []
+                );
+            }
+        } catch (Throwable $e) {
+            error_log('[ensureFechaRegistroUsuarios] FALLÓ: ' . $e->getMessage());
+        }
+    }
+
     public function sincronizarUsuarioLDAP($usuario, $nombre, $email, $password, $id_rol)
     {
-        // 1. Buscar si existe por username
+        $idGrupoPorDefecto = defined('LDAP_ID_GRUPO_DEFECTO') ? intval(LDAP_ID_GRUPO_DEFECTO) : 1;
+
         $sql = "SELECT id FROM usuarios WHERE usuario = ?";
         $existe = $this->select($sql, [$usuario]);
 
         if (!empty($existe)) {
-            // ACTUALIZAR: Si el usuario ya existe, actualizamos su nombre y correo (por si cambiaron en el AD)
-            // NO actualizamos la contraseña ni el rol para no pisar configuraciones locales
             $id_user = $existe[0]['id'] ?? null;
             if ($id_user === null) {
                 return false;
@@ -910,11 +989,9 @@ class UsuariosModel extends Mysql
             $this->update($sql_update, $arrData);
             return 'update';
         } else {
-            // INSERTAR: Nuevo usuario
-            // Nota el campo 'fuente_registro' con valor 'LDAP'
-            $sql_insert = "INSERT INTO usuarios (usuario, nombre, email, clave, id_rol, estado_usuario, fuente_registro, fecha_registro, clave_actualizacion) 
-                           VALUES (?, ?, ?, ?, 'ACTIVO', 1, 'LDAP', NOW(), NOW())";
-            $arrData = array($usuario, $nombre, $email, $password, $id_rol);
+            $sql_insert = "INSERT INTO usuarios (usuario, nombre, email, clave, id_rol, id_grupo, cantidad_inicio, estado_usuario, fuente_registro, fecha_registro, clave_actualizacion) 
+                       VALUES (?, ?, ?, ?, ?, ?, 0, 'ACTIVO', 'LDAP', NOW(), NOW())";
+            $arrData = array($usuario, $nombre, $email, $password, $id_rol, $idGrupoPorDefecto);
             $this->insert($sql_insert, $arrData);
             return 'insert';
         }
@@ -926,6 +1003,7 @@ class UsuariosModel extends Mysql
      */
     public function verificarSesionActivaDeUsuario(int $id_usuario): bool
     {
+        $this->cerrarVisitasVencidas();
         $session_actual = session_id();
         $sql = "SELECT COUNT(*) AS total FROM visitas 
                 WHERE id = ? AND estado = 'ACTIVO' AND session_id <> ?";
@@ -945,9 +1023,62 @@ class UsuariosModel extends Mysql
         return $this->update($sql, [$id_usuario, $session_actual]);
     }
 
+    private static bool $esquemaVisitasListo = false;
+
+    private function contarEsquemaVisitas(string $sql): int
+    {
+        $fila = $this->select($sql);
+        if (is_array($fila) && isset($fila[0])) {
+            $fila = $fila[0];
+        }
+        return intval($fila['n'] ?? 0);
+    }
+
+    // Deja la tabla visitas lista: columna de actividad e índices. Cada pieza se crea solo si falta.
+    private function asegurarEsquemaVisitas(): void
+    {
+        if (self::$esquemaVisitasListo) {
+            return;
+        }
+        self::$esquemaVisitasListo = true;                    // una sola vez por pedido, aunque falle
+        $tabla = "table_schema = DATABASE() AND table_name = 'visitas'";
+        $pasos = [
+            "SELECT COUNT(*) AS n FROM information_schema.columns WHERE $tabla AND column_name = 'ultima_actividad'"
+            => "ALTER TABLE visitas ADD COLUMN ultima_actividad DATETIME NULL",
+            // índices: se crean solo si no hay ninguno que empiece por esa columna, cualquiera sea su nombre
+            "SELECT COUNT(*) AS n FROM information_schema.statistics WHERE $tabla AND column_name = 'session_id' AND seq_in_index = 1"
+            => "ALTER TABLE visitas ADD INDEX idx_visitas_session (session_id)",
+            "SELECT COUNT(*) AS n FROM information_schema.statistics WHERE $tabla AND column_name = 'estado' AND seq_in_index = 1"
+            => "ALTER TABLE visitas ADD INDEX idx_visitas_estado_id (estado, id)",
+        ];
+        foreach ($pasos as $consulta => $ddl) {
+            try {
+                if ($this->contarEsquemaVisitas($consulta) === 0) {
+                    $this->insert($ddl, []);
+                }
+            } catch (Throwable $e) {
+                if (stripos($e->getMessage(), 'Duplicate') === false) {   // dos logins a la vez: el segundo ve "Duplicate", no es un error
+                    error_log('Error asegurando el esquema de visitas: ' . $e->getMessage());
+                }
+            }
+        }
+    }
+
+    public function registrarActividad(string $sessionId): void
+    {
+        $this->asegurarEsquemaVisitas();
+        $this->update("UPDATE visitas SET ultima_actividad = NOW() WHERE session_id = ? AND estado = 'ACTIVO'", [$sessionId]);
+    }
+
+    public function cerrarVisitasVencidas(): void
+    {
+        $this->asegurarEsquemaVisitas();
+        $segundos = defined('SESION_TIEMPO_SEGUNDOS') ? max(60, (int) SESION_TIEMPO_SEGUNDOS) : 7200;
+        $vencidas = "estado = 'ACTIVO' AND COALESCE(ultima_actividad, fecha) < (NOW() - INTERVAL " . $segundos . " SECOND)";
+        // primero descuenta el contador de cada visita que vence, después las marca inactivas
+        $this->update("UPDATE usuarios u JOIN (SELECT id, COUNT(*) AS n FROM visitas WHERE $vencidas GROUP BY id) x ON x.id = u.id
+                   SET u.cantidad_inicio = GREATEST(0, u.cantidad_inicio - x.n)", []);
+        $this->update("UPDATE visitas SET estado = 'INACTIVO', fecha_cierre = NOW() WHERE $vencidas", []);
+    }
+
 }
-
-
-
-
-

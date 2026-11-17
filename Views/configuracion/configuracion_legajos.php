@@ -38,24 +38,29 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
 
         <div class="border-b border-gray-200 mb-6 overflow-x-auto">
             <nav class="flex space-x-6 min-w-max" aria-label="Tabs">
-                <button onclick="cambiarPestana('catalogo')" id="tab-catalogo" class="border-scantec-blue text-scantec-blue border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
+                <button onclick="cambiarPestana('catalogo')" id="tab-catalogo"
+                    class="border-scantec-blue text-scantec-blue border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
                     <i class="fas fa-book mr-2"></i> 1. Cat&aacute;logo Maestro de Documentos
                 </button>
-                <button onclick="cambiarPestana('tipos')" id="tab-tipos" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
+                <button onclick="cambiarPestana('tipos')" id="tab-tipos"
+                    class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
                     <i class="fas fa-folder-tree mr-2"></i> 2. Tipos de Legajos
                 </button>
-                <button onclick="cambiarPestana('matriz')" id="tab-matriz" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
+                <button onclick="cambiarPestana('matriz')" id="tab-matriz"
+                    class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
                     <i class="fas fa-project-diagram mr-2"></i> 3. Matriz de Requisitos
                 </button>
                 <?php if ($puede_ver_datos_generales): ?>
-                <button onclick="cambiarPestana('datos')" id="tab-datos" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
-                    <i class="fas fa-database mr-2"></i> 4. Datos generales
-                </button>
+                    <button onclick="cambiarPestana('datos')" id="tab-datos"
+                        class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors">
+                        <i class="fas fa-database mr-2"></i> 4. Datos generales
+                    </button>
                 <?php endif; ?>
             </nav>
         </div>
 
-        <div id="seccion-catalogo" class="<?php echo $tab_actual === 'catalogo' ? 'block' : 'hidden'; ?> animate-fade-in-down">
+        <div id="seccion-catalogo"
+            class="<?php echo $tab_actual === 'catalogo' ? 'block' : 'hidden'; ?> animate-fade-in-down">
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="bg-scantec-blue px-6 py-4 border-b border-blue-800 flex justify-between items-center">
                     <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
@@ -67,32 +72,40 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                     </button>
                 </div>
 
-                <div id="panel-nuevo-documento" class="<?php echo !empty($documento_editar) ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
-                    <form method="POST" action="<?php echo !empty($documento_editar) ? base_url() . 'configuracion/actualizar_catalogo_legajo' : base_url() . 'configuracion/guardar_catalogo_legajo'; ?>"
+                <div id="panel-nuevo-documento"
+                    class="<?php echo !empty($documento_editar) ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
+                    <form method="POST"
+                        action="<?php echo !empty($documento_editar) ? base_url() . 'configuracion/actualizar_catalogo_legajo' : base_url() . 'configuracion/guardar_catalogo_legajo'; ?>"
                         class="grid grid-cols-1 md:grid-cols-6 gap-4">
                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                         <?php if (!empty($documento_editar)): ?>
-                        <input type="hidden" name="id_documento_maestro" value="<?php echo intval($documento_editar['id_documento_maestro']); ?>">
+                            <input type="hidden" name="id_documento_maestro"
+                                value="<?php echo intval($documento_editar['id_documento_maestro']); ?>">
                         <?php endif; ?>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre</label>
-                            <input type="text" name="nombre" required value="<?php echo htmlspecialchars($documento_editar['nombre'] ?? ''); ?>"
+                            <input type="text" name="nombre" required
+                                value="<?php echo htmlspecialchars($documento_editar['nombre'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Código</label>
-                            <input type="text" name="codigo_interno" value="<?php echo htmlspecialchars($documento_editar['codigo_interno'] ?? ''); ?>"
+                            <input type="text" name="codigo_interno"
+                                value="<?php echo htmlspecialchars($documento_editar['codigo_interno'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de campo</label>
-                            <?php $tipoCampoEditar = strtolower(trim((string)($documento_editar['tipo_campo'] ?? 'documento'))); ?>
+                            <?php $tipoCampoEditar = strtolower(trim((string) ($documento_editar['tipo_campo'] ?? 'documento'))); ?>
                             <select name="tipo_campo" onchange="toggleCatalogoTipoFields(this)"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                                 <option value="documento" <?php echo $tipoCampoEditar === 'documento' ? 'selected' : ''; ?>>Documento</option>
-                                <option value="texto" <?php echo $tipoCampoEditar === 'texto' ? 'selected' : ''; ?>>Texto</option>
-                                <option value="lista" <?php echo $tipoCampoEditar === 'lista' ? 'selected' : ''; ?>>Lista desplegable</option>
-                                <option value="casilla" <?php echo $tipoCampoEditar === 'casilla' ? 'selected' : ''; ?>>Casilla de selección</option>
+                                <option value="texto" <?php echo $tipoCampoEditar === 'texto' ? 'selected' : ''; ?>>Texto
+                                </option>
+                                <option value="lista" <?php echo $tipoCampoEditar === 'lista' ? 'selected' : ''; ?>>Lista
+                                    desplegable</option>
+                                <option value="casilla" <?php echo $tipoCampoEditar === 'casilla' ? 'selected' : ''; ?>>
+                                    Casilla de selección</option>
                             </select>
                         </div>
                         <div>
@@ -105,42 +118,48 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Años Vigencia</label>
-                            <input type="number" name="dias_vigencia_base" min="1" value="<?php echo htmlspecialchars($documento_editar['dias_vigencia_base'] ?? ''); ?>"
+                            <input type="number" name="dias_vigencia_base" min="1"
+                                value="<?php echo htmlspecialchars($documento_editar['dias_vigencia_base'] ?? ''); ?>"
                                 <?php echo isset($documento_editar) && empty($documento_editar['tiene_vencimiento']) ? 'disabled' : ''; ?>
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Aviso Previo</label>
-                            <input type="number" name="dias_alerta_previa" min="1" value="<?php echo htmlspecialchars($documento_editar['dias_alerta_previa'] ?? 30); ?>"
+                            <input type="number" name="dias_alerta_previa" min="1"
+                                value="<?php echo htmlspecialchars($documento_editar['dias_alerta_previa'] ?? 30); ?>"
                                 <?php echo isset($documento_editar) && empty($documento_editar['tiene_vencimiento']) ? 'disabled' : ''; ?>
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div class="flex flex-col justify-end gap-2">
-                            <button type="submit" class="bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
+                            <button type="submit"
+                                class="bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                                 <?php echo !empty($documento_editar) ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
                         <div class="md:col-span-6" data-opciones-campo-wrap>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Opciones de la lista</label>
-                            <textarea name="opciones_campo" rows="4"
-                                placeholder="Una opción por línea"
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Opciones de la
+                                lista</label>
+                            <textarea name="opciones_campo" rows="4" placeholder="Una opción por línea"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none"><?php echo htmlspecialchars($documento_editar['opciones_campo'] ?? ''); ?></textarea>
                             <p class="mt-1 text-xs text-gray-500">Solo se usa cuando el tipo es lista desplegable.</p>
                         </div>
-                        <div class="md:col-span-6 flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between">
+                        <div
+                            class="md:col-span-6 flex flex-col gap-3 text-sm md:flex-row md:items-center md:justify-between">
                             <div class="flex flex-col gap-1">
                                 <label class="inline-flex items-center gap-2 font-medium text-gray-700">
                                     <input type="checkbox" name="activo" value="1" <?php echo !isset($documento_editar) || !empty($documento_editar['activo']) ? 'checked' : ''; ?>>
                                     Activo
                                 </label>
                                 <?php if (!empty($documento_editar) && empty($documento_editar['activo'])): ?>
-                                <span class="text-xs font-medium text-amber-700">Al marcar esta opción, el documento vuelve a quedar activo.</span>
+                                    <span class="text-xs font-medium text-amber-700">Al marcar esta opción, el documento
+                                        vuelve a quedar activo.</span>
                                 <?php endif; ?>
                             </div>
                             <?php if (!empty($documento_editar)): ?>
-                            <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=catalogo" class="text-sm text-gray-600 hover:text-gray-900 font-bold">
-                                Cancelar edición
-                            </a>
+                                <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=catalogo"
+                                    class="text-sm text-gray-600 hover:text-gray-900 font-bold">
+                                    Cancelar edición
+                                </a>
                             <?php endif; ?>
                         </div>
                     </form>
@@ -149,72 +168,94 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre del Documento</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre del
+                                    Documento</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Código</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">¿Vence?</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Años Vigencia</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Aviso Previo</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Años
+                                    Vigencia</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Aviso Previo
+                                </th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody class="divide-y divide-gray-200" id="tabla-catalogo-body">
                             <?php if (empty($catalogo_documentos)): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">No hay documentos configurados.</td>
-                            </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">No hay documentos
+                                        configurados.</td>
+                                </tr>
                             <?php endif; ?>
 
                             <?php foreach ($catalogo_documentos as $documento): ?>
-                            <?php $documentoActivo = !empty($documento['activo']); ?>
-                            <tr class="<?php echo $documentoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
-                                <td class="px-6 py-4 text-sm font-bold <?php echo $documentoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
-                                    <div class="flex items-center gap-2">
-                                        <span><?php echo htmlspecialchars($documento['nombre']); ?></span>
-                                        <?php if (!$documentoActivo): ?>
-                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                <?php $documentoActivo = !empty($documento['activo']); ?>
+                                <tr data-fila-paginada
+                                    class="<?php echo $documentoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                    <td
+                                        class="px-6 py-4 text-sm font-bold <?php echo $documentoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                        <div class="flex items-center gap-2">
+                                            <span><?php echo htmlspecialchars($documento['nombre']); ?></span>
+                                            <?php if (!$documentoActivo): ?>
+                                                <span
+                                                    class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td
+                                        class="px-4 py-4 text-sm font-mono <?php echo $documentoActivo ? 'text-gray-500' : 'text-gray-400'; ?>">
+                                        <?php echo htmlspecialchars($documento['codigo_interno'] ?? '-'); ?>
+                                    </td>
+                                    <?php $tipoCampoDocumento = strtolower(trim((string) ($documento['tipo_campo'] ?? 'documento'))); ?>
+                                    <td
+                                        class="px-4 py-4 text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                        <?php echo htmlspecialchars([
+                                            'documento' => 'Documento',
+                                            'texto' => 'Texto',
+                                            'lista' => 'Lista',
+                                            'casilla' => 'Casilla'
+                                        ][$tipoCampoDocumento] ?? 'Documento'); ?>
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <?php if ($tipoCampoDocumento === 'documento' && !empty($documento['tiene_vencimiento'])): ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded <?php echo $documentoActivo ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'; ?>">SÍ</span>
+                                        <?php else: ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">NO</span>
                                         <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-4 text-sm font-mono <?php echo $documentoActivo ? 'text-gray-500' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($documento['codigo_interno'] ?? '-'); ?></td>
-                                <?php $tipoCampoDocumento = strtolower(trim((string)($documento['tipo_campo'] ?? 'documento'))); ?>
-                                <td class="px-4 py-4 text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
-                                    <?php echo htmlspecialchars([
-                                        'documento' => 'Documento',
-                                        'texto' => 'Texto',
-                                        'lista' => 'Lista',
-                                        'casilla' => 'Casilla'
-                                    ][$tipoCampoDocumento] ?? 'Documento'); ?>
-                                </td>
-                                <td class="px-4 py-4 text-center">
-                                    <?php if ($tipoCampoDocumento === 'documento' && !empty($documento['tiene_vencimiento'])): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded <?php echo $documentoActivo ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'; ?>">SÍ</span>
-                                    <?php else: ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">NO</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
-                                    <?php echo $tipoCampoDocumento === 'documento' && !empty($documento['dias_vigencia_base']) ? intval($documento['dias_vigencia_base']) . ' años' : '-'; ?>
-                                </td>
-                                <td class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
-                                    <?php echo $tipoCampoDocumento === 'documento' && !empty($documento['dias_alerta_previa']) ? intval($documento['dias_alerta_previa']) . ' días' : '-'; ?>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <div class="flex justify-end gap-2">
-                                    <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=catalogo&editar_documento=<?php echo intval($documento['id_documento_maestro']); ?>" title="Editar">
-                                        <i class="fas fa-pen"></i>
-                                    </a>
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_documento_legajo" class="inline-flex" onsubmit="return confirmarAccionDocumentoCatalogo(this);">
-                                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                                        <input type="hidden" name="id_documento_maestro" value="<?php echo intval($documento['id_documento_maestro']); ?>">
-                                        <input type="hidden" name="accion_catalogo" value="desactivar">
-                                        <button class="btn-action btn-action-danger" type="submit" title="Eliminar">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                    </div>
-                                </td>
-                            </tr>
+                                    </td>
+                                    <td
+                                        class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                        <?php echo $tipoCampoDocumento === 'documento' && !empty($documento['dias_vigencia_base']) ? intval($documento['dias_vigencia_base']) . ' años' : '-'; ?>
+                                    </td>
+                                    <td
+                                        class="px-4 py-4 text-center text-sm <?php echo $documentoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                        <?php echo $tipoCampoDocumento === 'documento' && !empty($documento['dias_alerta_previa']) ? intval($documento['dias_alerta_previa']) . ' días' : '-'; ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <div class="flex justify-end gap-2">
+                                            <a class="btn-action btn-action-primary"
+                                                href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=catalogo&editar_documento=<?php echo intval($documento['id_documento_maestro']); ?>"
+                                                title="Editar">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                            <form method="POST"
+                                                action="<?php echo base_url(); ?>configuracion/eliminar_documento_legajo"
+                                                class="inline-flex"
+                                                onsubmit="return confirmarAccionDocumentoCatalogo(this);">
+                                                <input type="hidden" name="token"
+                                                    value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                                <input type="hidden" name="id_documento_maestro"
+                                                    value="<?php echo intval($documento['id_documento_maestro']); ?>">
+                                                <input type="hidden" name="accion_catalogo" value="desactivar">
+                                                <button class="btn-action btn-action-danger" type="submit" title="Eliminar">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -223,7 +264,8 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
 
         </div>
 
-        <div id="seccion-tipos" class="<?php echo $tab_actual === 'tipos' ? 'block' : 'hidden'; ?> animate-fade-in-down">
+        <div id="seccion-tipos"
+            class="<?php echo $tab_actual === 'tipos' ? 'block' : 'hidden'; ?> animate-fade-in-down">
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="bg-scantec-blue px-6 py-4 border-b border-blue-800 flex justify-between items-center">
                     <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
@@ -235,70 +277,176 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                     </button>
                 </div>
 
-                <div id="panel-tipo-legajo" class="<?php echo !empty($tipo_legajo_editar) ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
+                <div id="panel-tipo-legajo"
+                    class="<?php echo !empty($tipo_legajo_editar) ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
                     <?php if (!empty($filtrar_tipos_por_departamento) && intval($id_departamento_actual ?? 0) > 0): ?>
-                    <div class="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
-                        Se muestran los tipos de legajo visibles para este rol. La edición y eliminación siguen limitadas a los tipos del departamento asociado a este usuario.
-                    </div>
+                        <div
+                            class="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                            Se muestran los tipos de legajo visibles para este rol. La edición y eliminación siguen
+                            limitadas a los tipos del departamento asociado a este usuario.
+                        </div>
                     <?php endif; ?>
-                    <form method="POST" action="<?php echo !empty($tipo_legajo_editar) ? base_url() . 'configuracion/actualizar_tipo_legajo' : base_url() . 'configuracion/guardar_tipo_legajo'; ?>"
+                    <form method="POST"
+                        action="<?php echo !empty($tipo_legajo_editar) ? base_url() . 'configuracion/actualizar_tipo_legajo' : base_url() . 'configuracion/guardar_tipo_legajo'; ?>"
                         class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                         <?php if (!empty($tipo_legajo_editar)): ?>
-                        <input type="hidden" name="id_tipo_legajo" value="<?php echo intval($tipo_legajo_editar['id_tipo_legajo']); ?>">
+                            <input type="hidden" name="id_tipo_legajo"
+                                value="<?php echo intval($tipo_legajo_editar['id_tipo_legajo']); ?>">
                         <?php endif; ?>
                         <div class="md:col-span-3">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del tipo de legajo</label>
-                            <input type="text" name="nombre_tipo_legajo" required value="<?php echo htmlspecialchars($tipo_legajo_editar['nombre'] ?? ''); ?>"
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del tipo de
+                                legajo</label>
+                            <input type="text" name="nombre_tipo_legajo" required
+                                value="<?php echo htmlspecialchars($tipo_legajo_editar['nombre'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div class="md:col-span-3">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
-                            <input type="text" name="descripcion_tipo_legajo" value="<?php echo htmlspecialchars($tipo_legajo_editar['descripcion'] ?? ''); ?>"
+                            <input type="text" name="descripcion_tipo_legajo"
+                                value="<?php echo htmlspecialchars($tipo_legajo_editar['descripcion'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Requiere Nro de solicitud</label>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Requiere Nro de
+                                solicitud</label>
                             <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" name="requiere_nro_solicitud" value="1" <?php echo !empty($tipo_legajo_editar['requiere_nro_solicitud']) ? 'checked' : ''; ?> class="sr-only peer">
-                                <div class="w-11 h-6 bg-gray-200 rounded-full transition-colors peer-checked:bg-scantec-blue after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-full"></div>
-                                <span class="ml-3 text-sm font-bold text-gray-700"><?php echo !empty($tipo_legajo_editar['requiere_nro_solicitud']) ? 'Si' : 'No'; ?></span>
+                                <input type="checkbox" name="requiere_nro_solicitud" value="1" <?php echo !empty($tipo_legajo_editar['requiere_nro_solicitud']) ? 'checked' : ''; ?>
+                                    class="sr-only peer">
+                                <div
+                                    class="w-11 h-6 bg-gray-200 rounded-full transition-colors peer-checked:bg-scantec-blue after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-full">
+                                </div>
+                                <span
+                                    class="ml-3 text-sm font-bold text-gray-700"><?php echo !empty($tipo_legajo_editar['requiere_nro_solicitud']) ? 'Si' : 'No'; ?></span>
                             </label>
                         </div>
+
                         <div class="md:col-span-2">
-                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Requiere Nro de
+                                secuencia</label>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="cfg_requiere_secuencia" name="requiere_secuencia" value="1"
+                                    <?php echo !empty($tipo_legajo_editar['requiere_secuencia']) ? 'checked' : ''; ?>
+                                    class="sr-only peer" onchange="toggleCamposSecuenciaOperacion()">
+                                <div
+                                    class="w-11 h-6 bg-gray-200 rounded-full transition-colors peer-checked:bg-scantec-blue after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-full">
+                                </div>
+                                <span
+                                    class="ml-3 text-sm font-bold text-gray-700"><?php echo !empty($tipo_legajo_editar['requiere_secuencia']) ? 'Si' : 'No'; ?></span>
+                            </label>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Requiere Nro de
+                                Operacion</label>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="cfg_requiere_operacion" name="requiere_nro_operacion"
+                                    value="1" <?php echo !empty($tipo_legajo_editar['requiere_nro_operacion']) ? 'checked' : ''; ?> class="sr-only peer" onchange="toggleCamposSecuenciaOperacion()">
+                                <div
+                                    class="w-11 h-6 bg-gray-200 rounded-full transition-colors peer-checked:bg-scantec-blue after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:after:translate-x-full">
+                                </div>
+                                <span
+                                    class="ml-3 text-sm font-bold text-gray-700"><?php echo !empty($tipo_legajo_editar['requiere_nro_operacion']) ? 'Si' : 'No'; ?></span>
+                            </label>
+                        </div>
+
+                        <div class="md:col-span-3" id="cfg_grupo_operacion_modo"
+                            style="<?php echo !empty($tipo_legajo_editar['requiere_nro_operacion']) ? '' : 'display:none;'; ?>">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Modo de
+                                operación</label>
+                            <?php $operacionModo = trim((string) ($tipo_legajo_editar['operacion_modo'] ?? 'auto')); ?>
+                            <select id="cfg_operacion_modo" name="operacion_modo"
+                                onchange="toggleCamposSecuenciaOperacion()"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                                <option value="auto" <?php echo $operacionModo === 'auto' ? 'selected' : ''; ?>>Automático
+                                    (socio + secuencia)</option>
+                                <option value="manual" <?php echo $operacionModo === 'manual' ? 'selected' : ''; ?>>Manual
+                                    (lo escribe el usuario)</option>
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-3" id="cfg_grupo_secuencia_obligatoria"
+                            style="<?php echo !empty($tipo_legajo_editar['requiere_secuencia']) ? '' : 'display:none;'; ?>">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">¿Secuencia
+                                obligatoria?</label>
+                            <?php $secuenciaObligatoria = !empty($tipo_legajo_editar['secuencia_obligatoria']); ?>
+                            <select id="cfg_secuencia_obligatoria" name="secuencia_obligatoria"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                                <option value="0" <?php echo !$secuenciaObligatoria ? 'selected' : ''; ?>>Opcional
+                                </option>
+                                <option value="1" <?php echo $secuenciaObligatoria ? 'selected' : ''; ?>>Obligatoria
+                                </option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-6">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Identificar legajos
+                                únicos por</label>
+                            <div
+                                class="flex flex-wrap gap-4 items-center bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+                                <span class="text-sm font-bold text-gray-600">Tipo + CI</span>
+                                <span class="text-xs text-gray-400">(siempre)</span>
+                                <label
+                                    class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+                                    <input type="checkbox" name="unicidad_usa_secuencia" value="1" <?php echo !empty($tipo_legajo_editar['unicidad_usa_secuencia']) ? 'checked' : ''; ?>
+                                        class="w-4 h-4">
+                                    + Secuencia
+                                </label>
+                                <label
+                                    class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+                                    <input type="checkbox" name="unicidad_usa_operacion" value="1" <?php echo !empty($tipo_legajo_editar['unicidad_usa_operacion']) ? 'checked' : ''; ?>
+                                        class="w-4 h-4">
+                                    + Operación
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Permite que una misma persona tenga varios legajos de
+                                este tipo, diferenciados por el valor elegido.</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <button type="submit"
+                                class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                                 <?php echo !empty($tipo_legajo_editar) ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
                         <div class="md:col-span-6">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sello de carátula</label>
-                            <input type="text" name="sello_caratula_texto" value="<?php echo htmlspecialchars($tipo_legajo_editar['sello_caratula_texto'] ?? ''); ?>"
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sello de
+                                carátula</label>
+                            <input type="text" name="sello_caratula_texto"
+                                value="<?php echo htmlspecialchars($tipo_legajo_editar['sello_caratula_texto'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none"
                                 placeholder="Ej: USO INTERNO">
                         </div>
                         <div class="md:col-span-3">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición carátula</label>
-                            <?php $posicionCaratulaTipo = trim((string)($tipo_legajo_editar['sello_caratula_posicion'] ?? 'arriba')); ?>
-                            <?php if ($posicionCaratulaTipo === 'cruzado') { $posicionCaratulaTipo = 'arriba'; } ?>
-                            <select name="sello_caratula_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición
+                                carátula</label>
+                            <?php $posicionCaratulaTipo = trim((string) ($tipo_legajo_editar['sello_caratula_posicion'] ?? 'arriba')); ?>
+                            <?php if ($posicionCaratulaTipo === 'cruzado') {
+                                $posicionCaratulaTipo = 'arriba';
+                            } ?>
+                            <select name="sello_caratula_posicion"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
                                 <option value="arriba" <?php echo $posicionCaratulaTipo === 'arriba' ? 'selected' : ''; ?>>Arriba</option>
-                                <option value="abajo" <?php echo $posicionCaratulaTipo === 'abajo' ? 'selected' : ''; ?>>Abajo</option>
+                                <option value="abajo" <?php echo $posicionCaratulaTipo === 'abajo' ? 'selected' : ''; ?>>
+                                    Abajo</option>
                                 <option value="derecha" <?php echo $posicionCaratulaTipo === 'derecha' ? 'selected' : ''; ?>>Derecha</option>
                                 <option value="izquierda" <?php echo $posicionCaratulaTipo === 'izquierda' ? 'selected' : ''; ?>>Izquierda</option>
                             </select>
                         </div>
                         <div class="md:col-span-6">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Sello de anexos</label>
-                            <input type="text" name="sello_anexos_texto" value="<?php echo htmlspecialchars($tipo_legajo_editar['sello_anexos_texto'] ?? ''); ?>"
+                            <input type="text" name="sello_anexos_texto"
+                                value="<?php echo htmlspecialchars($tipo_legajo_editar['sello_anexos_texto'] ?? ''); ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none"
                                 placeholder="Ej: COPIA CONTROLADA">
                         </div>
                         <div class="md:col-span-3">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición anexos</label>
-                            <?php $posicionAnexosTipo = trim((string)($tipo_legajo_editar['sello_anexos_posicion'] ?? 'derecha')); ?>
-                            <select name="sello_anexos_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
-                                <option value="arriba" <?php echo $posicionAnexosTipo === 'arriba' ? 'selected' : ''; ?>>Arriba</option>
-                                <option value="abajo" <?php echo $posicionAnexosTipo === 'abajo' ? 'selected' : ''; ?>>Abajo</option>
+                            <?php $posicionAnexosTipo = trim((string) ($tipo_legajo_editar['sello_anexos_posicion'] ?? 'derecha')); ?>
+                            <select name="sello_anexos_posicion"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                                <option value="arriba" <?php echo $posicionAnexosTipo === 'arriba' ? 'selected' : ''; ?>>
+                                    Arriba</option>
+                                <option value="abajo" <?php echo $posicionAnexosTipo === 'abajo' ? 'selected' : ''; ?>>
+                                    Abajo</option>
                                 <option value="derecha" <?php echo $posicionAnexosTipo === 'derecha' ? 'selected' : ''; ?>>Derecha</option>
                                 <option value="izquierda" <?php echo $posicionAnexosTipo === 'izquierda' ? 'selected' : ''; ?>>Izquierda</option>
                             </select>
@@ -309,9 +457,10 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                                 Activo
                             </label>
                             <?php if (!empty($tipo_legajo_editar)): ?>
-                            <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=tipos" class="text-sm text-gray-600 hover:text-gray-900 font-bold">
-                                Cancelar edición
-                            </a>
+                                <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=tipos"
+                                    class="text-sm text-gray-600 hover:text-gray-900 font-bold">
+                                    Cancelar edición
+                                </a>
                             <?php endif; ?>
                         </div>
                     </form>
@@ -322,74 +471,97 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Descripción</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Requiere Nro. de Solicitud</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Descripción
+                                </th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Requiere
+                                    Nro. de Solicitud</th>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody class="divide-y divide-gray-200" id="tabla-tipos-body">
                             <?php if (empty($tipos_documento)): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td colspan="5" class="px-6 py-4 text-sm text-gray-500 text-center">No hay tipos de legajo configurados.</td>
-                            </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td colspan="5" class="px-6 py-4 text-sm text-gray-500 text-center">No hay tipos de
+                                        legajo configurados.</td>
+                                </tr>
                             <?php endif; ?>
 
                             <?php foreach ($tipos_documento as $tipo_documento): ?>
-                            <?php $tipoActivo = !isset($tipo_documento['activo']) || !empty($tipo_documento['activo']); ?>
-                            <?php $tipoEditableDepartamento = true; ?>
-                            <?php if (!empty($filtrar_tipos_por_departamento) && intval($id_departamento_actual ?? 0) > 0): ?>
-                            <?php $tipoEditableDepartamento = intval($tipo_documento['id_departamento'] ?? 0) === intval($id_departamento_actual ?? 0); ?>
-                            <?php endif; ?>
-                            <tr class="<?php echo $tipoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
-                                <td class="px-6 py-4 text-sm font-bold <?php echo $tipoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
-                                    <div class="flex items-center gap-2">
-                                        <span><?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?></span>
-                                        <?php if (!$tipoActivo): ?>
-                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                <?php $tipoActivo = !isset($tipo_documento['activo']) || !empty($tipo_documento['activo']); ?>
+                                <?php $tipoEditableDepartamento = true; ?>
+                                <?php if (!empty($filtrar_tipos_por_departamento) && intval($id_departamento_actual ?? 0) > 0): ?>
+                                    <?php $tipoEditableDepartamento = intval($tipo_documento['id_departamento'] ?? 0) === intval($id_departamento_actual ?? 0); ?>
+                                <?php endif; ?>
+                                <tr data-fila-paginada
+                                    class="<?php echo $tipoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                    <td
+                                        class="px-6 py-4 text-sm font-bold <?php echo $tipoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                        <div class="flex items-center gap-2">
+                                            <span><?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?></span>
+                                            <?php if (!$tipoActivo): ?>
+                                                <span
+                                                    class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                            <?php endif; ?>
+                                            <?php if (!$tipoEditableDepartamento): ?>
+                                                <span
+                                                    class="px-2 py-1 text-[10px] font-bold rounded bg-amber-100 text-amber-700 uppercase tracking-wide">Solo
+                                                    lectura</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td
+                                        class="px-6 py-4 text-sm <?php echo $tipoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                        <?php echo htmlspecialchars($tipo_documento['descripcion'] ?? '-'); ?>
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <?php if (!empty($tipo_documento['requiere_nro_solicitud'])): ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded <?php echo $tipoActivo ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-500'; ?>">SI</span>
+                                        <?php else: ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">NO</span>
                                         <?php endif; ?>
-                                        <?php if (!$tipoEditableDepartamento): ?>
-                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-amber-100 text-amber-700 uppercase tracking-wide">Solo lectura</span>
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <?php if ($tipoActivo): ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
+                                        <?php else: ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
                                         <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-sm <?php echo $tipoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($tipo_documento['descripcion'] ?? '-'); ?></td>
-                                <td class="px-4 py-4 text-center">
-                                    <?php if (!empty($tipo_documento['requiere_nro_solicitud'])): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded <?php echo $tipoActivo ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-500'; ?>">SI</span>
-                                    <?php else: ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">NO</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-4 py-4 text-center">
-                                    <?php if ($tipoActivo): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
-                                    <?php else: ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <div class="flex justify-end gap-2 <?php echo $tipoActivo ? '' : 'opacity-75'; ?>">
-                                    <?php if ($tipoEditableDepartamento): ?>
-                                    <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=<?php echo intval($tipo_documento['id_tipoDoc']); ?>" title="Editar">
-                                        <i class="fas fa-pen"></i>
-                                    </a>
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_tipo_legajo" class="inline-flex" onsubmit="return confirmarAccionTipoLegajo(this);">
-                                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                                        <input type="hidden" name="id_tipo_legajo" value="<?php echo intval($tipo_documento['id_tipoDoc']); ?>">
-                                        <input type="hidden" name="accion_tipo_legajo" value="desactivar">
-                                        <button class="btn-action btn-action-danger" type="submit" title="Eliminar o desactivar">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                    <?php else: ?>
-                                    <span class="inline-flex items-center px-3 py-2 text-xs font-bold text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
-                                        Visible por rol
-                                    </span>
-                                    <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <div class="flex justify-end gap-2 <?php echo $tipoActivo ? '' : 'opacity-75'; ?>">
+                                            <?php if ($tipoEditableDepartamento): ?>
+                                                <a class="btn-action btn-action-primary"
+                                                    href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=<?php echo intval($tipo_documento['id_tipoDoc']); ?>"
+                                                    title="Editar">
+                                                    <i class="fas fa-pen"></i>
+                                                </a>
+                                                <form method="POST"
+                                                    action="<?php echo base_url(); ?>configuracion/eliminar_tipo_legajo"
+                                                    class="inline-flex" onsubmit="return confirmarAccionTipoLegajo(this);">
+                                                    <input type="hidden" name="token"
+                                                        value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                                    <input type="hidden" name="id_tipo_legajo"
+                                                        value="<?php echo intval($tipo_documento['id_tipoDoc']); ?>">
+                                                    <input type="hidden" name="accion_tipo_legajo" value="desactivar">
+                                                    <button class="btn-action btn-action-danger" type="submit"
+                                                        title="Eliminar o desactivar">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span
+                                                    class="inline-flex items-center px-3 py-2 text-xs font-bold text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
+                                                    Visible por rol
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -397,37 +569,46 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
             </div>
         </div>
 
-        <div id="seccion-matriz" class="<?php echo $tab_actual === 'matriz' ? 'block' : 'hidden'; ?> animate-fade-in-down">
+        <div id="seccion-matriz"
+            class="<?php echo $tab_actual === 'matriz' ? 'block' : 'hidden'; ?> animate-fade-in-down">
 
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 mb-6 flex items-end gap-4">
-                <form method="GET" action="<?php echo base_url(); ?>configuracion/configuracion_legajos" class="flex-1 flex items-end gap-4">
+                <form method="GET" action="<?php echo base_url(); ?>configuracion/configuracion_legajos"
+                    class="flex-1 flex items-end gap-4">
                     <input type="hidden" name="tab" value="matriz">
                     <div class="flex-1">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Seleccione el Tipo de Legajo a Configurar</label>
-                        <select name="id_tipoDoc" class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none font-bold text-gray-700 cursor-pointer shadow-sm">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Seleccione el Tipo de Legajo
+                            a Configurar</label>
+                        <select name="id_tipoDoc"
+                            class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none font-bold text-gray-700 cursor-pointer shadow-sm">
                             <option value="">Seleccione un tipo de expediente...</option>
                             <?php foreach ($tipos_documento_matriz as $tipo_documento): ?>
-                            <option value="<?php echo intval($tipo_documento['id_tipoDoc']); ?>" <?php echo intval($tipo_documento['id_tipoDoc']) === intval($id_tipoDoc_actual) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?>
-                            </option>
+                                <option value="<?php echo intval($tipo_documento['id_tipoDoc']); ?>" <?php echo intval($tipo_documento['id_tipoDoc']) === intval($id_tipoDoc_actual) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($tipo_documento['nombre_tipoDoc']); ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <button class="px-6 py-2.5 bg-gray-800 text-white rounded-xl font-bold shadow-md hover:bg-black transition-all flex items-center justify-center" type="submit">
+                    <button
+                        class="px-6 py-2.5 bg-gray-800 text-white rounded-xl font-bold shadow-md hover:bg-black transition-all flex items-center justify-center"
+                        type="submit">
                         Cargar Matriz
                     </button>
                 </form>
-                    <button type="button" onclick="togglePanel('panel-nuevo-tipo-legajo')"
+                <button type="button" onclick="togglePanel('panel-nuevo-tipo-legajo')"
                     class="hidden px-3 py-2.5 bg-scantec-blue text-white rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                     <i class="fas fa-plus"></i>
                 </button>
             </div>
 
-            <div id="panel-nuevo-tipo-legajo" class="hidden bg-white p-5 rounded-xl shadow-sm border border-gray-200 mb-6">
-                <form method="POST" action="<?php echo base_url(); ?>configuracion/guardar_tipo_legajo" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div id="panel-nuevo-tipo-legajo"
+                class="hidden bg-white p-5 rounded-xl shadow-sm border border-gray-200 mb-6">
+                <form method="POST" action="<?php echo base_url(); ?>configuracion/guardar_tipo_legajo"
+                    class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                     <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                     <div class="md:col-span-3">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del tipo de legajo</label>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre del tipo de
+                            legajo</label>
                         <input type="text" name="nombre_tipo_legajo" required
                             class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                     </div>
@@ -443,7 +624,8 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición carátula</label>
-                        <select name="sello_caratula_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                        <select name="sello_caratula_posicion"
+                            class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
                             <option value="arriba">Arriba</option>
                             <option value="abajo">Abajo</option>
                             <option value="derecha">Derecha</option>
@@ -457,7 +639,8 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Posición anexos</label>
-                        <select name="sello_anexos_posicion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
+                        <select name="sello_anexos_posicion"
+                            class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white">
                             <option value="derecha" selected>Derecha</option>
                             <option value="arriba">Arriba</option>
                             <option value="abajo">Abajo</option>
@@ -465,7 +648,8 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
+                        <button type="submit"
+                            class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                             Guardar
                         </button>
                     </div>
@@ -475,7 +659,8 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="bg-gray-800 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
                     <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
-                        <i class="fas fa-list-check mr-2 text-yellow-500"></i> Reglas para: <?php echo htmlspecialchars($tipo_documento_actual['nombre_tipoDoc'] ?? 'Sin selección'); ?>
+                        <i class="fas fa-list-check mr-2 text-yellow-500"></i> Reglas para:
+                        <?php echo htmlspecialchars($tipo_documento_actual['nombre_tipoDoc'] ?? 'Sin selección'); ?>
                     </h5>
                     <button type="button" onclick="togglePanel('panel-nueva-regla')"
                         class="bg-scantec-blue text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-800 transition-all">
@@ -491,53 +676,66 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                 $requisitoEditarOrden = intval($requisito_editar['orden_visual'] ?? (count($matriz_requisitos) + 1));
                 $requisitoEditarObligatorio = $requisitoEditarValido ? !empty($requisito_editar['es_obligatorio']) : true;
                 $requisitoEditarActivo = $requisitoEditarValido ? !empty($requisito_editar['activo']) : true;
-                $politicaReglaEditar = strtoupper(trim((string)($requisito_editar['politica_actualizacion'] ?? 'REEMPLAZAR')));
+                $politicaReglaEditar = strtoupper(trim((string) ($requisito_editar['politica_actualizacion'] ?? 'REEMPLAZAR')));
                 ?>
 
-                <div id="panel-nueva-regla" class="<?php echo $requisitoEditarValido ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
-                    <form method="POST" action="<?php echo $requisitoEditarValido ? base_url() . 'configuracion/actualizar_matriz_legajo' : base_url() . 'configuracion/guardar_matriz_legajo'; ?>" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div id="panel-nueva-regla"
+                    class="<?php echo $requisitoEditarValido ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
+                    <form method="POST"
+                        action="<?php echo $requisitoEditarValido ? base_url() . 'configuracion/actualizar_matriz_legajo' : base_url() . 'configuracion/guardar_matriz_legajo'; ?>"
+                        class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                         <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
                         <input type="hidden" name="id_tipoDoc" value="<?php echo intval($id_tipoDoc_actual); ?>">
                         <?php if ($requisitoEditarValido): ?>
-                        <input type="hidden" name="id_requisito" value="<?php echo $requisitoEditarId; ?>">
+                            <input type="hidden" name="id_requisito" value="<?php echo $requisitoEditarId; ?>">
                         <?php endif; ?>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Orden</label>
-                            <input type="number" name="orden_visual" min="1" value="<?php echo $requisitoEditarOrden; ?>"
+                            <input type="number" name="orden_visual" min="1"
+                                value="<?php echo $requisitoEditarOrden; ?>"
                                 class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                         </div>
                         <div class="md:col-span-5">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Documento Maestro</label>
-                            <select name="id_documento_maestro" required class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Documento
+                                Maestro</label>
+                            <select name="id_documento_maestro" required
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                                 <option value="">Seleccione...</option>
                                 <?php foreach ($catalogo_documentos as $documento): ?>
                                     <?php if (!empty($documento['activo']) || intval($documento['id_documento_maestro']) === $requisitoEditarDocumento): ?>
-                                    <option value="<?php echo intval($documento['id_documento_maestro']); ?>" <?php echo intval($documento['id_documento_maestro']) === $requisitoEditarDocumento ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($documento['nombre']); ?>
-                                    </option>
+                                        <option value="<?php echo intval($documento['id_documento_maestro']); ?>" <?php echo intval($documento['id_documento_maestro']) === $requisitoEditarDocumento ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($documento['nombre']); ?>
+                                        </option>
                                     <?php endif; ?>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Rol</label>
-                            <select name="rol_vinculado" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                            <select name="rol_vinculado"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                                 <?php foreach ($relaciones as $rel): ?>
-                                <option value="<?php echo htmlspecialchars($rel['nombre']); ?>" <?php echo $requisitoEditarRol === $rel['nombre'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($rel['nombre']); ?></option>
+                                    <option value="<?php echo htmlspecialchars($rel['nombre']); ?>" <?php echo $requisitoEditarRol === $rel['nombre'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($rel['nombre']); ?>
+                                    </option>
                                 <?php endforeach; ?>
                                 <?php if (empty($relaciones)): ?>
-                                <option value="TITULAR">TITULAR</option>
+                                    <option value="TITULAR">TITULAR</option>
                                 <?php endif; ?>
                             </select>
                         </div>
                         <div class="md:col-span-3">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Al cargar otro archivo</label>
-                            <select name="politica_actualizacion" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Al cargar otro
+                                archivo</label>
+                            <select name="politica_actualizacion"
+                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
                                 <?php foreach ($politicas_actualizacion as $pol): ?>
-                                <option value="<?php echo htmlspecialchars($pol['clave']); ?>" <?php echo $politicaReglaEditar === $pol['clave'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($pol['etiqueta']); ?></option>
+                                    <option value="<?php echo htmlspecialchars($pol['clave']); ?>" <?php echo $politicaReglaEditar === $pol['clave'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($pol['etiqueta']); ?>
+                                    </option>
                                 <?php endforeach; ?>
                                 <?php if (empty($politicas_actualizacion)): ?>
-                                <option value="REEMPLAZAR" selected>Solo reemplazar</option>
+                                    <option value="REEMPLAZAR" selected>Solo reemplazar</option>
                                 <?php endif; ?>
                             </select>
                         </div>
@@ -552,14 +750,16 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                             </label>
                         </div>
                         <div class="md:col-span-2">
-                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
+                            <button type="submit"
+                                class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
                                 <?php echo $requisitoEditarValido ? 'Actualizar' : 'Guardar'; ?>
                             </button>
                         </div>
                         <?php if ($requisitoEditarValido): ?>
-                        <div class="md:col-span-6 text-right">
-                            <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=<?php echo intval($id_tipoDoc_actual); ?>" class="text-sm text-gray-600 hover:text-gray-900 font-bold">Cancelar edición</a>
-                        </div>
+                            <div class="md:col-span-6 text-right">
+                                <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=<?php echo intval($id_tipoDoc_actual); ?>"
+                                    class="text-sm text-gray-600 hover:text-gray-900 font-bold">Cancelar edición</a>
+                            </div>
                         <?php endif; ?>
                     </form>
                 </div>
@@ -569,24 +769,28 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Orden</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Documento Maestro</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Documento
+                                    Maestro</th>
                                 <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Relación</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Obligatorio</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Actualización</th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Obligatorio
+                                </th>
+                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">
+                                    Actualización</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody class="divide-y divide-gray-200" id="tabla-matriz-body">
                             <?php if (empty($matriz_requisitos)): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">No hay reglas cargadas para este tipo.</td>
-                            </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">No hay reglas
+                                        cargadas para este tipo.</td>
+                                </tr>
                             <?php endif; ?>
 
                             <?php foreach ($matriz_requisitos as $requisito): ?>
-                            <?php $requisitoActivo = !isset($requisito['activo']) || !empty($requisito['activo']); ?>
-                            <?php
-                                $politicaActualizacion = strtoupper(trim((string)($requisito['politica_actualizacion'] ?? '')));
+                                <?php $requisitoActivo = !isset($requisito['activo']) || !empty($requisito['activo']); ?>
+                                <?php
+                                $politicaActualizacion = strtoupper(trim((string) ($requisito['politica_actualizacion'] ?? '')));
                                 if ($politicaActualizacion === '') {
                                     $politicaActualizacion = !empty($requisito['permite_reemplazo']) ? 'REEMPLAZAR' : 'NO_PERMITIR';
                                 }
@@ -597,43 +801,66 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
                                         break;
                                     }
                                 }
-                            ?>
-                            <tr class="<?php echo $requisitoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
-                                <td class="px-4 py-4 text-center text-sm font-bold <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo intval($requisito['orden_visual']); ?></td>
-                                <td class="px-6 py-4 text-sm font-bold <?php echo $requisitoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
-                                    <div class="flex items-center gap-2">
-                                        <span><?php echo htmlspecialchars($requisito['documento_nombre'] ?? ''); ?></span>
-                                        <?php if (!$requisitoActivo): ?>
-                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                ?>
+                                <tr data-fila-paginada
+                                    class="<?php echo $requisitoActivo ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                    <td
+                                        class="px-4 py-4 text-center text-sm font-bold <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                        <?php echo intval($requisito['orden_visual']); ?>
+                                    </td>
+                                    <td
+                                        class="px-6 py-4 text-sm font-bold <?php echo $requisitoActivo ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                        <div class="flex items-center gap-2">
+                                            <span><?php echo htmlspecialchars($requisito['documento_nombre'] ?? ''); ?></span>
+                                            <?php if (!$requisitoActivo): ?>
+                                                <span
+                                                    class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td
+                                        class="px-4 py-4 text-sm <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                        <?php echo htmlspecialchars($requisito['rol_vinculado'] ?? 'TITULAR'); ?>
+                                    </td>
+                                    <td class="px-4 py-4 text-center">
+                                        <?php if (!empty($requisito['es_obligatorio'])): ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded <?php echo $requisitoActivo ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'; ?>">Sí</span>
+                                        <?php else: ?>
+                                            <span
+                                                class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">No</span>
                                         <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-4 text-sm <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($requisito['rol_vinculado'] ?? 'TITULAR'); ?></td>
-                                <td class="px-4 py-4 text-center">
-                                    <?php if (!empty($requisito['es_obligatorio'])): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded <?php echo $requisitoActivo ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-500'; ?>">Sí</span>
-                                    <?php else: ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">No</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-4 py-4 text-center text-sm <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>"><?php echo htmlspecialchars($etiquetaPolitica); ?></td>
-                                <td class="px-6 py-4 text-right">
-                                    <div class="flex justify-end gap-2 <?php echo $requisitoActivo ? '' : 'opacity-75'; ?>">
-                                        <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=<?php echo intval($id_tipoDoc_actual); ?>&editar_requisito=<?php echo intval($requisito['id_requisito']); ?>" title="Editar">
-                                            <i class="fas fa-pen"></i>
-                                        </a>
-                                        <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_matriz_legajo" class="inline-flex" onsubmit="return confirmarAccionMatrizLegajo(this);">
-                                            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                                            <input type="hidden" name="id_tipoDoc" value="<?php echo intval($id_tipoDoc_actual); ?>">
-                                            <input type="hidden" name="id_requisito" value="<?php echo intval($requisito['id_requisito']); ?>">
-                                            <input type="hidden" name="accion_matriz" value="desactivar">
-                                            <button class="btn-action btn-action-danger" type="submit" title="Eliminar o desactivar">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
+                                    </td>
+                                    <td
+                                        class="px-4 py-4 text-center text-sm <?php echo $requisitoActivo ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                        <?php echo htmlspecialchars($etiquetaPolitica); ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <div
+                                            class="flex justify-end gap-2 <?php echo $requisitoActivo ? '' : 'opacity-75'; ?>">
+                                            <a class="btn-action btn-action-primary"
+                                                href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=matriz&id_tipoDoc=<?php echo intval($id_tipoDoc_actual); ?>&editar_requisito=<?php echo intval($requisito['id_requisito']); ?>"
+                                                title="Editar">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                            <form method="POST"
+                                                action="<?php echo base_url(); ?>configuracion/eliminar_matriz_legajo"
+                                                class="inline-flex" onsubmit="return confirmarAccionMatrizLegajo(this);">
+                                                <input type="hidden" name="token"
+                                                    value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                                <input type="hidden" name="id_tipoDoc"
+                                                    value="<?php echo intval($id_tipoDoc_actual); ?>">
+                                                <input type="hidden" name="id_requisito"
+                                                    value="<?php echo intval($requisito['id_requisito']); ?>">
+                                                <input type="hidden" name="accion_matriz" value="desactivar">
+                                                <button class="btn-action btn-action-danger" type="submit"
+                                                    title="Eliminar o desactivar">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -641,200 +868,275 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
             </div>
         </div>
 
-        <div id="seccion-datos" class="<?php echo ($puede_ver_datos_generales && $tab_actual === 'datos') ? 'block' : 'hidden'; ?> animate-fade-in-down">
+        <div id="seccion-datos"
+            class="<?php echo ($puede_ver_datos_generales && $tab_actual === 'datos') ? 'block' : 'hidden'; ?> animate-fade-in-down">
             <?php if ($puede_ver_datos_generales): ?>
-            <?php if ($puede_ver_tipos_relacion_archivos): ?>
-            <!-- ============================================ -->
-            <!-- SECCIÓN: TIPOS DE RELACIÓN                   -->
-            <!-- ============================================ -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-                <div class="bg-scantec-blue px-6 py-4 border-b border-blue-800 flex justify-between items-center">
-                    <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
-                        <i class="fas fa-users mr-2"></i> Tipos de Relación
-                    </h5>
-                    <button type="button" onclick="togglePanel('panel-nueva-relacion')"
-                        class="bg-white text-scantec-blue px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-gray-100 transition-colors">
-                        <i class="fas fa-plus mr-1"></i> Nueva Relación
-                    </button>
-                </div>
-
-                <?php
-                $relacionEditarValida = is_array($relacion_editar) && !empty($relacion_editar);
-                $relacionEditarId = intval($relacion_editar['id_relacion'] ?? 0);
-                $relacionEditarNombre = $relacion_editar['nombre'] ?? '';
-                $relacionEditarOrden = intval($relacion_editar['orden'] ?? (count($todas_relaciones) + 1));
-                $relacionEditarActiva = $relacionEditarValida ? !empty($relacion_editar['activo']) : true;
-                ?>
-
-                <div id="panel-nueva-relacion" class="<?php echo $relacionEditarValida ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
-                    <form method="POST" action="<?php echo $relacionEditarValida ? base_url() . 'configuracion/actualizar_relacion' : base_url() . 'configuracion/guardar_relacion'; ?>"
-                        class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                        <?php if ($relacionEditarValida): ?>
-                        <input type="hidden" name="id_relacion" value="<?php echo $relacionEditarId; ?>">
-                        <?php endif; ?>
-                        <div class="md:col-span-3">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre de la relación</label>
-                            <input type="text" name="nombre_relacion" required placeholder="Ej: GARANTE, AVAL, FIADOR..." value="<?php echo htmlspecialchars($relacionEditarNombre); ?>"
-                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none uppercase">
-                        </div>
-                        <div class="md:col-span-1">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Orden</label>
-                            <input type="number" name="orden_relacion" min="1" value="<?php echo $relacionEditarOrden; ?>"
-                                class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
-                        </div>
-                        <div class="md:col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm pt-1">
-                            <label class="inline-flex items-center gap-2 text-gray-700">
-                                <input type="checkbox" name="activo_relacion" value="1" <?php echo $relacionEditarActiva ? 'checked' : ''; ?>>
-                                Activo
-                            </label>
-                        </div>
-                        <div class="md:col-span-1">
-                            <button type="submit" class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
-                                <?php echo $relacionEditarValida ? 'Actualizar' : 'Guardar'; ?>
+                <?php if ($puede_ver_tipos_relacion_archivos): ?>
+                    <!-- ============================================ -->
+                    <!-- SECCIÓN: TIPOS DE RELACIÓN                   -->
+                    <!-- ============================================ -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                        <div class="bg-scantec-blue px-6 py-4 border-b border-blue-800 flex justify-between items-center">
+                            <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
+                                <i class="fas fa-users mr-2"></i> Tipos de Relación
+                            </h5>
+                            <button type="button" onclick="togglePanel('panel-nueva-relacion')"
+                                class="bg-white text-scantec-blue px-3 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-gray-100 transition-colors">
+                                <i class="fas fa-plus mr-1"></i> Nueva Relación
                             </button>
                         </div>
-                        <?php if ($relacionEditarValida): ?>
-                        <div class="md:col-span-6 text-right">
-                            <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=datos" class="text-sm text-gray-600 hover:text-gray-900 font-bold">Cancelar edición</a>
+
+                        <?php
+                        $relacionEditarValida = is_array($relacion_editar) && !empty($relacion_editar);
+                        $relacionEditarId = intval($relacion_editar['id_relacion'] ?? 0);
+                        $relacionEditarNombre = $relacion_editar['nombre'] ?? '';
+                        $relacionEditarOrden = intval($relacion_editar['orden'] ?? (count($todas_relaciones) + 1));
+                        $relacionEditarActiva = $relacionEditarValida ? !empty($relacion_editar['activo']) : true;
+                        ?>
+
+                        <div id="panel-nueva-relacion"
+                            class="<?php echo $relacionEditarValida ? '' : 'hidden '; ?>p-6 border-b border-gray-100 bg-gray-50">
+                            <form method="POST"
+                                action="<?php echo $relacionEditarValida ? base_url() . 'configuracion/actualizar_relacion' : base_url() . 'configuracion/guardar_relacion'; ?>"
+                                class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                                <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                <?php if ($relacionEditarValida): ?>
+                                    <input type="hidden" name="id_relacion" value="<?php echo $relacionEditarId; ?>">
+                                <?php endif; ?>
+                                <div class="md:col-span-3">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre de la
+                                        relación</label>
+                                    <input type="text" name="nombre_relacion" required
+                                        placeholder="Ej: GARANTE, AVAL, FIADOR..."
+                                        value="<?php echo htmlspecialchars($relacionEditarNombre); ?>"
+                                        class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none uppercase">
+                                </div>
+                                <div class="md:col-span-1">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Orden</label>
+                                    <input type="number" name="orden_relacion" min="1"
+                                        value="<?php echo $relacionEditarOrden; ?>"
+                                        class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none">
+                                </div>
+                                <div class="md:col-span-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm pt-1">
+                                    <label class="inline-flex items-center gap-2 text-gray-700">
+                                        <input type="checkbox" name="activo_relacion" value="1" <?php echo $relacionEditarActiva ? 'checked' : ''; ?>>
+                                        Activo
+                                    </label>
+                                </div>
+                                <div class="md:col-span-1">
+                                    <button type="submit"
+                                        class="w-full bg-scantec-blue text-white px-4 py-2 rounded-xl font-bold shadow-md hover:bg-blue-800 transition-all">
+                                        <?php echo $relacionEditarValida ? 'Actualizar' : 'Guardar'; ?>
+                                    </button>
+                                </div>
+                                <?php if ($relacionEditarValida): ?>
+                                    <div class="md:col-span-6 text-right">
+                                        <a href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=datos"
+                                            class="text-sm text-gray-600 hover:text-gray-900 font-bold">Cancelar edición</a>
+                                    </div>
+                                <?php endif; ?>
+                            </form>
                         </div>
-                        <?php endif; ?>
-                    </form>
-                </div>
 
-                <div class="p-0 overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-2.5 text-center text-xs font-bold text-gray-500 uppercase w-20">Orden</th>
-                                <th class="px-6 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
-                                <th class="px-4 py-2.5 text-center text-xs font-bold text-gray-500 uppercase w-28">Estado</th>
-                                <th class="px-6 py-2.5 text-right text-xs font-bold text-gray-500 uppercase w-32">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            <?php if (empty($todas_relaciones)): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td colspan="4" class="px-6 py-3 text-sm text-gray-500 text-center">No hay relaciones configuradas.</td>
-                            </tr>
-                            <?php endif; ?>
-
-                            <?php foreach ($todas_relaciones as $relacion): ?>
-                            <?php $relacionActiva = !empty($relacion['activo']); ?>
-                            <tr class="<?php echo $relacionActiva ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
-                                <td class="px-4 py-2.5 text-center text-sm font-bold <?php echo $relacionActiva ? 'text-gray-700' : 'text-gray-400'; ?>">
-                                    <?php echo intval($relacion['orden']); ?>
-                                </td>
-                                <td class="px-6 py-2.5 text-sm font-bold <?php echo $relacionActiva ? 'text-gray-900' : 'text-gray-500'; ?>">
-                                    <div class="flex items-center gap-2">
-                                        <span><?php echo htmlspecialchars($relacion['nombre']); ?></span>
-                                        <?php if (!$relacionActiva): ?>
-                                        <span class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-2.5 text-center">
-                                    <?php if ($relacionActiva): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
-                                    <?php else: ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
+                        <div class="p-0 overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2.5 text-center text-xs font-bold text-gray-500 uppercase w-20">Orden
+                                        </th>
+                                        <th class="px-6 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
+                                        <th class="px-4 py-2.5 text-center text-xs font-bold text-gray-500 uppercase w-28">
+                                            Estado</th>
+                                        <th class="px-6 py-2.5 text-right text-xs font-bold text-gray-500 uppercase w-32">
+                                            Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    <?php if (empty($todas_relaciones)): ?>
+                                        <tr class="hover:bg-gray-50">
+                                            <td colspan="4" class="px-6 py-3 text-sm text-gray-500 text-center">No hay relaciones
+                                                configuradas.</td>
+                                        </tr>
                                     <?php endif; ?>
-                                </td>
-                                <td class="px-6 py-2.5 text-right">
-                                    <div class="flex justify-end gap-2 <?php echo $relacionActiva ? '' : 'opacity-75'; ?>">
-                                    <a class="btn-action btn-action-primary" href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=datos&editar_relacion=<?php echo intval($relacion['id_relacion']); ?>" title="Editar">
-                                        <i class="fas fa-pen"></i>
-                                    </a>
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/eliminar_relacion" class="inline-flex" onsubmit="return confirmarAccionRelacion(this);">
-                                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                                        <input type="hidden" name="id_relacion" value="<?php echo intval($relacion['id_relacion']); ?>">
-                                        <input type="hidden" name="accion_relacion" value="desactivar">
-                                        <button class="btn-action btn-action-danger" type="submit" title="Eliminar o desactivar">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+
+                                    <?php foreach ($todas_relaciones as $relacion): ?>
+                                        <?php $relacionActiva = !empty($relacion['activo']); ?>
+                                        <tr
+                                            class="<?php echo $relacionActiva ? 'hover:bg-gray-50' : 'bg-gray-50/70 opacity-60'; ?> transition-all">
+                                            <td
+                                                class="px-4 py-2.5 text-center text-sm font-bold <?php echo $relacionActiva ? 'text-gray-700' : 'text-gray-400'; ?>">
+                                                <?php echo intval($relacion['orden']); ?>
+                                            </td>
+                                            <td
+                                                class="px-6 py-2.5 text-sm font-bold <?php echo $relacionActiva ? 'text-gray-900' : 'text-gray-500'; ?>">
+                                                <div class="flex items-center gap-2">
+                                                    <span><?php echo htmlspecialchars($relacion['nombre']); ?></span>
+                                                    <?php if (!$relacionActiva): ?>
+                                                        <span
+                                                            class="px-2 py-1 text-[10px] font-bold rounded bg-gray-200 text-gray-600 uppercase tracking-wide">Inactivo</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                            <td class="px-4 py-2.5 text-center">
+                                                <?php if ($relacionActiva): ?>
+                                                    <span
+                                                        class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
+                                                <?php else: ?>
+                                                    <span
+                                                        class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-6 py-2.5 text-right">
+                                                <div
+                                                    class="flex justify-end gap-2 <?php echo $relacionActiva ? '' : 'opacity-75'; ?>">
+                                                    <a class="btn-action btn-action-primary"
+                                                        href="<?php echo base_url(); ?>configuracion/configuracion_legajos?tab=datos&editar_relacion=<?php echo intval($relacion['id_relacion']); ?>"
+                                                        title="Editar">
+                                                        <i class="fas fa-pen"></i>
+                                                    </a>
+                                                    <form method="POST"
+                                                        action="<?php echo base_url(); ?>configuracion/eliminar_relacion"
+                                                        class="inline-flex" onsubmit="return confirmarAccionRelacion(this);">
+                                                        <input type="hidden" name="token"
+                                                            value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                                        <input type="hidden" name="id_relacion"
+                                                            value="<?php echo intval($relacion['id_relacion']); ?>">
+                                                        <input type="hidden" name="accion_relacion" value="desactivar">
+                                                        <button class="btn-action btn-action-danger" type="submit"
+                                                            title="Eliminar o desactivar">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ============================================ -->
+                    <!-- SECCIÓN: MÉTODOS DE ACTUALIZACIÓN            -->
+                    <!-- ============================================ -->
+                <?php endif; ?>
+                <?php if ($puede_ver_metodos_actualizacion_archivos): ?>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="bg-gray-800 px-6 py-4 border-b border-gray-700">
+                            <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
+                                <i class="fas fa-sync-alt mr-2 text-yellow-400"></i> Métodos de Actualización de Archivos
+                            </h5>
+                            <p class="text-xs text-gray-400 mt-1">Active o desactive los métodos disponibles al cargar un
+                                archivo sobre uno ya existente.</p>
+                        </div>
+
+                        <div class="p-0 overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-20">Orden
+                                        </th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Método</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Descripción
+                                        </th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-28">Estado
+                                        </th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-24">Acción
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    <?php if (empty($todas_politicas)): ?>
+                                        <tr>
+                                            <td colspan="5" class="px-6 py-4 text-sm text-gray-500 text-center">No hay métodos
+                                                configurados.</td>
+                                        </tr>
+                                    <?php endif; ?>
+
+                                    <?php foreach ($todas_politicas as $politica): ?>
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-4 text-center text-sm font-bold text-gray-700">
+                                                <?php echo intval($politica['orden']); ?>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm font-bold text-gray-900">
+                                                <?php echo htmlspecialchars($politica['etiqueta']); ?>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-600">
+                                                <?php echo htmlspecialchars($politica['descripcion'] ?? ''); ?>
+                                            </td>
+                                            <td class="px-4 py-4 text-center">
+                                                <?php if (!empty($politica['activo'])): ?>
+                                                    <span
+                                                        class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
+                                                <?php else: ?>
+                                                    <span
+                                                        class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-4 py-4 text-center">
+                                                <form method="POST"
+                                                    action="<?php echo base_url(); ?>configuracion/cambiar_estado_politica"
+                                                    class="inline-flex">
+                                                    <input type="hidden" name="token"
+                                                        value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                                    <input type="hidden" name="id_politica"
+                                                        value="<?php echo intval($politica['id_politica']); ?>">
+                                                    <input type="hidden" name="activo"
+                                                        value="<?php echo !empty($politica['activo']) ? 0 : 1; ?>">
+                                                    <button
+                                                        class="<?php echo !empty($politica['activo']) ? 'btn-action btn-action-warning' : 'btn-action btn-action-success'; ?>"
+                                                        type="submit"
+                                                        title="<?php echo !empty($politica['activo']) ? 'Desactivar' : 'Activar'; ?>">
+                                                        <i
+                                                            class="fas <?php echo !empty($politica['activo']) ? 'fa-toggle-on' : 'fa-toggle-off'; ?>"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    <?php endif; ?>
+                <?php endif; ?>
             </div>
 
-            <!-- ============================================ -->
-            <!-- SECCIÓN: MÉTODOS DE ACTUALIZACIÓN            -->
-            <!-- ============================================ -->
-            <?php endif; ?>
-            <?php if ($puede_ver_metodos_actualizacion_archivos): ?>
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="bg-gray-800 px-6 py-4 border-b border-gray-700">
-                    <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
-                        <i class="fas fa-sync-alt mr-2 text-yellow-400"></i> Métodos de Actualización de Archivos
-                    </h5>
-                    <p class="text-xs text-gray-400 mt-1">Active o desactive los métodos disponibles al cargar un archivo sobre uno ya existente.</p>
-                </div>
-
-                <div class="p-0 overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-20">Orden</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Método</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Descripción</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-28">Estado</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase w-24">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            <?php if (empty($todas_politicas)): ?>
-                            <tr>
-                                <td colspan="5" class="px-6 py-4 text-sm text-gray-500 text-center">No hay métodos configurados.</td>
-                            </tr>
-                            <?php endif; ?>
-
-                            <?php foreach ($todas_politicas as $politica): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-4 text-center text-sm font-bold text-gray-700">
-                                    <?php echo intval($politica['orden']); ?>
-                                </td>
-                                <td class="px-6 py-4 text-sm font-bold text-gray-900">
-                                    <?php echo htmlspecialchars($politica['etiqueta']); ?>
-                                </td>
-                                <td class="px-6 py-4 text-sm text-gray-600">
-                                    <?php echo htmlspecialchars($politica['descripcion'] ?? ''); ?>
-                                </td>
-                                <td class="px-4 py-4 text-center">
-                                    <?php if (!empty($politica['activo'])): ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-800">ACTIVO</span>
-                                    <?php else: ?>
-                                    <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600">INACTIVO</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-4 py-4 text-center">
-                                    <form method="POST" action="<?php echo base_url(); ?>configuracion/cambiar_estado_politica" class="inline-flex">
-                                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-                                        <input type="hidden" name="id_politica" value="<?php echo intval($politica['id_politica']); ?>">
-                                        <input type="hidden" name="activo" value="<?php echo !empty($politica['activo']) ? 0 : 1; ?>">
-                                        <button class="<?php echo !empty($politica['activo']) ? 'btn-action btn-action-warning' : 'btn-action btn-action-success'; ?>" type="submit" title="<?php echo !empty($politica['activo']) ? 'Desactivar' : 'Activar'; ?>">
-                                            <i class="fas <?php echo !empty($politica['activo']) ? 'fa-toggle-on' : 'fa-toggle-off'; ?>"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-            <?php endif; ?>
-            <?php endif; ?>
         </div>
-
-    </div>
 </main>
 
 <script>
+    function toggleCamposSecuenciaOperacion() {
+        var chkSecuencia = document.getElementById('cfg_requiere_secuencia');
+        var chkOperacion = document.getElementById('cfg_requiere_operacion');
+        var grupoSecObligatoria = document.getElementById('cfg_grupo_secuencia_obligatoria');
+        var grupoOperacionModo = document.getElementById('cfg_grupo_operacion_modo');
+        var selectModo = document.getElementById('cfg_operacion_modo');
+        var selectSecObligatoria = document.getElementById('cfg_secuencia_obligatoria');
+
+        var secuenciaActiva = chkSecuencia && chkSecuencia.checked;
+        var operacionActiva = chkOperacion && chkOperacion.checked;
+        var modoAuto = selectModo && selectModo.value === 'auto';
+
+        // El selector de modo de operación solo aparece si operación está activa
+        if (grupoOperacionModo) {
+            grupoOperacionModo.style.display = operacionActiva ? '' : 'none';
+        }
+
+        // El selector de obligatoriedad de secuencia solo aparece si secuencia está activa
+        if (grupoSecObligatoria) {
+            grupoSecObligatoria.style.display = secuenciaActiva ? '' : 'none';
+        }
+
+        // Regla de negocio: si operación es automática, la secuencia debe ser obligatoria sí o sí
+        // (porque la concatenación socio+secuencia necesita la secuencia cargada).
+        if (operacionActiva && modoAuto && selectSecObligatoria) {
+            selectSecObligatoria.value = '1';
+            selectSecObligatoria.disabled = true;
+        } else if (selectSecObligatoria) {
+            selectSecObligatoria.disabled = false;
+        }
+    }
     function cambiarPestana(id) {
         document.getElementById('seccion-catalogo').classList.add('hidden');
         document.getElementById('seccion-tipos').classList.add('hidden');
@@ -843,7 +1145,7 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
         if (seccionDatos) {
             seccionDatos.classList.add('hidden');
         }
-        
+
         document.getElementById('tab-catalogo').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
         document.getElementById('tab-tipos').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
         document.getElementById('tab-matriz').className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 border-b-2 py-4 px-1 font-bold text-sm flex items-center transition-colors";
@@ -1016,28 +1318,119 @@ $puede_ver_metodos_actualizacion_archivos = !empty($data['puede_ver_metodos_actu
         return false;
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    const CONFIG_LISTADOS_POR_PAGINA = <?php echo intval(defined('CONFIG_LISTADOS_POR_PAGINA') ? CONFIG_LISTADOS_POR_PAGINA : 5); ?>;
+    const estadoPaginacionTablas = {};
+
+    function paginarTabla(idTbody, idContenedorPag) {
+        const tbody = document.getElementById(idTbody);
+        if (!tbody) return;
+
+        if (!estadoPaginacionTablas[idTbody]) {
+            estadoPaginacionTablas[idTbody] = 1;
+        }
+
+        const filas = Array.from(tbody.querySelectorAll('[data-fila-paginada]'));
+        const totalPaginas = Math.max(1, Math.ceil(filas.length / CONFIG_LISTADOS_POR_PAGINA));
+
+        if (estadoPaginacionTablas[idTbody] > totalPaginas) {
+            estadoPaginacionTablas[idTbody] = totalPaginas;
+        }
+
+        const paginaActual = estadoPaginacionTablas[idTbody];
+        const inicio = (paginaActual - 1) * CONFIG_LISTADOS_POR_PAGINA;
+        const fin = inicio + CONFIG_LISTADOS_POR_PAGINA;
+
+        filas.forEach((fila, indice) => {
+            fila.style.display = (indice >= inicio && indice < fin) ? '' : 'none';
+        });
+
+        renderControlesPaginacionTabla(idTbody, idContenedorPag, totalPaginas, filas.length);
+    }
+
+    function renderControlesPaginacionTabla(idTbody, idContenedorPag, totalPaginas, totalFilas) {
+        let contenedor = document.getElementById(idContenedorPag);
+        const tbody = document.getElementById(idTbody);
+        if (!tbody) return;
+
+        if (!contenedor) {
+            contenedor = document.createElement('div');
+            contenedor.id = idContenedorPag;
+            contenedor.className = 'flex justify-between items-center px-6 py-3 bg-gray-50 border-t border-gray-100';
+            const tablaWrap = tbody.closest('.p-0') || tbody.closest('.overflow-x-auto');
+            if (tablaWrap) {
+                tablaWrap.after(contenedor);
+            }
+        }
+
+        if (totalPaginas <= 1) {
+            contenedor.innerHTML = '';
+            contenedor.classList.add('hidden');
+            return;
+        }
+
+        contenedor.classList.remove('hidden');
+        const paginaActual = estadoPaginacionTablas[idTbody];
+        const desde = Math.min((paginaActual - 1) * CONFIG_LISTADOS_POR_PAGINA + 1, totalFilas);
+        const hasta = Math.min(paginaActual * CONFIG_LISTADOS_POR_PAGINA, totalFilas);
+
+        contenedor.innerHTML = `
+            <span class="text-xs text-gray-500 font-semibold">
+                Mostrando ${desde}-${hasta} de ${totalFilas} registros
+            </span>
+            <div class="flex gap-2">
+                <button type="button" ${paginaActual === 1 ? 'disabled' : ''} 
+                    onclick="cambiarPaginaTabla('${idTbody}', '${idContenedorPag}', -1)"
+                    class="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold ${paginaActual === 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'}">
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span class="px-3 py-1.5 text-xs font-bold text-gray-600">Página ${paginaActual} de ${totalPaginas}</span>
+                <button type="button" ${paginaActual === totalPaginas ? 'disabled' : ''} 
+                    onclick="cambiarPaginaTabla('${idTbody}', '${idContenedorPag}', 1)"
+                    class="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold ${paginaActual === totalPaginas ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'}">
+                    Siguiente <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    function cambiarPaginaTabla(idTbody, idContenedorPag, delta) {
+        estadoPaginacionTablas[idTbody] = (estadoPaginacionTablas[idTbody] || 1) + delta;
+        paginarTabla(idTbody, idContenedorPag);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
         cambiarPestana('<?php echo in_array($tab_actual, ['catalogo', 'tipos', 'matriz', 'datos'], true) ? $tab_actual : 'catalogo'; ?>');
-        document.querySelectorAll('select[name="tiene_vencimiento"]').forEach(function(selectElement) {
+        document.querySelectorAll('select[name="tiene_vencimiento"]').forEach(function (selectElement) {
             toggleVencimientoFields(selectElement);
         });
-        document.querySelectorAll('select[name="tipo_campo"]').forEach(function(selectElement) {
+        document.querySelectorAll('select[name="tipo_campo"]').forEach(function (selectElement) {
             toggleCatalogoTipoFields(selectElement);
         });
+        toggleCamposSecuenciaOperacion();
+
+        // NUEVO: activar paginación en los 3 listados
+        paginarTabla('tabla-catalogo-body', 'paginacion-catalogo');
+        paginarTabla('tabla-tipos-body', 'paginacion-tipos');
+        paginarTabla('tabla-matriz-body', 'paginacion-matriz');
     });
 </script>
 
 <style>
     @keyframes fadeInDown {
-        from { opacity: 0; transform: translateY(-5px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
+
     .animate-fade-in-down {
         animation: fadeInDown 0.25s ease-out forwards;
     }
 </style>
 
 <?php pie() ?>
-
-
-

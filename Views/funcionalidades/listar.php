@@ -176,7 +176,7 @@ foreach (['Módulo', 'Módulos', 'Modulo', 'Modulos'] as $claveModuloGrupo) {
             <?php endforeach; ?>
 
             <div class="flex justify-end gap-3">
-                <a href="<?php echo base_url(); ?>dashboard/dashboard_legajos"
+                <a href="<?php echo base_url(); ?>dashboard/dashboard"
                     class="px-6 py-2.5 border border-gray-300 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all">
                     <i class="fas fa-times mr-2"></i>Cancelar
                 </a>

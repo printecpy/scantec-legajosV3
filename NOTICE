@@ -1,44 +1,49 @@
 /**
  * Este proyecto utiliza varias bibliotecas de código abierto, que están licenciadas bajo diferentes licencias.
- * 
+ * Versión del sistema a la que corresponde este aviso: 1.4.1
+ *
  * Bibliotecas y sus licencias:
- * 
+ *
  * 1. **FPDI 2.4.1**
- *  - Licencia: Licencia MIT
- *  - Más información: (https://github.com/Setasign/FPDI)
- * 
+ *    - Licencia: Licencia MIT
+ *    - Más información: (https://github.com/Setasign/FPDI)
+ *
  * 2. **FPDF 1.82**
  *    - Licencia: Licencia MIT
  *    - Más información: http://www.fpdf.org/
- * 
+ *
  * 3. **TCPDF 6.3.2**
  *    - Licencia: Licencia LGPLv3
  *    - Más información: https://tcpdf.org/
  *    - Licencia: https://www.gnu.org/licenses/lgpl-3.0.html
- * 
+ *
  * 4. **PHPExcel**
- *    - Licencia: Licencia BSD
+ *    - Licencia: LGPL 2.1
  *    - Más información: https://github.com/PHPOffice/PHPExcel
- *    - Licencia: https://opensource.org/licenses/BSD-3-Clause
- * 
+ *    - Licencia: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+ *
  * 5. **php-jwt 6.10.0 2023-11-28**
- *    - Licencia: Licencia MIT
+ *    - Licencia: Licencia BSD de 3 cláusulas
  *    - Más información: https://github.com/firebase/php-jwt
- *    - Licencia: https://opensource.org/licenses/MIT
- * 
- * 6. **PHP 8.2**
- *   - Licencia: Licencia PHP v3.01
- *   - Más información: https://www.php.net/license/index.php
+ *    - Licencia: https://opensource.org/licenses/BSD-3-Clause
  *
- * 7. **MySQL Server Community 8.1.0**
- *   - Licencia: Licencia Pública General de GNU (GPL)
- *   - Más información: https://www.mysql.com/products/community/
+ * 6. **PHP 8.1 y 8.2**
+ *    - Licencia: Licencia PHP v3.01
+ *    - Más información: https://www.php.net/license/index.php
  *
- * 8. **PhpSpreadsheet 1.18.0 - 2021-05-31**
- *     - Licencia: Licencia MIT
- *     - Más información: https://github.com/PHPOffice/PhpSpreadsheet/blob/master/LICENSE
+ * 7. **MySQL Server Community 8.4 (instalador automatizado) y 8.1.0 (instalaciones existentes)**
+ *    - Licencia: Licencia Pública General de GNU (GPL)
+ *    - Más información: https://www.mysql.com/products/community/
  *
- * 9. **PHPMailer 5.2.27**
+ * 8. **PhpSpreadsheet 1.30.7**
+ *    - Licencia: Licencia MIT
+ *    - Más información: https://github.com/PHPOffice/PhpSpreadsheet/blob/master/LICENSE
+ *    - Dependencias instaladas junto con PhpSpreadsheet (Libraries/vendor):
+ *        composer/pcre 3.4.0 (MIT), maennchen/zipstream-php 3.1.1 (MIT), markbaker/complex 3.0.2 (MIT),
+ *        markbaker/matrix 3.0.1 (MIT), psr/simple-cache 3.0.0 (MIT),
+ *        ezyang/htmlpurifier 4.19.1 (LGPL 2.1 o posterior, http://htmlpurifier.org/)
+ *
+ * 9. **PHPMailer 6.9.2**
  *    - Licencia: LGPL 2.1
  *    - Más información: (https://github.com/PHPMailer/PHPMailer)
  *
@@ -51,7 +56,58 @@
  *     - Más información: https://httpd.apache.org/
  *     - Licencia: Licencia Apache 2.0
  *
+ * 12. **ionCube Loader** (necesario para ejecutar el código protegido; versión que corresponde a la de PHP)
+ *     - Licencia: términos de ionCube Ltd.
+ *     - Más información: https://www.ioncube.com/
+ *
+ * Recursos de la interfaz incluidos localmente en el sistema (Assets/vendor, Assets/fonts, Assets/css):
+ *
+ * 13. **Chart.js 4.5.1**
+ *     - Licencia: Licencia MIT
+ *     - Más información: https://www.chartjs.org/
+ *
+ * 14. **Font Awesome Free 6.0.0**
+ *     - Licencia: iconos CC BY 4.0, tipografías SIL OFL 1.1, código MIT
+ *     - Más información: https://fontawesome.com/license/free
+ *
+ * 15. **SweetAlert2 11.26.25**
+ *     - Licencia: Licencia MIT
+ *     - Más información: https://sweetalert2.github.io/
+ *
+ * 16. **Tailwind CSS** (hoja de estilos compilada: Assets/css/tailwind.css)
+ *     - Licencia: Licencia MIT
+ *     - Más información: https://tailwindcss.com/
+ *
+ * 17. **Roboto** (tipografía)
+ *     - Licencia: Licencia Apache 2.0
+ *     - Más información: https://fonts.google.com/specimen/Roboto
+ *
+ * 18. **Montserrat** (tipografía)
+ *     - Licencia: SIL Open Font License 1.1
+ *     - Más información: https://fonts.google.com/specimen/Montserrat
+ *
+ * Herramientas externas que el instalador deja instaladas en el servidor y que el sistema invoca por línea de comandos:
+ *
+ * 19. **ImageMagick 7**
+ *     - Licencia: Licencia de ImageMagick (derivada de Apache 2.0)
+ *     - Más información: https://imagemagick.org/script/license.php
+ *
+ * 20. **Ghostscript**
+ *     - Licencia: GNU AGPL v3 (existe también licencia comercial de Artifex)
+ *     - Más información: https://ghostscript.com/licensing/
+ *
+ * 21. **Tesseract OCR 5.x**
+ *     - Licencia: Licencia Apache 2.0
+ *     - Más información: https://github.com/tesseract-ocr/tesseract
+ *
+ * 22. **ExifTool**
+ *     - Licencia: Perl Artistic License o GPL
+ *     - Más información: https://exiftool.org/
+ *
  * Este archivo de aviso y el contenido de este proyecto solo pueden ser modificados por el desarrollador designado por la empresa PRINTEC SA.
- * 
-    requerido mysql-8.1.0-winx64.msi     xampp-windows-x64-8.1.25-0-VS16-installer.exe
+ *
+ * Componentes requeridos:
+ *   - Instalaciones existentes: mysql-8.1.0-winx64.msi y xampp-windows-x64-8.1.25-0-VS16-installer.exe (PHP 8.1.25).
+ *   - Instalador automatizado: PHP 8.2 x64 Thread Safe, Apache 2.4 Win64 y MySQL 8.4.
+ *   - En ambos casos, el ionCube Loader que corresponda a la versión de PHP instalada (8.1 u 8.2).
  */

@@ -155,7 +155,7 @@
             <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide mb-6">
                     Productividad: Últimos 15 días</h5>
-                <div id="columnchart" class="w-full" style="height: 400px;"></div>
+                <div class="w-full" style="height: 400px; position: relative;"><canvas id="columnchart"></canvas></div>
             </div>
 
             <?php if ($_SESSION['id_rol'] == 1): ?>
@@ -207,71 +207,15 @@
 
     <?php pie(); ?>
 
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
-    google.charts.load('current', {
-        'packages': ['corechart']
-    });
-    google.charts.setOnLoadCallback(drawChart);
-
-    function drawChart() {
-        var data = google.visualization.arrayToDataTable([
-            ['Fecha', 'Total Archivos', {
-                role: 'style'
-            }, {
-                role: 'tooltip',
-                p: {
-                    html: true
-                }
-            }],
-            <?php if (!empty($data['archiv_tipoDoc2'])): ?>
-            <?php foreach ($data['archiv_tipoDoc2'] as $row): ?>[
-                '<?= $row['fecha_indexado'] ?>',
-                <?= $row['total_archivos'] ?>,
-                '<?= ($row['fecha_indexado'] === 'Sin Fecha') ? "#878787" : "#182541"; ?>',
-                '<div class="p-2 font-sans"><b>Fecha:</b> <?= $row['fecha_indexado'] ?><br><b>Total:</b> <?= $row['total_archivos'] ?></div>'
-            ],
-            <?php endforeach; ?>
-            <?php endif; ?>
-        ]);
-
-        var options = {
-            bar: {
-                groupWidth: '60%'
-            },
-            legend: {
-                position: 'none'
-            },
-            tooltip: {
-                isHtml: true
-            },
-            hAxis: {
-                textStyle: {
-                    color: '#878787',
-                    fontSize: 10
-                }
-            },
-            vAxis: {
-                gridlines: {
-                    color: '#f3f4f6'
-                },
-                textStyle: {
-                    color: '#878787'
-                }
-            },
-            chartArea: {
-                width: '90%',
-                height: '75%'
-            },
-            backgroundColor: 'transparent',
-            colors: ['#182541']
-        };
-
-        var chart = new google.visualization.ColumnChart(document.getElementById('columnchart'));
-        chart.draw(data, options);
-
-        // Hacer el gráfico responsivo
-        window.addEventListener('resize', () => chart.draw(data, options));
-    }
+    <?php
+        $filasGrafico = [];
+        foreach ((is_array($data['archiv_tipoDoc2'] ?? null) ? $data['archiv_tipoDoc2'] : []) as $row) {
+            $filasGrafico[] = ['fecha' => (string) $row['fecha_indexado'], 'total' => (int) $row['total_archivos']];
+        }
+    ?>
+    <script src="<?php echo base_url(); ?>Assets/vendor/chartjs/chart.umd.min.js"></script>
+    <script src="<?php echo base_url(); ?>Assets/js/grafico_productividad.js"></script>
+    <script>
+        scantecGraficoProductividad('columnchart', <?php echo json_encode($filasGrafico, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>);
     </script>
 </div>

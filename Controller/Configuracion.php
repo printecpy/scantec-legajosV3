@@ -17,7 +17,7 @@ class Configuracion extends Controllers
 
     private function esAdministradorScantec(): bool
     {
-        return intval($_SESSION['id_rol'] ?? 0) === 1;
+        return esSuperadmin();
     }
 
     private function getDepartamentoActualParaTiposLegajo(): int
@@ -145,7 +145,7 @@ class Configuracion extends Controllers
         }
 
         setAlert('error', "No tienes permisos para gestionar la base de datos externa.");
-        header("Location: " . base_url() . "dashboard/dashboard_legajos");
+        header("Location: " . base_url() . "dashboard/dashboard");
         exit();
     }
 
@@ -181,36 +181,36 @@ class Configuracion extends Controllers
         if (!$esFormatoEnv) {
             // Formato plano: viene del config temporal de sesión (POST data guardada)
             return [
-                'enabled' => trim((string)($fuente['enabled'] ?? '0')) === '1' ? '1' : '0',
-                'host'    => trim((string)($fuente['host'] ?? 'localhost')),
-                'port'    => trim((string)($fuente['port'] ?? '3306')),
-                'name'    => trim((string)($fuente['name'] ?? '')),
-                'user'    => trim((string)($fuente['user'] ?? '')),
-                'password'              => (string)($fuente['password'] ?? ''),
-                'table'                 => $this->sanitizarIdentificadorEnv((string)($fuente['table'] ?? 'usuarios_datos')),
-                'field_id'              => $this->sanitizarIdentificadorEnv((string)($fuente['field_id'] ?? 'id')),
-                'field_nombre'          => $this->sanitizarIdentificadorEnv((string)($fuente['field_nombre'] ?? 'nombre'), true),
-                'field_apellido'        => $this->sanitizarIdentificadorEnv((string)($fuente['field_apellido'] ?? 'apellido'), true),
-                'field_nombre_completo' => $this->sanitizarIdentificadorEnv((string)($fuente['field_nombre_completo'] ?? ''), true),
-                'field_ci'              => $this->sanitizarIdentificadorEnv((string)($fuente['field_ci'] ?? 'nro_cedula')),
-                'field_solicitud'       => $this->sanitizarIdentificadorEnv((string)($fuente['field_solicitud'] ?? ''), true),
+                'enabled' => trim((string) ($fuente['enabled'] ?? '0')) === '1' ? '1' : '0',
+                'host' => trim((string) ($fuente['host'] ?? 'localhost')),
+                'port' => trim((string) ($fuente['port'] ?? '3306')),
+                'name' => trim((string) ($fuente['name'] ?? '')),
+                'user' => trim((string) ($fuente['user'] ?? '')),
+                'password' => (string) ($fuente['password'] ?? ''),
+                'table' => $this->sanitizarIdentificadorEnv((string) ($fuente['table'] ?? 'usuarios_datos')),
+                'field_id' => $this->sanitizarIdentificadorEnv((string) ($fuente['field_id'] ?? 'id')),
+                'field_nombre' => $this->sanitizarIdentificadorEnv((string) ($fuente['field_nombre'] ?? 'nombre'), true),
+                'field_apellido' => $this->sanitizarIdentificadorEnv((string) ($fuente['field_apellido'] ?? 'apellido'), true),
+                'field_nombre_completo' => $this->sanitizarIdentificadorEnv((string) ($fuente['field_nombre_completo'] ?? ''), true),
+                'field_ci' => $this->sanitizarIdentificadorEnv((string) ($fuente['field_ci'] ?? 'nro_cedula')),
+                'field_solicitud' => $this->sanitizarIdentificadorEnv((string) ($fuente['field_solicitud'] ?? ''), true),
             ];
         }
 
         return [
-            'enabled' => trim((string)($fuente['db_usuarios_enabled'] ?? '0')) === '1' ? '1' : '0',
-            'host' => trim((string)($fuente['db_usuarios_host'] ?? 'localhost')),
-            'port' => trim((string)($fuente['db_usuarios_port'] ?? '3306')),
-            'name' => trim((string)($fuente['db_usuarios_name'] ?? '')),
-            'user' => trim((string)($fuente['db_usuarios_user'] ?? '')),
-            'password' => (string)($fuente['db_usuarios_password'] ?? ''),
-            'table' => $this->sanitizarIdentificadorEnv((string)($fuente['db_usuarios_table'] ?? 'usuarios_datos')),
-            'field_id' => $this->sanitizarIdentificadorEnv((string)($fuente['db_usuarios_field_id'] ?? 'id')),
-            'field_nombre' => $this->sanitizarIdentificadorEnv((string)($fuente['db_usuarios_field_nombre'] ?? 'nombre'), true),
-            'field_apellido' => $this->sanitizarIdentificadorEnv((string)($fuente['db_usuarios_field_apellido'] ?? 'apellido'), true),
-            'field_nombre_completo' => $this->sanitizarIdentificadorEnv((string)($fuente['db_usuarios_field_nombre_completo'] ?? ''), true),
-            'field_ci' => $this->sanitizarIdentificadorEnv((string)($fuente['db_usuarios_field_ci'] ?? 'nro_cedula')),
-            'field_solicitud' => $this->sanitizarIdentificadorEnv((string)($fuente['db_usuarios_field_solicitud'] ?? ''), true),
+            'enabled' => trim((string) ($fuente['db_usuarios_enabled'] ?? '0')) === '1' ? '1' : '0',
+            'host' => trim((string) ($fuente['db_usuarios_host'] ?? 'localhost')),
+            'port' => trim((string) ($fuente['db_usuarios_port'] ?? '3306')),
+            'name' => trim((string) ($fuente['db_usuarios_name'] ?? '')),
+            'user' => trim((string) ($fuente['db_usuarios_user'] ?? '')),
+            'password' => (string) ($fuente['db_usuarios_password'] ?? ''),
+            'table' => $this->sanitizarIdentificadorEnv((string) ($fuente['db_usuarios_table'] ?? 'usuarios_datos')),
+            'field_id' => $this->sanitizarIdentificadorEnv((string) ($fuente['db_usuarios_field_id'] ?? 'id')),
+            'field_nombre' => $this->sanitizarIdentificadorEnv((string) ($fuente['db_usuarios_field_nombre'] ?? 'nombre'), true),
+            'field_apellido' => $this->sanitizarIdentificadorEnv((string) ($fuente['db_usuarios_field_apellido'] ?? 'apellido'), true),
+            'field_nombre_completo' => $this->sanitizarIdentificadorEnv((string) ($fuente['db_usuarios_field_nombre_completo'] ?? ''), true),
+            'field_ci' => $this->sanitizarIdentificadorEnv((string) ($fuente['db_usuarios_field_ci'] ?? 'nro_cedula')),
+            'field_solicitud' => $this->sanitizarIdentificadorEnv((string) ($fuente['db_usuarios_field_solicitud'] ?? ''), true),
         ];
     }
 
@@ -229,22 +229,22 @@ class Configuracion extends Controllers
     private function obtenerConfiguracionBaseUsuariosPost(): array
     {
         $configActual = $this->obtenerConfiguracionBaseUsuariosDesdeFuente($GLOBALS['SCANTEC_APP_CONFIG'] ?? []);
-        $passwordPost = (string)($_POST['password'] ?? '');
+        $passwordPost = (string) ($_POST['password'] ?? '');
 
         return [
             'enabled' => intval($_POST['enabled'] ?? 0) === 1 ? '1' : '0',
-            'host' => trim((string)($_POST['host'] ?? '')),
-            'port' => preg_replace('/[^0-9]/', '', trim((string)($_POST['port'] ?? '3306'))),
-            'name' => trim((string)($_POST['name'] ?? '')),
-            'user' => trim((string)($_POST['user'] ?? '')),
-            'password' => $passwordPost !== '' ? $passwordPost : (string)($configActual['password'] ?? ''),
-            'table' => $this->sanitizarIdentificadorEnv((string)($_POST['table'] ?? 'usuarios_datos')),
-            'field_id' => $this->sanitizarIdentificadorEnv((string)($_POST['field_id'] ?? 'id')),
-            'field_nombre' => $this->sanitizarIdentificadorEnv((string)($_POST['field_nombre'] ?? 'nombre'), true),
-            'field_apellido' => $this->sanitizarIdentificadorEnv((string)($_POST['field_apellido'] ?? 'apellido'), true),
-            'field_nombre_completo' => $this->sanitizarIdentificadorEnv((string)($_POST['field_nombre_completo'] ?? ''), true),
-            'field_ci' => $this->sanitizarIdentificadorEnv((string)($_POST['field_ci'] ?? 'nro_cedula')),
-            'field_solicitud' => $this->sanitizarIdentificadorEnv((string)($_POST['field_solicitud'] ?? ''), true),
+            'host' => trim((string) ($_POST['host'] ?? '')),
+            'port' => preg_replace('/[^0-9]/', '', trim((string) ($_POST['port'] ?? '3306'))),
+            'name' => trim((string) ($_POST['name'] ?? '')),
+            'user' => trim((string) ($_POST['user'] ?? '')),
+            'password' => $passwordPost !== '' ? $passwordPost : (string) ($configActual['password'] ?? ''),
+            'table' => $this->sanitizarIdentificadorEnv((string) ($_POST['table'] ?? 'usuarios_datos')),
+            'field_id' => $this->sanitizarIdentificadorEnv((string) ($_POST['field_id'] ?? 'id')),
+            'field_nombre' => $this->sanitizarIdentificadorEnv((string) ($_POST['field_nombre'] ?? 'nombre'), true),
+            'field_apellido' => $this->sanitizarIdentificadorEnv((string) ($_POST['field_apellido'] ?? 'apellido'), true),
+            'field_nombre_completo' => $this->sanitizarIdentificadorEnv((string) ($_POST['field_nombre_completo'] ?? ''), true),
+            'field_ci' => $this->sanitizarIdentificadorEnv((string) ($_POST['field_ci'] ?? 'nro_cedula')),
+            'field_solicitud' => $this->sanitizarIdentificadorEnv((string) ($_POST['field_solicitud'] ?? ''), true),
         ];
     }
 
@@ -265,7 +265,7 @@ class Configuracion extends Controllers
         ];
 
         foreach ($camposRequeridos as $clave => $etiqueta) {
-            if (trim((string)($config[$clave] ?? '')) === '') {
+            if (trim((string) ($config[$clave] ?? '')) === '') {
                 return ['ok' => false, 'message' => "El campo {$etiqueta} es obligatorio."];
             }
         }
@@ -275,9 +275,9 @@ class Configuracion extends Controllers
             return ['ok' => false, 'message' => 'El puerto debe estar entre 1 y 65535.'];
         }
 
-        $usaNombreCompleto = trim((string)($config['field_nombre_completo'] ?? '')) !== '';
-        $tieneNombre = trim((string)($config['field_nombre'] ?? '')) !== '';
-        $tieneApellido = trim((string)($config['field_apellido'] ?? '')) !== '';
+        $usaNombreCompleto = trim((string) ($config['field_nombre_completo'] ?? '')) !== '';
+        $tieneNombre = trim((string) ($config['field_nombre'] ?? '')) !== '';
+        $tieneApellido = trim((string) ($config['field_apellido'] ?? '')) !== '';
 
         if (!$usaNombreCompleto && (!$tieneNombre || !$tieneApellido)) {
             return ['ok' => false, 'message' => 'Debe indicar Nombre completo o bien Nombre y Apellido por separado.'];
@@ -302,13 +302,13 @@ class Configuracion extends Controllers
             $config['field_id'] => 'ID',
             $config['field_ci'] => 'CI',
         ];
-        if (trim((string)$config['field_nombre_completo']) !== '') {
+        if (trim((string) $config['field_nombre_completo']) !== '') {
             $camposEsperados[$config['field_nombre_completo']] = 'Nombre completo';
         } else {
             $camposEsperados[$config['field_nombre']] = 'Nombre';
             $camposEsperados[$config['field_apellido']] = 'Apellido';
         }
-        if (trim((string)$config['field_solicitud']) !== '') {
+        if (trim((string) $config['field_solicitud']) !== '') {
             $camposEsperados[$config['field_solicitud']] = 'Solicitud';
         }
 
@@ -323,7 +323,7 @@ class Configuracion extends Controllers
             $stmtColumnas = $pdo->query("SHOW COLUMNS FROM `{$tabla}`");
             $columnasDisponibles = [];
             foreach ($stmtColumnas->fetchAll() as $columna) {
-                $nombreColumna = trim((string)($columna['Field'] ?? ''));
+                $nombreColumna = trim((string) ($columna['Field'] ?? ''));
                 if ($nombreColumna !== '') {
                     $columnasDisponibles[$nombreColumna] = true;
                 }
@@ -454,6 +454,7 @@ class Configuracion extends Controllers
         }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit();
         }
         parent::__construct();
         $this->configuracionModel = new ConfiguracionModel();
@@ -467,9 +468,10 @@ class Configuracion extends Controllers
 
     public function listar()
     {
+        $this->asegurarAccesoFuncionalidad('empresa', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (empty($_SESSION['csrf_token']) || intval($_SESSION['csrf_expiration'] ?? 0) < time()) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-            $_SESSION['csrf_expiration'] = time() + 3600;
+            $_SESSION['csrf_expiration'] = time() + SESION_TIEMPO_SEGUNDOS;
         }
 
         $data = $this->model->selectConfiguracion();
@@ -484,9 +486,10 @@ class Configuracion extends Controllers
 
     public function mantenimiento()
     {
+        $this->asegurarAccesoFuncionalidad('backup', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (empty($_SESSION['csrf_token']) || intval($_SESSION['csrf_expiration'] ?? 0) < time()) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-            $_SESSION['csrf_expiration'] = time() + 3600;
+            $_SESSION['csrf_expiration'] = time() + SESION_TIEMPO_SEGUNDOS;
         }
 
         $data = $this->model->selectConfiguracion();
@@ -501,13 +504,14 @@ class Configuracion extends Controllers
 
     public function guardar_departamento()
     {
+        $this->asegurarAccesoFuncionalidad('empresa', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/listar");
             exit();
         }
 
-        $nombre = trim((string)($_POST['nombre_departamento'] ?? ''));
+        $nombre = trim((string) ($_POST['nombre_departamento'] ?? ''));
         if ($nombre === '') {
             setAlert('warning', "Debe ingresar el nombre del departamento.");
             header("Location: " . base_url() . "configuracion/listar");
@@ -528,6 +532,7 @@ class Configuracion extends Controllers
 
     public function actualizar_departamento()
     {
+        $this->asegurarAccesoFuncionalidad('empresa', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/listar");
@@ -535,8 +540,8 @@ class Configuracion extends Controllers
         }
 
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
-        $nombre = trim((string)($_POST['nombre_departamento'] ?? ''));
-        $estado = strtoupper(trim((string)($_POST['estado_departamento'] ?? 'ACTIVO')));
+        $nombre = trim((string) ($_POST['nombre_departamento'] ?? ''));
+        $estado = strtoupper(trim((string) ($_POST['estado_departamento'] ?? 'ACTIVO')));
 
         if ($idDepartamento <= 0 || $nombre === '') {
             setAlert('warning', "Datos inválidos para actualizar el departamento.");
@@ -553,6 +558,7 @@ class Configuracion extends Controllers
 
     public function eliminar_departamento()
     {
+        $this->asegurarAccesoFuncionalidad('empresa', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/listar");
@@ -560,7 +566,7 @@ class Configuracion extends Controllers
         }
 
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
-        $accion = trim((string)($_POST['accion_departamento'] ?? 'desactivar'));
+        $accion = trim((string) ($_POST['accion_departamento'] ?? 'desactivar'));
         $resultado = $this->usuariosModel->eliminarDepartamento($idDepartamento, $accion);
 
         switch ($resultado) {
@@ -587,9 +593,10 @@ class Configuracion extends Controllers
 
     public function configuracion_legajos()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-            $_SESSION['csrf_expiration'] = time() + 3600;
+            $_SESSION['csrf_expiration'] = time() + SESION_TIEMPO_SEGUNDOS;
         }
 
         $catalogo_documentos = $this->model->getCatalogoDocumentosLegajo();
@@ -648,7 +655,7 @@ class Configuracion extends Controllers
 
         $relaciones = $this->model->getRelacionesActivas();
         $politicas_actualizacion = $this->model->getPoliticasActualizacionActivas();
-        
+
         $todas_relaciones = $this->model->getRelaciones();
         $todas_politicas = $this->model->getPoliticasActualizacion();
         $puedeVerTiposRelacionArchivos = $this->puedeAccederItemConfiguracion('tipos_relacion_archivos');
@@ -686,16 +693,16 @@ class Configuracion extends Controllers
 
     private function normalizarTipoCampoCatalogo(?string $tipoCampo): string
     {
-        $tipoCampo = strtolower(trim((string)$tipoCampo));
+        $tipoCampo = strtolower(trim((string) $tipoCampo));
         $permitidos = ['documento', 'texto', 'lista', 'casilla'];
         return in_array($tipoCampo, $permitidos, true) ? $tipoCampo : 'documento';
     }
 
     private function normalizarOpcionesCampoCatalogo(?string $opciones): string
     {
-        $lineas = preg_split('/\r\n|\r|\n/', (string)$opciones);
+        $lineas = preg_split('/\r\n|\r|\n/', (string) $opciones);
         $lineas = array_map(static function ($item) {
-            return trim((string)$item);
+            return trim((string) $item);
         }, is_array($lineas) ? $lineas : []);
         $lineas = array_values(array_unique(array_filter($lineas, static function ($item) {
             return $item !== '';
@@ -706,6 +713,7 @@ class Configuracion extends Controllers
 
     public function guardar_catalogo_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
@@ -767,6 +775,7 @@ class Configuracion extends Controllers
 
     public function actualizar_catalogo_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
@@ -823,6 +832,7 @@ class Configuracion extends Controllers
 
     public function cambiar_estado_catalogo_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=catalogo");
@@ -847,6 +857,7 @@ class Configuracion extends Controllers
 
     public function guardar_matriz_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
@@ -899,6 +910,7 @@ class Configuracion extends Controllers
 
     public function guardar_tipo_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
@@ -908,10 +920,28 @@ class Configuracion extends Controllers
         $nombre = trim($_POST['nombre_tipo_legajo'] ?? '');
         $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
         $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
-        $selloCaratulaTexto = trim((string)($_POST['sello_caratula_texto'] ?? ''));
-        $selloCaratulaPosicion = trim((string)($_POST['sello_caratula_posicion'] ?? 'arriba'));
-        $selloAnexosTexto = trim((string)($_POST['sello_anexos_texto'] ?? ''));
-        $selloAnexosPosicion = trim((string)($_POST['sello_anexos_posicion'] ?? 'derecha'));
+        $requiereSecuencia = isset($_POST['requiere_secuencia']) ? 1 : 0;
+        $requiereNroOperacion = isset($_POST['requiere_nro_operacion']) ? 1 : 0;
+        $operacionModo = strtolower(trim((string) ($_POST['operacion_modo'] ?? 'auto')));
+        $unicidadUsaSecuencia = isset($_POST['unicidad_usa_secuencia']) ? 1 : 0;
+        $unicidadUsaOperacion = isset($_POST['unicidad_usa_operacion']) ? 1 : 0;
+        if (!in_array($operacionModo, ['auto', 'manual'], true)) {
+            $operacionModo = 'auto';
+        }
+        $secuenciaObligatoria = isset($_POST['secuencia_obligatoria']) && intval($_POST['secuencia_obligatoria']) === 1 ? 1 : 0;
+        // Regla de negocio: si operación es automática, la secuencia es obligatoria sí o sí.
+        if ($requiereNroOperacion === 1 && $operacionModo === 'auto') {
+            $secuenciaObligatoria = 1;
+        }
+        // Si la secuencia no se pide, la obligatoriedad no aplica.
+        if ($requiereSecuencia === 0) {
+            $secuenciaObligatoria = 0;
+        }
+        $selloCaratulaTexto = trim((string) ($_POST['sello_caratula_texto'] ?? ''));
+        $selloCaratulaTexto = trim((string) ($_POST['sello_caratula_texto'] ?? ''));
+        $selloCaratulaPosicion = trim((string) ($_POST['sello_caratula_posicion'] ?? 'arriba'));
+        $selloAnexosTexto = trim((string) ($_POST['sello_anexos_texto'] ?? ''));
+        $selloAnexosPosicion = trim((string) ($_POST['sello_anexos_posicion'] ?? 'derecha'));
         if ($selloCaratulaPosicion === 'cruzado') {
             $selloCaratulaPosicion = 'arriba';
         }
@@ -936,16 +966,37 @@ class Configuracion extends Controllers
             exit();
         }
 
+        $activos = intval($this->model->contarTiposLegajoActivos());
+        $limite = defined('LICENCIA_MAX_TIPOLEGAJO') ? intval(LICENCIA_MAX_TIPOLEGAJO) : 0;
+
+        if ($limite < 0) {
+            setAlert('warning', "Su licencia no incluye la creación de tipos de legajo.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        if ($limite > 0 && $activos >= $limite) {
+            setAlert('warning', "Se alcanzó el límite de {$limite} tipos de legajo permitidos por su licencia.");
+            header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
+            exit();
+        }
+
+        $this->model->secuencia_obligatoria = $secuenciaObligatoria;
+        $this->model->operacion_modo = $operacionModo;
         $this->model->sello_caratula_texto = $selloCaratulaTexto;
         $this->model->sello_caratula_posicion = $selloCaratulaPosicion;
         $this->model->sello_anexos_texto = $selloAnexosTexto;
         $this->model->sello_anexos_posicion = $selloAnexosPosicion;
+        $this->model->unicidad_usa_secuencia = $unicidadUsaSecuencia;
+        $this->model->unicidad_usa_operacion = $unicidadUsaOperacion;
         $insert = $this->model->insertarTipoLegajo(
             $nombre,
             $descripcion !== '' ? $descripcion : null,
             1,
             $requiereNroSolicitud,
-            $filtrarTiposPorDepartamento ? $idDepartamentoActual : null
+            $filtrarTiposPorDepartamento ? $idDepartamentoActual : null,
+            $requiereSecuencia,
+            $requiereNroOperacion
         );
         if ($insert) {
             if (!$this->esAdministradorScantec()) {
@@ -967,6 +1018,7 @@ class Configuracion extends Controllers
 
     public function actualizar_tipo_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
@@ -980,10 +1032,25 @@ class Configuracion extends Controllers
         $descripcion = trim($_POST['descripcion_tipo_legajo'] ?? '');
         $activo = isset($_POST['activo_tipo_legajo']) ? 1 : 0;
         $requiereNroSolicitud = isset($_POST['requiere_nro_solicitud']) ? 1 : 0;
-        $selloCaratulaTexto = trim((string)($_POST['sello_caratula_texto'] ?? ''));
-        $selloCaratulaPosicion = trim((string)($_POST['sello_caratula_posicion'] ?? 'arriba'));
-        $selloAnexosTexto = trim((string)($_POST['sello_anexos_texto'] ?? ''));
-        $selloAnexosPosicion = trim((string)($_POST['sello_anexos_posicion'] ?? 'derecha'));
+        $requiereSecuencia = isset($_POST['requiere_secuencia']) ? 1 : 0;
+        $requiereNroOperacion = isset($_POST['requiere_nro_operacion']) ? 1 : 0;
+        $operacionModo = strtolower(trim((string) ($_POST['operacion_modo'] ?? 'auto')));
+        $unicidadUsaSecuencia = isset($_POST['unicidad_usa_secuencia']) ? 1 : 0;
+        $unicidadUsaOperacion = isset($_POST['unicidad_usa_operacion']) ? 1 : 0;
+        if (!in_array($operacionModo, ['auto', 'manual'], true)) {
+            $operacionModo = 'auto';
+        }
+        $secuenciaObligatoria = isset($_POST['secuencia_obligatoria']) && intval($_POST['secuencia_obligatoria']) === 1 ? 1 : 0;
+        if ($requiereNroOperacion === 1 && $operacionModo === 'auto') {
+            $secuenciaObligatoria = 1;
+        }
+        if ($requiereSecuencia === 0) {
+            $secuenciaObligatoria = 0;
+        }
+        $selloCaratulaTexto = trim((string) ($_POST['sello_caratula_texto'] ?? ''));
+        $selloCaratulaPosicion = trim((string) ($_POST['sello_caratula_posicion'] ?? 'arriba'));
+        $selloAnexosTexto = trim((string) ($_POST['sello_anexos_texto'] ?? ''));
+        $selloAnexosPosicion = trim((string) ($_POST['sello_anexos_posicion'] ?? 'derecha'));
         if ($selloCaratulaPosicion === 'cruzado') {
             $selloCaratulaPosicion = 'arriba';
         }
@@ -1021,17 +1088,41 @@ class Configuracion extends Controllers
             exit();
         }
 
+        $estabaInactivo = intval($actual['activo'] ?? 0) === 0;
+        if ($activo === 1 && $estabaInactivo) {
+            $activos = intval($this->model->contarTiposLegajoActivos());
+            $limite = defined('LICENCIA_MAX_TIPOLEGAJO') ? intval(LICENCIA_MAX_TIPOLEGAJO) : 0;
+
+            if ($limite < 0) {
+                setAlert('warning', "Su licencia no incluye la creación de tipos de legajo.");
+                header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=" . $idTipoLegajo);
+                exit();
+            }
+
+            if ($limite > 0 && $activos >= $limite) {
+                setAlert('warning', "Se alcanzó el límite de {$limite} tipos de legajo permitidos por su licencia.");
+                header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos&editar_tipo_legajo=" . $idTipoLegajo);
+                exit();
+            }
+        }
+
+        $this->model->secuencia_obligatoria = $secuenciaObligatoria;
+        $this->model->operacion_modo = $operacionModo;
         $this->model->sello_caratula_texto = $selloCaratulaTexto;
         $this->model->sello_caratula_posicion = $selloCaratulaPosicion;
         $this->model->sello_anexos_texto = $selloAnexosTexto;
         $this->model->sello_anexos_posicion = $selloAnexosPosicion;
+        $this->model->unicidad_usa_secuencia = $unicidadUsaSecuencia;
+        $this->model->unicidad_usa_operacion = $unicidadUsaOperacion;
         $ok = $this->model->actualizarTipoLegajo(
             $idTipoLegajo,
             $nombre,
             $descripcion !== '' ? $descripcion : null,
             $activo,
             $requiereNroSolicitud,
-            $filtrarTiposPorDepartamento ? $idDepartamentoActual : intval($actual['id_departamento'] ?? 0)
+            $filtrarTiposPorDepartamento ? $idDepartamentoActual : intval($actual['id_departamento'] ?? 0),
+            $requiereSecuencia,
+            $requiereNroOperacion
         );
         setAlert($ok ? 'success' : 'error', $ok ? "Tipo de legajo actualizado correctamente." : "No se pudo actualizar el tipo de legajo.");
         header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
@@ -1040,6 +1131,7 @@ class Configuracion extends Controllers
 
     public function eliminar_tipo_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=tipos");
@@ -1071,6 +1163,7 @@ class Configuracion extends Controllers
 
     public function eliminar_matriz_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
@@ -1095,6 +1188,7 @@ class Configuracion extends Controllers
 
     public function guardar_cambios_matriz_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
@@ -1161,6 +1255,7 @@ class Configuracion extends Controllers
 
     public function actualizar_matriz_legajo()
     {
+        $this->asegurarAccesoFuncionalidad('matriz_legajos', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!Validador::csrfValido()) {
             setAlert('error', "Token CSRF inválido o expirado.");
             header("Location: " . base_url() . "configuracion/configuracion_legajos?tab=matriz");
@@ -1346,6 +1441,7 @@ class Configuracion extends Controllers
 
     public function servidor_AD()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_ad', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         $LDAP_datos = $this->model->selectLDAP_datos();
         $data = ['LDAP_datos' => $LDAP_datos];
         $this->views->getView($this, "servidor_AD", $data);
@@ -1356,10 +1452,11 @@ class Configuracion extends Controllers
     // ==========================================
     public function servidor_smtp()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_smtp', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         // 1. Generar Token CSRF si no existe (Soluciona los Warnings)
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-            $_SESSION['csrf_expiration'] = time() + 3600;
+            $_SESSION['csrf_expiration'] = time() + SESION_TIEMPO_SEGUNDOS;
         }
 
         // 2. Traer solo la configuración activa
@@ -1380,7 +1477,7 @@ class Configuracion extends Controllers
 
         if (empty($_SESSION['csrf_token']) || intval($_SESSION['csrf_expiration'] ?? 0) < time()) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-            $_SESSION['csrf_expiration'] = time() + 3600;
+            $_SESSION['csrf_expiration'] = time() + SESION_TIEMPO_SEGUNDOS;
         }
 
         $data = [
@@ -1395,6 +1492,7 @@ class Configuracion extends Controllers
 
     public function actualizar()
     {
+        $this->asegurarAccesoFuncionalidad('empresa', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if ($_POST) {
             if (empty($_POST['nombre']) || empty($_POST['correo'])) {
                 $_SESSION['alert'] = ['type' => 'error', 'message' => 'El nombre y correo son obligatorios.'];
@@ -1408,10 +1506,10 @@ class Configuracion extends Controllers
             $direccion = htmlspecialchars(trim($_POST['direccion']), ENT_QUOTES, 'UTF-8');
             $correo = filter_var($_POST['correo'], FILTER_SANITIZE_EMAIL);
             $total_pag = intval($_POST['total_pag']);
-            $legajoMarcaAguaTexto = htmlspecialchars(trim((string)($_POST['legajo_marca_agua_texto'] ?? '')), ENT_QUOTES, 'UTF-8');
-            $legajoMarcaAguaPosicion = trim((string)($_POST['legajo_marca_agua_posicion'] ?? 'cruzado'));
-            $legajoSelloTexto = htmlspecialchars(trim((string)($_POST['legajo_sello_texto'] ?? '')), ENT_QUOTES, 'UTF-8');
-            $legajoSelloPosicion = trim((string)($_POST['legajo_sello_posicion'] ?? 'derecha'));
+            $legajoMarcaAguaTexto = htmlspecialchars(trim((string) ($_POST['legajo_marca_agua_texto'] ?? '')), ENT_QUOTES, 'UTF-8');
+            $legajoMarcaAguaPosicion = trim((string) ($_POST['legajo_marca_agua_posicion'] ?? 'cruzado'));
+            $legajoSelloTexto = htmlspecialchars(trim((string) ($_POST['legajo_sello_texto'] ?? '')), ENT_QUOTES, 'UTF-8');
+            $legajoSelloPosicion = trim((string) ($_POST['legajo_sello_posicion'] ?? 'derecha'));
             $legajoMarcaAguaActiva = $legajoMarcaAguaTexto !== '' ? 1 : 0;
             $legajoSelloActivo = $legajoSelloTexto !== '' ? 1 : 0;
             $posicionesMarcaPermitidas = ['cruzado', 'arriba', 'abajo', 'derecha', 'izquierda'];
@@ -1462,6 +1560,7 @@ class Configuracion extends Controllers
     // ==========================================
     public function backup()
     {
+        $this->asegurarAccesoFuncionalidad('backup', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         $result = $this->configuracionModel->backupDatabase();
         if ($result['status']) {
             $_SESSION['alert'] = ['type' => 'success', 'message' => $result['msg']];
@@ -1477,6 +1576,7 @@ class Configuracion extends Controllers
     // ==========================================
     public function restore()
     {
+        $this->asegurarAccesoFuncionalidad('backup', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (isset($_FILES['sqlFile']) && $_FILES['sqlFile']['error'] === UPLOAD_ERR_OK) {
             if (!scantecValidarUpload($_FILES['sqlFile'], ['sql'], ['text/plain', 'application/sql', 'application/octet-stream'], 25 * 1024 * 1024)) {
                 $_SESSION['alert'] = ['type' => 'warning', 'message' => 'Error: El archivo SQL no es valido o supera 25 MB'];
@@ -1509,14 +1609,15 @@ class Configuracion extends Controllers
     // ==========================================
     public function respaldo_archivos()
     {
+        $this->asegurarAccesoFuncionalidad('backup', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         try {
             // 1. Verificar Token CSRF (Seguridad)
             if (!Validador::csrfValido()) {
-            setAlert('error', "Token CSRF inválido o expirado.");
-            session_write_close();
-            header("Location: " . base_url() . "?error=csrf");
-            exit();
-        }
+                setAlert('error', "Token CSRF inválido o expirado.");
+                session_write_close();
+                header("Location: " . base_url() . "?error=csrf");
+                exit();
+            }
 
             // 2. Recibir y limpiar la ruta de forma segura
             $ruta_destino = isset($_POST['ruta_destino']) ? trim($_POST['ruta_destino']) : '';
@@ -1548,7 +1649,7 @@ class Configuracion extends Controllers
     // ==========================================
     // ENVÍO PARA OTRAS PARTES DEL SISTEMA
     // ==========================================
-    public function sendEmailWithAttachment($filePath, $destinatarios, $asunto, $mensaje)
+    private function sendEmailWithAttachment($filePath, $destinatarios, $asunto, $mensaje)
     {
         $smtpConfig = $this->model->getActiveSMTP();
         if (isset($smtpConfig[0]['host']))
@@ -1611,6 +1712,7 @@ class Configuracion extends Controllers
     // ==========================================
     public function guardarServCorreo()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_smtp', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
             $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad (Token inválido).'];
             header("Location: " . base_url() . "configuracion/servidor_smtp");
@@ -1656,6 +1758,7 @@ class Configuracion extends Controllers
     // ==========================================
     public function probar_smtp()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_smtp', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
             $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad (Token inválido).'];
             header("Location: " . base_url() . "configuracion/servidor_smtp");
@@ -1733,6 +1836,7 @@ class Configuracion extends Controllers
     }
     public function desactivar_servicio_smtp()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_smtp', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         $this->model->desactivarSMTP();
         $_SESSION['alert'] = ['type' => 'info', 'message' => 'El servicio de correo ha sido desactivado.'];
         header("Location: " . base_url() . "configuracion/servidor_smtp");
@@ -1744,6 +1848,7 @@ class Configuracion extends Controllers
     // ==========================================
     public function enviarCorreo()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_smtp', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         // 1. Validar CSRF
         if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
             $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad CSRF.'];
@@ -1835,6 +1940,7 @@ class Configuracion extends Controllers
     // ==========================================
     public function probar_conexionAD()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_ad', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
             $_SESSION['alert'] = ['type' => 'error', 'message' => 'CSRF inválido.'];
             header("Location: " . base_url() . "configuracion/servidor_AD");
@@ -1881,6 +1987,7 @@ class Configuracion extends Controllers
 
     public function saveLDAP_server()
     {
+        $this->asegurarAccesoFuncionalidad('servidor_ad', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
         if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
             $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad (Token inválido).'];
             header("Location: " . base_url() . "configuracion/servidor_AD");
@@ -1920,6 +2027,41 @@ class Configuracion extends Controllers
         header("Location: " . base_url() . "configuracion/servidor_AD");
         exit();
     }
+
+    // Guarda el "formato de usuario" (opcional) de una configuración LDAP. Vacío = comportamiento por defecto.
+    public function guardar_formato_ldap()
+    {
+        $this->asegurarAccesoFuncionalidad('servidor_ad', 'No tienes permiso para acceder a esta sección', 'dashboard/dashboard');
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            exit();
+        }
+
+        $id = intval($_POST['id'] ?? 0);
+        $formato = trim((string) ($_POST['ldapFormatoUsuario'] ?? ''));
+
+        if ($formato !== '' && ldapNombreBind($formato, 'usuario.prueba') === null) {
+            setAlert('warning', "El formato no es válido: debe contener exactamente un {usuario} (o un {usuario_dn}), hasta 255 caracteres y sin saltos de línea.");
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            exit();
+        }
+
+        $idsActivos = array_map('intval', array_column((array) $this->model->selectLDAP_datos(), 'id'));
+        if (!in_array($id, $idsActivos, true)) {
+            setAlert('error', "La configuración seleccionada no existe o no está activa.");
+            header("Location: " . base_url() . "configuracion/servidor_AD");
+            exit();
+        }
+
+        $ok = $this->model->actualizarFormatoUsuarioLDAP($id, $formato);
+        setAlert($ok ? 'success' : 'error', $ok
+            ? ($formato === '' ? "Formato de usuario quitado: se usa el formato por defecto." : "Formato de usuario guardado correctamente.")
+            : "No se pudo guardar el formato de usuario.");
+        header("Location: " . base_url() . "configuracion/servidor_AD");
+        exit();
+    }
+
     public function probar_base_datos_externa()
     {
         $this->asegurarAccesoBaseUsuariosExterna();
@@ -1983,11 +2125,11 @@ class Configuracion extends Controllers
     {
         $idRol = intval($_SESSION['id_rol'] ?? 0);
         $usuario = strtolower(trim($_SESSION['usuario'] ?? ''));
-        $esAdmin = ($idRol === 1 || $usuario === 'root');
-        
+        $esAdmin = esSuperadmin();
+
         if (!$esAdmin) {
             setAlert('error', 'Acceso denegado. Se requiere nivel de Administrador.');
-            header("Location: " . base_url() . "dashboard/dashboard_legajos");
+            header("Location: " . base_url() . "dashboard/dashboard");
             exit();
         }
 
@@ -1998,8 +2140,8 @@ class Configuracion extends Controllers
     {
         $idRol = intval($_SESSION['id_rol'] ?? 0);
         $usuario = strtolower(trim($_SESSION['usuario'] ?? ''));
-        $esAdmin = ($idRol === 1 || $usuario === 'root');
-        
+        $esAdmin = esSuperadmin();
+
         if (!$esAdmin) {
             echo json_encode(['status' => 'error', 'msg' => 'Acceso denegado.']);
             exit();
@@ -2054,4 +2196,3 @@ class Configuracion extends Controllers
         }
     }
 }
-

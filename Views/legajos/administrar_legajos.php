@@ -41,35 +41,43 @@ $formatearCi = static function ($valor) {
             <form action="<?php echo base_url(); ?>legajos/administrar_legajos" method="GET" autocomplete="off">
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                     <div class="md:col-span-12">
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Dato básico del legajo</label>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Dato básico del
+                            legajo</label>
                         <input type="text" name="termino" value="<?php echo htmlspecialchars($termino); ?>"
-                            placeholder="CI del socio o Nro. Solicitud"
+                            placeholder="CI del socio, Nro. solicitud, secuencia u operación"
                             class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all">
                     </div>
 
                     <div class="md:col-span-4">
-                        <label for="estado_legajo" class="block text-xs font-bold text-gray-500 uppercase mb-1">Estado de legajo</label>
+                        <label for="estado_legajo" class="block text-xs font-bold text-gray-500 uppercase mb-1">Estado
+                            de legajo</label>
                         <select id="estado_legajo" name="estado_legajo"
                             class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all bg-white">
                             <option value="">Todos los estados</option>
-                            <option value="Incompleto" <?php echo $estado_legajo === 'Incompleto' ? 'selected' : ''; ?>>Incompleto</option>
-                            <option value="Vencido" <?php echo $estado_legajo === 'Vencido' ? 'selected' : ''; ?>>Vencido</option>
-                            <option value="Completado" <?php echo $estado_legajo === 'Completado' ? 'selected' : ''; ?>>Completado</option>
+                            <option value="Incompleto" <?php echo $estado_legajo === 'Incompleto' ? 'selected' : ''; ?>>
+                                Incompleto</option>
+                            <option value="Vencido" <?php echo $estado_legajo === 'Vencido' ? 'selected' : ''; ?>>Vencido
+                            </option>
+                            <option value="Completado" <?php echo $estado_legajo === 'Completado' ? 'selected' : ''; ?>>
+                                Completado</option>
                             <option value="Verificación rechazada" <?php echo $estado_legajo === 'Verificación rechazada' ? 'selected' : ''; ?>>Verificación rechazada</option>
-                            <option value="Verificado" <?php echo $estado_legajo === 'Verificado' ? 'selected' : ''; ?>>Verificado</option>
-                            <option value="Cerrado" <?php echo $estado_legajo === 'Cerrado' ? 'selected' : ''; ?>>Cerrado</option>
+                            <option value="Verificado" <?php echo $estado_legajo === 'Verificado' ? 'selected' : ''; ?>>
+                                Verificado</option>
+                            <option value="Cerrado" <?php echo $estado_legajo === 'Cerrado' ? 'selected' : ''; ?>>Cerrado
+                            </option>
                         </select>
                     </div>
 
                     <div class="md:col-span-5">
-                        <label for="id_tipo_legajo" class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de legajo</label>
+                        <label for="id_tipo_legajo" class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de
+                            legajo</label>
                         <select id="id_tipo_legajo" name="id_tipo_legajo"
                             class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all bg-white">
                             <option value="0">Todos los tipos</option>
                             <?php foreach ($tipos_legajo as $tipo_legajo): ?>
-                            <option value="<?php echo intval($tipo_legajo['id_tipo_legajo']); ?>" <?php echo intval($tipo_legajo['id_tipo_legajo']) === $id_tipo_legajo ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($tipo_legajo['nombre']); ?>
-                            </option>
+                                <option value="<?php echo intval($tipo_legajo['id_tipo_legajo']); ?>" <?php echo intval($tipo_legajo['id_tipo_legajo']) === $id_tipo_legajo ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($tipo_legajo['nombre']); ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -80,17 +88,18 @@ $formatearCi = static function ($valor) {
                             <i class="fas fa-search mr-2"></i> Buscar
                         </button>
                         <?php if ($termino !== '' || $estado_legajo !== '' || $id_tipo_legajo > 0): ?>
-                        <a href="<?php echo base_url(); ?>legajos/administrar_legajos"
-                            class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center">
-                            Limpiar
-                        </a>
+                            <a href="<?php echo base_url(); ?>legajos/administrar_legajos"
+                                class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center">
+                                Limpiar
+                            </a>
                         <?php endif; ?>
                     </div>
                 </div>
             </form>
         </div>
 
-        <form action="<?php echo base_url(); ?>legajos/procesar_lote_legajos" method="post" id="frmLoteAdministrarLegajos">
+        <form action="<?php echo base_url(); ?>legajos/procesar_lote_legajos" method="post"
+            id="frmLoteAdministrarLegajos">
             <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
             <input type="hidden" name="termino" value="<?php echo htmlspecialchars($termino); ?>">
             <input type="hidden" name="estado_legajo" value="<?php echo htmlspecialchars($estado_legajo); ?>">
@@ -99,55 +108,74 @@ $formatearCi = static function ($valor) {
             <input type="hidden" name="accion_lote" id="accion_lote_admin" value="">
 
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div
+                    class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                     <div>
                         <h5 class="font-bold text-slate-800 text-sm uppercase tracking-wider">
                             <i class="fas fa-folder-open mr-2 text-gray-400"></i> Legajos para Administración
                         </h5>
-                        <p class="text-xs text-gray-500 mt-1">Seleccione varios legajos para rearmar sus PDFs o descargarlos en lote.</p>
+                        <p class="text-xs text-gray-500 mt-1">Seleccione varios legajos para rearmar sus PDFs o
+                            descargarlos en lote.</p>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
                         <?php if ($puedeRearmarLote): ?>
-                        <button type="button"
-                            class="px-4 py-2.5 bg-scantec-blue text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-800 transition-all"
-                            onclick="confirmarAccionLoteAdministrar('rearmar')">
-                            <i class="fas fa-sync-alt mr-2"></i> Rearmar Seleccionados
-                        </button>
+                            <button type="button"
+                                class="px-4 py-2.5 bg-scantec-blue text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-800 transition-all"
+                                onclick="confirmarAccionLoteAdministrar('rearmar')">
+                                <i class="fas fa-sync-alt mr-2"></i> Rearmar Seleccionados
+                            </button>
                         <?php endif; ?>
                         <?php if ($puedeDescargarLote): ?>
-                        <button type="button"
-                            class="px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-sm hover:bg-emerald-700 transition-all"
-                            onclick="confirmarAccionLoteAdministrar('descargar')">
-                            <i class="fas fa-download mr-2"></i> Descargar Seleccionados
-                        </button>
+                            <button type="button"
+                                class="px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-sm hover:bg-emerald-700 transition-all"
+                                onclick="confirmarAccionLoteAdministrar('descargar')">
+                                <i class="fas fa-download mr-2"></i> Descargar Seleccionados
+                            </button>
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse" id="table">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-14 text-center">
-                                    <input type="checkbox" id="seleccionar_todos_admin" class="w-4 h-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue">
+                                <th
+                                    class="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-14 text-center">
+                                    <input type="checkbox" id="seleccionar_todos_admin"
+                                        class="w-4 h-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue">
                                 </th>
                                 <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">CI</th>
-                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre Completo</th>
-                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo de Legajo</th>
-                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Armado por</th>
-                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nro. Solicitud</th>
-                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Observación</th>
-                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Acción</th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre
+                                    Completo</th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo de
+                                    Legajo</th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Armado
+                                    por</th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nro.
+                                    Solicitud</th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Secuencia
+                                </th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nro.
+                                    Operación</th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    Observación</th>
+                                <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
+                                    Acción</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             <?php if (!empty($resultados)): ?>
                                 <?php foreach ($resultados as $resultado): ?>
                                     <?php
-                                    $armadoPor = trim((string)($resultado['nombre_usuario_armado'] ?? ''));
-                                    $observacionLegajo = trim((string)($resultado['observacion'] ?? ''));
+                                    $armadoPor = trim((string) ($resultado['nombre_usuario_armado'] ?? ''));
+                                    $observacionLegajo = trim((string) ($resultado['observacion'] ?? ''));
+                                    $solicitudLegajo = trim((string) ($resultado['nro_solicitud'] ?? ''));
+                                    $secuenciaLegajo = trim((string) ($resultado['secuencia'] ?? ''));
+                                    $operacionLegajo = trim((string) ($resultado['nro_operacion'] ?? ''));
                                     $estadoTexto = $resultado['estado_legajo_texto'] ?? ucfirst($resultado['estado'] ?? '');
                                     $claseEstado = 'bg-gray-100 text-gray-700';
                                     if ($estadoTexto === 'Cerrado') {
@@ -164,7 +192,9 @@ $formatearCi = static function ($valor) {
                                     ?>
                                     <tr class="hover:bg-slate-50 transition-colors">
                                         <td class="px-4 py-3 text-center">
-                                            <input type="checkbox" name="legajos[]" value="<?php echo intval($resultado['id_legajo'] ?? 0); ?>" class="chk-legajo-admin w-4 h-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue">
+                                            <input type="checkbox" name="legajos[]"
+                                                value="<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
+                                                class="chk-legajo-admin w-4 h-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue">
                                         </td>
                                         <td class="px-6 py-3 font-bold text-gray-800 text-sm">
                                             <?php echo htmlspecialchars($formatearCi($resultado['ci_socio'] ?? '')); ?>
@@ -179,7 +209,13 @@ $formatearCi = static function ($valor) {
                                             <?php echo htmlspecialchars($armadoPor !== '' ? $armadoPor : 'Aún no armado'); ?>
                                         </td>
                                         <td class="px-6 py-3 text-gray-600 text-sm">
-                                            <?php echo htmlspecialchars($resultado['nro_solicitud'] ?? ''); ?>
+                                            <?php echo $solicitudLegajo !== '' ? htmlspecialchars($solicitudLegajo) : '<span class="text-gray-300">—</span>'; ?>
+                                        </td>
+                                        <td class="px-6 py-3 text-gray-600 text-sm">
+                                            <?php echo $secuenciaLegajo !== '' ? htmlspecialchars($secuenciaLegajo) : '<span class="text-gray-300">—</span>'; ?>
+                                        </td>
+                                        <td class="px-6 py-3 text-gray-600 text-sm font-mono">
+                                            <?php echo $operacionLegajo !== '' ? htmlspecialchars($operacionLegajo) : '<span class="text-gray-300">—</span>'; ?>
                                         </td>
                                         <td class="px-6 py-3 text-gray-600 text-sm max-w-xs">
                                             <div class="truncate" title="<?php echo htmlspecialchars($observacionLegajo); ?>">
@@ -187,27 +223,26 @@ $formatearCi = static function ($valor) {
                                             </div>
                                         </td>
                                         <td class="px-6 py-3 text-sm">
-                                            <span class="px-2 py-1 inline-flex text-xs font-bold rounded-full <?php echo $claseEstado; ?>">
+                                            <span
+                                                class="px-2 py-1 inline-flex text-xs font-bold rounded-full <?php echo $claseEstado; ?>">
                                                 <?php echo htmlspecialchars($estadoTexto); ?>
                                             </span>
                                         </td>
                                         <td class="px-6 py-3 text-right">
                                             <div class="flex justify-end gap-2">
                                                 <?php if (!empty($resultado['pdf_final_disponible'])): ?>
-                                                <a href="<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                    class="w-10 h-10 bg-red-700 text-white rounded-lg font-bold text-xs hover:bg-red-900 transition-all inline-flex items-center justify-center"
-                                                    title="Ver PDF"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer">
-                                                    <i class="fas fa-file-pdf"></i>
-                                                </a>
+                                                    <button type="button"
+                                                        onclick="mostrarPDFModal('<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>')"
+                                                        class="w-10 h-10 bg-red-700 text-white rounded-lg font-bold text-xs hover:bg-red-900 transition-all inline-flex items-center justify-center"
+                                                        title="Ver PDF">
+                                                        <i class="fas fa-file-pdf"></i>
+                                                    </button>
                                                 <?php else: ?>
-                                                <button type="button"
-                                                    class="w-10 h-10 bg-red-200 text-red-400 rounded-lg font-bold text-xs cursor-not-allowed inline-flex items-center justify-center opacity-80"
-                                                    title="Ver PDF no disponible"
-                                                    disabled>
-                                                    <i class="fas fa-file-pdf"></i>
-                                                </button>
+                                                    <button type="button"
+                                                        class="w-10 h-10 bg-red-200 text-red-400 rounded-lg font-bold text-xs cursor-not-allowed inline-flex items-center justify-center opacity-80"
+                                                        title="Ver PDF no disponible" disabled>
+                                                        <i class="fas fa-file-pdf"></i>
+                                                    </button>
                                                 <?php endif; ?>
                                                 <a href="<?php echo base_url(); ?>legajos/armar_legajo?id_legajo=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
                                                     class="w-10 h-10 bg-scantec-blue text-white rounded-lg font-bold text-xs hover:bg-blue-800 transition-all inline-flex items-center justify-center"
@@ -215,22 +250,22 @@ $formatearCi = static function ($valor) {
                                                     <i class="fas fa-folder-open"></i>
                                                 </a>
                                                 <?php if ($puedeAdministrarLegajo): ?>
-                                                <button type="button"
-                                                    class="w-10 h-10 bg-slate-700 text-white rounded-lg font-bold text-xs hover:bg-slate-900 transition-all inline-flex items-center justify-center btn-cerrar-legajo"
-                                                    data-action="<?php echo base_url(); ?>legajos/cerrar_legajo/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                    data-id-legajo="<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                    title="Cerrar">
-                                                    <i class="fas fa-lock"></i>
-                                                </button>
+                                                    <button type="button"
+                                                        class="w-10 h-10 bg-slate-700 text-white rounded-lg font-bold text-xs hover:bg-slate-900 transition-all inline-flex items-center justify-center btn-cerrar-legajo"
+                                                        data-action="<?php echo base_url(); ?>legajos/cerrar_legajo/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
+                                                        data-id-legajo="<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
+                                                        title="Cerrar">
+                                                        <i class="fas fa-lock"></i>
+                                                    </button>
                                                 <?php endif; ?>
                                                 <?php if ($puedeEliminarLegajo): ?>
-                                                <button type="button"
-                                                    class="w-10 h-10 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-800 transition-all inline-flex items-center justify-center btn-eliminar-legajo"
-                                                    data-action="<?php echo base_url(); ?>legajos/eliminar_legajo/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                    data-id-legajo="<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                    title="Eliminar">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
+                                                    <button type="button"
+                                                        class="w-10 h-10 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-800 transition-all inline-flex items-center justify-center btn-eliminar-legajo"
+                                                        data-action="<?php echo base_url(); ?>legajos/eliminar_legajo/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
+                                                        data-id-legajo="<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
+                                                        title="Eliminar">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
                                                 <?php endif; ?>
                                             </div>
                                         </td>
@@ -238,7 +273,7 @@ $formatearCi = static function ($valor) {
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="9" class="px-6 py-6 text-center text-sm text-gray-500">
+                                    <td colspan="11" class="px-6 py-6 text-center text-sm text-gray-500">
                                         No hay legajos para mostrar con los filtros aplicados.
                                     </td>
                                 </tr>
@@ -250,8 +285,67 @@ $formatearCi = static function ($valor) {
         </form>
     </div>
 </main>
+<div id="pdfModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-90 transition-opacity backdrop-blur-md" onclick="cerrarModalPDF()">
+    </div>
 
+    <div class="fixed inset-0 z-10 overflow-y-auto pointer-events-none">
+        <div class="flex min-h-full items-center justify-center p-2 text-center sm:p-0">
+            <div
+                class="pointer-events-auto relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-7xl h-[90vh] flex flex-col border border-gray-600">
+
+                <div class="bg-gray-900 px-4 py-3 flex justify-between items-center shrink-0">
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fas fa-file-pdf text-red-500 mr-2"></i> Visor de Documento
+                    </h3>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="cerrarModalPDF()"
+                            class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-gray-200 relative w-full h-full">
+                    <iframe id="pdf_preview_modal" class="absolute inset-0 w-full h-full border-none" src=""></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
+    function mostrarPDFModal(url) {
+        const iframe = document.getElementById('pdf_preview_modal');
+        const modal = document.getElementById('pdfModal');
+
+        // Ajustes para que el PDF cargue ajustado a la pantalla y sin paneles molestos
+        const urlAjustada = url + "#view=FitH&toolbar=1&navpanes=0";
+
+        iframe.src = urlAjustada;
+
+        // Mostrar modal usando clases de Tailwind
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Evitar que el fondo de la página haga scroll
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModalPDF() {
+        const modal = document.getElementById('pdfModal');
+        const iframe = document.getElementById('pdf_preview_modal');
+
+        // Ocultar modal
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        // Limpiar iframe para no consumir memoria y detener la descarga si seguía cargando
+        iframe.src = "";
+
+        // Restaurar scroll de la página
+        document.body.style.overflow = 'auto';
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const selectorTodos = document.getElementById('seleccionar_todos_admin');
         const checksAdmin = Array.from(document.querySelectorAll('.chk-legajo-admin'));

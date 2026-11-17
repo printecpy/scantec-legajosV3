@@ -27,15 +27,15 @@ class ExpedientesController extends ApiController
     {
         try {
             // ROL REQUERIDO: [1] root, [2] Admin, [3] Usuario
-            $userData = $this->checkApiAccess([1, 2, 3]);
+            $userData = $this->checkApiAccess();
 
             $id_grupo_jwt = $userData['id_grupo'];
             $usuarioRoles = $userData['roles'];
 
             // 1. Obtener parámetros de filtrado (simulando tu $_GET)
-            $indice_01 = htmlspecialchars($_GET['indice_01'] ?? '');
-            $nombre_tipoDoc = htmlspecialchars($_GET['nombre_tipoDoc'] ?? '');
-            $termino = htmlspecialchars($_GET['termino'] ?? '');
+            $indice_01 = trim((string) ($_GET['indice_01'] ?? ''));
+            $nombre_tipoDoc = trim((string) ($_GET['nombre_tipoDoc'] ?? ''));
+            $termino = trim((string) ($_GET['termino'] ?? ''));
 
             // 2. Definir el ID de grupo a usar para el filtro
             if (in_array(1, $usuarioRoles)) {
@@ -48,9 +48,14 @@ class ExpedientesController extends ApiController
                 return; // Añadir return después de sendErrorResponse/sendSuccessResponse es buena práctica
             }
 
+            if ($nombre_tipoDoc !== '' && !$this->ExpedientesModel->existeTipoDocParaGrupo($id_grupo_a_filtrar, $nombre_tipoDoc)) {
+                $this->sendErrorResponse(404, 'El tipo de documento especificado no existe o no está disponible para tu grupo.');
+                return;
+            }
+
             // 3. Llamar al modelo (Usando $this->ExpedientesModel)
             $registros = $this->ExpedientesModel->selectRegistrosApi($id_grupo_a_filtrar, $indice_01, $nombre_tipoDoc, $termino);
-            // Práctica RESTful recomendada: Devolver 200 OK con un array vacío si no hay resultados.
+
             if (empty($registros)) {
                 $registros = [];
             }
@@ -68,7 +73,7 @@ class ExpedientesController extends ApiController
     {
         try {
             // ROL REQUERIDO: [1] Admin, [2] Ejecutor (Escritura)
-            $userData = $this->checkApiAccess([1, 2]);
+            $userData = $this->checkApiAccess([1]); // temporal, hasta remover el endpoint
 
             $input = json_decode(file_get_contents('php://input'), true);
 
@@ -96,7 +101,7 @@ class ExpedientesController extends ApiController
             }
 
             // Verificar si el usuario NO es Admin Y el documento NO pertenece a su grupo
-            if (!in_array(1, $userData['roles']) && $registro['id_grupo'] != $usuario_id_grupo) {
+            if (!in_array(1, $userData['roles']) && intval($registro['id_grupo'] ?? -1) !== intval($usuario_id_grupo)) {
                 $this->sendErrorResponse(403, "No tienes permiso para editar este expediente.");
             }
 
@@ -121,7 +126,7 @@ class ExpedientesController extends ApiController
     {
         try {
             // ROL REQUERIDO: [1] Admin
-            $userData = $this->checkApiAccess([1]);
+            $userData = $this->checkApiAccess([1]); // temporal, hasta remover el endpoint
 
             // 1. Verificar existencia
             $registro = $this->ExpedientesModel->getExpedienteById($idExpediente);
@@ -150,43 +155,61 @@ class ExpedientesController extends ApiController
     public function verDocumento()
     {
         try {
-            // ROL REQUERIDO: [1] Admin, [2] Ejecutivo, [3] Consulta
-            $userData = $this->checkApiAccess([1, 2, 3]);
+            $userData = $this->checkApiAccess();
 
-            // 1. Validar parámetros de entrada
-            if (!isset($_GET['ruta'], $_GET['id_expediente']) || empty($_GET['ruta']) || empty($_GET['id_expediente'])) {
-                $this->sendErrorResponse(400, 'Error: Parámetros "ruta" o "id_expediente" faltantes.');
+            // 1. Ahora solo se requiere el id_expediente
+            if (!isset($_GET['id_expediente']) || empty($_GET['id_expediente'])) {
+                $this->sendErrorResponse(400, 'Error: Parámetro "id_expediente" faltante.');
             }
-            $archivo_relativo = urldecode($_GET['ruta']);
             $id_expediente = intval($_GET['id_expediente']);
             $id_user = $userData['id'];
-            $usuario = $userData['usuario'] ?? 'API_USER';
 
-            // --- CONFIGURACIÓN DE RUTA ---
-            $ruta_archivo_real = RUTA_BASE . '/' . $archivo_relativo;
-            $ruta_archivo_real = realpath($ruta_archivo_real);
+            // 2. Buscar el expediente en la BD (esto trae la ruta REAL, no la del input)
+            $registro = $this->ExpedientesModel->getExpedienteApiPorId($id_expediente);
+            if (!$registro) {
+                $this->sendErrorResponse(404, 'Expediente no encontrado.');
+            }
 
-            if ($ruta_archivo_real === false || !file_exists($ruta_archivo_real)) {
+            // 3. AUTORIZACIÓN POR GRUPO (IDOR)
+            if (!in_array(1, $userData['roles']) && intval($registro['id_grupo'] ?? -1) !== intval($userData['id_grupo'])) {
+                $this->sendErrorResponse(403, 'No tienes permiso para acceder a este documento.');
+            }
+
+            // 4. La ruta viene de la BASE DE DATOS, no del cliente.
+            //    El sistema externo nunca ve ni controla la ruta física.
+            $archivo_relativo = trim((string) ($registro['ruta_original'] ?? ''));
+            if ($archivo_relativo === '') {
+                $this->sendErrorResponse(404, 'El expediente no tiene un archivo asociado.');
+            }
+
+            // 5. PATH TRAVERSAL (defensa en profundidad): aunque la ruta ya viene de la BD,
+            //    confirmamos que el archivo real quede dentro de RUTA_BASE.
+            $rutaBaseReal = realpath(rtrim(RUTA_BASE, '/\\'));
+            $ruta_archivo_real = realpath(rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $archivo_relativo));
+
+            if (
+                $rutaBaseReal === false || $ruta_archivo_real === false
+                || strpos($ruta_archivo_real, $rutaBaseReal) !== 0
+                || !is_file($ruta_archivo_real)
+            ) {
                 $this->sendErrorResponse(404, 'El documento no existe en el servidor.');
             }
-            // 3. LOGGING DE ÉXITO (ANTES de enviar el binario y salir)
-            // Ya que no podemos llamar a sendSuccessResponse, debemos llamar a logApiTransaction directamente.
+
+            // 6. Logging
             $this->logApiTransaction(
                 ['id' => $id_user],
                 $_SERVER['REQUEST_URI'] ?? 'N/A',
                 $_SERVER['REQUEST_METHOD'] ?? 'N/A',
-                200, // Código 200 OK
+                200,
                 "Visualización exitosa del documento ID {$id_expediente}.",
                 ['id_expediente' => $id_expediente, 'filename' => basename($ruta_archivo_real)]
             );
-            // 4. Devolver el archivo binario
+
+            // 7. Enviar el archivo en streaming
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mime_type = finfo_file($finfo, $ruta_archivo_real);
             finfo_close($finfo);
-            // Leer el contenido del archivo
-            $file_content = file_get_contents($ruta_archivo_real);
-            // Enviar headers para forzar la descarga o visualización en línea
-            // Evitar que el output buffer interfiera con el binario
+
             if (ob_get_level() > 0) {
                 ob_clean();
             }
@@ -198,11 +221,10 @@ class ExpedientesController extends ApiController
             header('Expires: 0');
             header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
             header('Pragma: public');
-            header('Content-Length: ' . strlen($file_content));
-            echo $file_content;
-            exit; // Detener la ejecución
+            header('Content-Length: ' . filesize($ruta_archivo_real));
+            readfile($ruta_archivo_real);
+            exit;
         } catch (\Exception $e) {
-            // Manejar cualquier error durante el proceso de visualización o registro
             $this->sendErrorResponse(500, 'Error interno al intentar visualizar el documento: ' . $e->getMessage());
         }
     }
@@ -233,48 +255,60 @@ class ExpedientesController extends ApiController
      */
     public function subirDocumentoApi()
     {
-        // --- 🔐 SEGURIDAD: Validación de JWT y Roles ---
-        // Roles permitidos: 1 (Admin) y 2 (Ejecutivo, por ejemplo).
-        // Si el rol no es permitido, checkApiAccess enviará un 403 y detendrá la ejecución.
-        $userData = $this->checkApiAccess([1, 2]);
-        // === 🛠️ DEFINICIÓN DE RUTAS ABSOLUTAS DE EJECUTABLES ===
-        // Asegúrate de que estas constantes estén disponibles en el scope de la aplicación.
+        set_time_limit(500);
+        $userData = $this->checkApiAccess();
+
         if (!defined('MAGICK_EXECUTABLE_PATH') || !defined('TESSERACT_EXECUTABLE_PATH') || !defined('RUTA_BASE')) {
             $this->sendErrorResponse(500, "Error de configuración: Rutas de ejecutables o RUTA_BASE no definidas.");
             return;
         }
-        // Escapar rutas para usarlas de forma segura en los comandos de shell
-        $magick_escaped = escapeshellarg(MAGICK_EXECUTABLE_PATH);
-        $tesseract_escaped = escapeshellarg(TESSERACT_EXECUTABLE_PATH);
-        // --- ⚙️ PREPARACIÓN Y SANITIZACIÓN DE DATOS ---
+
         date_default_timezone_set('America/Asuncion');
         $id_proceso = date("Ymd-His");
-        // Recogemos y sanitizamos los datos de los índices desde $_POST (form-data)
-        // --- ⚙️ PREPARACIÓN Y SANITIZACIÓN DE DATOS (desde POST/form-data) ---
-        $id_tipoDoc = filter_var($_POST['id_tipoDoc'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        $indice_01  = filter_var($_POST['indice_01'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        $indice_02  = filter_var($_POST['indice_02'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        $indice_03  = filter_var($_POST['indice_03'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        // Indice 04 se mantiene por el uso de caracteres especiales en preg_replace
-        $indice_04  = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['indice_04'] ?? '');
-        $indice_05  = filter_var($_POST['indice_05'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        $indice_06  = filter_var($_POST['indice_06'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
-        // Validación mínima de metadatos
+
+        // --- Datos e índices ---
+        $id_tipoDoc = trim((string) ($_POST['id_tipoDoc'] ?? ''));
+        $indice_01 = trim((string) ($_POST['indice_01'] ?? ''));
+        $indice_02 = trim((string) ($_POST['indice_02'] ?? ''));
+        $indice_03 = trim((string) ($_POST['indice_03'] ?? ''));
+        $indice_04 = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['indice_04'] ?? '');
+        $indice_05 = trim((string) ($_POST['indice_05'] ?? ''));
+        $indice_06 = trim((string) ($_POST['indice_06'] ?? ''));
+
         if (empty($indice_04)) {
             $this->sendErrorResponse(400, "Falta el 'indice_04' (nombre de archivo).");
             return;
         }
-        // --- 📁 RUTAS DE ARCHIVOS ---
-        $nombre_final = $indice_04 . '.pdf';
-        $ruta_original = 'Expedientes/' . $nombre_final;
-        $ubicacion_fisica = RUTA_BASE . $ruta_original;
-        // --- 📤 VERIFICAR Y MOVER ARCHIVO SUBIDO ---
-        if (!isset($_FILES['file_pdf']) || $_FILES['file_pdf']['error'] !== UPLOAD_ERR_OK) {
-            $error_code = $_FILES['file_pdf']['error'] ?? 'N/A';
-            $this->sendErrorResponse(400, "Error al subir el archivo. Código de error UPLOAD: " . $error_code);
+
+        // --- VALIDACIÓN DE GRUPO (API): el tipo de doc debe pertenecer al grupo del usuario ---
+        $id_grupo_a_filtrar = in_array(1, $userData['roles']) ? 'ALL' : (string) intval($userData['id_grupo']);
+        if (!$this->ExpedientesModel->tipoDocPerteneceAGrupo($id_grupo_a_filtrar, $id_tipoDoc)) {
+            $this->sendErrorResponse(403, "No tienes permiso para subir documentos de este tipo.");
             return;
         }
-        // Crear el directorio si no existe
+
+        // --- VALIDACIÓN DEL ARCHIVO (mismo criterio que la web) ---
+        if (!isset($_FILES['file_pdf']) || $_FILES['file_pdf']['error'] !== UPLOAD_ERR_OK) {
+            $error_code = $_FILES['file_pdf']['error'] ?? 'N/A';
+            $this->sendErrorResponse(400, "Error al subir el archivo. Código UPLOAD: " . $error_code);
+            return;
+        }
+        if (!scantecValidarUpload($_FILES['file_pdf'], ['pdf'], ['application/pdf'], 50 * 1024 * 1024)) {
+            $this->sendErrorResponse(400, "El archivo debe ser un PDF válido y no superar 50 MB.");
+            return;
+        }
+
+        // --- RUTA con carpeta por tipo (mismo patrón que la web) ---
+        $tipoDocData = $this->ExpedientesModel->getTipoDocById($id_tipoDoc);
+        $nombre_tipo = (!empty($tipoDocData) && isset($tipoDocData[0]['nombre_tipoDoc']))
+            ? $tipoDocData[0]['nombre_tipoDoc'] : 'Otros';
+        $nombre_carpeta_tipo = preg_replace('/[^a-zA-Z0-9_-]/', '', $nombre_tipo);
+
+        $nombreSeguro = preg_replace('/[^A-Za-z0-9._-]/', '_', (string) $indice_04);
+        $nombre_final = ($nombreSeguro !== '' ? $nombreSeguro : uniqid('expediente_', true)) . '.pdf';
+        $ruta_relativa = 'Expedientes/' . $nombre_carpeta_tipo . '/' . $nombre_final;
+        $ubicacion_fisica = RUTA_BASE . $ruta_relativa;
+
         $dir_expedientes = dirname($ubicacion_fisica);
         if (!is_dir($dir_expedientes)) {
             if (!@mkdir($dir_expedientes, 0777, true)) {
@@ -282,90 +316,29 @@ class ExpedientesController extends ApiController
                 return;
             }
         }
-        // Mover el archivo al repositorio
         if (!move_uploaded_file($_FILES['file_pdf']['tmp_name'], $ubicacion_fisica)) {
             $this->sendErrorResponse(500, "Error al mover el archivo al repositorio.");
             return;
         }
-        // =============================================
-        // 🔄 PROCESAMIENTO DE IMAGEN: OCR
-        // =============================================
-        $temp_dir = RUTA_BASE . 'Temp/' . $id_proceso . '/';
-        $temp_output = RUTA_BASE . 'Temp/oriented_' . $nombre_final;
-        $num_paginas = 0;
-        $procesamiento_exitoso = false;
-        if (!is_dir($temp_dir)) {
-            @mkdir($temp_dir, 0777, true);
-        }
-        if (is_dir($temp_dir)) {
-            $pdf_path_escaped = escapeshellarg($ubicacion_fisica);
-            $img_output_path = escapeshellarg($temp_dir . 'page_%03d.png');
 
-            // 1️⃣ Convertir PDF a imágenes
-            $cmd_convert = "$magick_escaped -density 300 -units PixelsPerInch $pdf_path_escaped $img_output_path 2>&1";
-            exec($cmd_convert, $output_lines, $return_var);
-            $images = glob($temp_dir . "page_*.png");
-            if (!empty($images)) {
-                $procesamiento_exitoso = true;
-                foreach ($images as $img) {
-                    $img_escaped = escapeshellarg($img);
-
-                    // 2️⃣ Enderezar visualmente (deskew)
-                    $cmd_deskew = "$magick_escaped mogrify -deskew 40% $img_escaped 2>&1";
-                    shell_exec($cmd_deskew);
-
-                    // 3️⃣ Detectar orientación y rotar
-                    $cmd_tesseract = "$tesseract_escaped $img_escaped stdout --psm 0 -l osd 2>&1";
-                    exec($cmd_tesseract, $output_lines_tess, $return_var_tess);
-                    $output = implode("\n", $output_lines_tess);
-
-                    if (preg_match('/Orientation in degrees: (\d+)/', $output, $match)) {
-                        $angle = intval($match[1]);
-                        if ($angle > 0 && $angle < 360) {
-                            $rotate = 360 - $angle;
-                            $cmd_rotate = "$magick_escaped mogrify -rotate $rotate $img_escaped 2>&1";
-                            shell_exec($cmd_rotate);
-                        }
-                    }
-                }
-                // 4️⃣ Reconstruir PDF
-                $temp_output_escaped = escapeshellarg($temp_output);
-                $img_input_path = escapeshellarg($temp_dir . "page_*.png");
-                $cmd_rebuild = "$magick_escaped -density 300 -units PixelsPerInch $img_input_path $temp_output_escaped 2>&1";
-                shell_exec($cmd_rebuild);
-
-                // Reemplazar el PDF original si la reconstrucción fue exitosa
-                if (file_exists($temp_output)) {
-                    if (!rename($temp_output, $ubicacion_fisica)) {
-                        $procesamiento_exitoso = false; // Fallo al reemplazar el archivo
-                    }
-                } else {
-                    $procesamiento_exitoso = false; // Fallo al crear el PDF reconstruido
+        // --- CONTEO DE PÁGINAS liviano (magick identify, igual que la web) ---
+        $num_paginas = 1;
+        $magick_escaped = escapeshellarg(MAGICK_EXECUTABLE_PATH);
+        $pdf_escaped = escapeshellarg($ubicacion_fisica);
+        exec("$magick_escaped identify $pdf_escaped 2>&1", $salida_ident);
+        if (!empty($salida_ident)) {
+            $paginas_reales = 0;
+            foreach ($salida_ident as $linea) {
+                if (stripos($linea, 'PDF') !== false) {
+                    $paginas_reales++;
                 }
             }
-        }
-        // 5️⃣ Contar páginas con Imagick
-        if (extension_loaded('imagick')) {
-            try {
-                $imagick = new \Imagick($ubicacion_fisica);
-                $num_paginas = $imagick->getNumberImages();
-                $imagick->clear();
-                $imagick->destroy();
-            } catch (\Exception $e) {
-                // Error al contar páginas, se queda en 0.
+            if ($paginas_reales > 0) {
+                $num_paginas = $paginas_reales;
             }
         }
-        // Limpiar archivos temporales
-        if (is_dir($temp_dir)) {
-            array_map('unlink', glob($temp_dir . "page_*.png"));
-            @rmdir($temp_dir);
-        }
-        // =============================
-        // 💾 REGISTRO EN BD
-        // =============================
-        $ubicacion = "scantec";
-        $version = "1.0";
-        $fecha_indexado = date("Y-m-d");
+
+        // --- REGISTRO EN BD ---
         $registrar = $this->ExpedientesModel->registrarExpediente(
             $id_proceso,
             $id_tipoDoc,
@@ -376,26 +349,25 @@ class ExpedientesController extends ApiController
             $indice_05,
             $indice_06,
             $num_paginas,
-            $ruta_original,
-            $ubicacion,
-            $version,
-            $fecha_indexado
+            $ruta_relativa,
+            "scantec",
+            "1.0",
+            date("Y-m-d")
         );
+
         if ($registrar) {
-            $this->sendSuccessResponse(
-                201, // Código HTTP 201: Created
-                [
-                    'id_proceso' => $id_proceso,
-                    'indice_01' => $indice_01,
-                    'indice_04' => $indice_04,
-                    'ruta_original' => $ruta_original,
-                    'paginas' => $num_paginas,
-                    'procesado_ok' => $procesamiento_exitoso
-                ],
-                "Archivo subido, procesado y registrado correctamente."
-            );
+            $this->sendSuccessResponse(201, [
+                'id_proceso' => $id_proceso,
+                'indice_01' => $indice_01,
+                'indice_04' => $indice_04,
+                'ruta_original' => $ruta_relativa,
+                'paginas' => $num_paginas
+            ], "Archivo subido y registrado correctamente.");
         } else {
-            // Fallo de registro.
+            // Si falló el registro, borramos el archivo huérfano para no dejar basura.
+            if (is_file($ubicacion_fisica)) {
+                @unlink($ubicacion_fisica);
+            }
             $this->sendErrorResponse(500, "Error interno al registrar el expediente en la base de datos.");
         }
     }

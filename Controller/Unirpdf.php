@@ -7,6 +7,7 @@ class Unirpdf extends Controllers
         session_start();
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit();
         }
         parent::__construct();
     }
@@ -43,14 +44,9 @@ class Unirpdf extends Controllers
 
     public function procesar_pdf()
     {
-        ini_set('display_errors', 1);
-
-    ini_set('display_startup_errors', 1);
-
-    error_reporting(E_ALL); 
         // 1. Configuración
-        set_time_limit(0);
-        ini_set('memory_limit', '2048M');
+        set_time_limit(500);
+        ini_set('memory_limit', '512M');
 
         // Librerías
         require_once 'Libraries/pdf/fpdf.php';

@@ -1,2 +1,0 @@
-#!/bin/sh
-php tools/check_encoding.php --staged

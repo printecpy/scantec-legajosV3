@@ -110,13 +110,7 @@
                             </div>
                         </div>
 
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Cantidad de Páginas</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fas fa-copy text-gray-400"></i></div>
-                                <input type="number" name="paginas" value="1" min="1" class="pl-10 w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all" required>
-                            </div>
-                        </div>
+                        
                     </div>
                     <div class="mt-8 flex justify-end">
                         <button type="submit" class="bg-scantec-blue text-white hover:bg-gray-800 font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center">

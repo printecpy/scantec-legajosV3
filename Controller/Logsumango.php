@@ -3,11 +3,20 @@ class Logsumango extends Controllers
 {
     public function __construct()
     {
-        session_start();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit();
         }
         parent::__construct();
+        // Todos los métodos (views, reporte, pdf, excel, excel_fecha) requieren el ítem log_documentos
+        $this->asegurarAccesoFuncionalidad(
+            'log_documentos',
+            'No tienes permiso para acceder al log de documentos.',
+            'logsumango/' . strtolower(explode('/', trim((string) ($_GET['url'] ?? ''), '/'))[1] ?? 'views')
+        );
     }
     public function views()
     {
@@ -22,10 +31,11 @@ class Logsumango extends Controllers
         $this->views->getView($this, "reporte", $data);
     }
 
-   public function pdf()
+    public function pdf()
     {
-        if (ob_get_length()) ob_end_clean();
-        
+        if (ob_get_length())
+            ob_end_clean();
+
         $logsumango = $this->model->selectLogsumango();
 
         // Llamada a la nueva plantilla
@@ -75,7 +85,13 @@ class Logsumango extends Controllers
         require_once 'Helpers/ReportTemplateExcel.php';
         date_default_timezone_set('America/Asuncion');
 
-        $desde = $_POST['desde'];
+        $desde = trim((string) ($_POST['desde'] ?? ''));
+        $fecha = DateTime::createFromFormat('Y-m-d', $desde);
+        if (!$fecha || $fecha->format('Y-m-d') !== $desde) {
+            setAlert('warning', 'Fecha inválida.');
+            header('Location: ' . base_url() . 'logsumango/views');
+            exit();
+        }
         $logsumango = $this->model->reporteLogFecha($desde);
 
         $excel = new ReportTemplateExcel('LOGS UMANGO POR FECHA', 'SCANTEC');

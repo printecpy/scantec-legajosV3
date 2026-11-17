@@ -164,6 +164,61 @@
                     </form>
                 </div>
 
+                                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="font-bold text-gray-700 text-sm uppercase tracking-wider mb-4 border-b pb-2">
+                        <i class="fa fa-id-badge mr-2 text-scantec-blue"></i> Formato de usuario (opcional)
+                    </h3>
+
+                    <p class="text-xs text-gray-500 mb-4">
+                        Cómo se arma el nombre que se envía al servidor cuando alguien inicia sesión con su usuario del
+                        directorio. Si se deja vacío, se usa <code>DOMINIO\usuario</code>, tomando el primer
+                        <code>DC=</code> del Base DN como dominio.
+                    </p>
+
+                    <?php if (!empty($data['LDAP_datos'])) { ?>
+                        <form action="<?php echo base_url(); ?>configuracion/guardar_formato_ldap" method="POST">
+                            <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token']; ?>">
+
+                            <div class="mb-4">
+                                <label
+                                    class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Servidor</label>
+                                <select id="idFormatoLdap" name="id"
+                                    class="w-full px-4 py-2 rounded-xl border border-gray-300 bg-gray-50 text-sm text-gray-700 focus:ring-2 focus:ring-scantec-blue outline-none">
+                                    <?php foreach ($data['LDAP_datos'] as $i => $LDAP_fila) { ?>
+                                        <option value="<?= intval($LDAP_fila['id']); ?>"
+                                            data-formato="<?= htmlspecialchars((string) ($LDAP_fila['ldapFormatoUsuario'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                            <?= htmlspecialchars($LDAP_fila['ldapHost'] . ' (' . $LDAP_fila['ldapBaseDn'] . ')', ENT_QUOTES, 'UTF-8'); ?><?= $i === 0 ? ' - usado para iniciar sesión' : ''; ?>
+                                        </option>
+                                    <?php } ?>
+                                </select>
+                            </div>
+
+                            <div class="mb-2">
+                                <label for="ldapFormatoUsuario"
+                                    class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Formato</label>
+                                <input type="text" id="ldapFormatoUsuario" name="ldapFormatoUsuario" maxlength="255"
+                                    value="<?= htmlspecialchars((string) ($data['LDAP_datos'][0]['ldapFormatoUsuario'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                    class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all text-gray-700 text-sm"
+                                    placeholder="Ej: Nombre NetBios del dominio\{usuario}">
+                            </div>
+                            <p class="text-[10px] text-gray-400 mb-4 ml-1">
+                                Use <code>{usuario}</code> donde va el usuario. Ejemplos:
+                                <code>Dominio\{usuario}</code> (AD con nombre NetBIOS),
+                                <code>{usuario}</code> (solo el usuario),
+                                <code>{usuario}@empresa.com</code> (UPN),
+                                <code>uid={usuario_dn},ou=personas,dc=empresa,dc=com</code> (LDAP que no es AD).
+                            </p>
+
+                            <button type="submit"
+                                class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center">
+                                <i class="fa fa-save mr-2"></i> GUARDAR FORMATO
+                            </button>
+                        </form>
+                    <?php } else { ?>
+                        <p class="text-xs text-gray-400">Guarde primero la configuración de un servidor.</p>
+                    <?php } ?>
+                </div>
+
                 <div class="bg-blue-50 rounded-2xl border border-blue-100 p-6">
                     <h4 class="font-bold text-scantec-blue text-sm mb-2">¿Cómo funciona?</h4>
                     <ul class="text-xs text-gray-600 space-y-2 list-disc pl-4">
@@ -223,4 +278,11 @@ if (isset($_SESSION['alert'])) {
             form.submit();
         }
     });
+     // Al cambiar de servidor, se muestra el formato guardado para ese servidor
+    var selFormatoLdap = document.getElementById("idFormatoLdap");
+    if (selFormatoLdap) {
+        selFormatoLdap.addEventListener("change", function () {
+            document.getElementById("ldapFormatoUsuario").value = this.options[this.selectedIndex].getAttribute("data-formato") || "";
+        });
+    }
 </script>

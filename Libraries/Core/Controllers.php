@@ -6,24 +6,38 @@ class Controllers
     // Propiedades para vistas y modelos
     public $views;
     public $model;
+
+    private const RUTAS_PUBLICAS = [
+        'home/home',
+        'home/restablecer_pw',
+        'home/restaurarpass',
+        'home/registrarse',
+        'home/guardar_registro',
+        'home/seleccionar_bd',
+        'usuarios/login',
+        'usuarios/sesion_duplicada',
+        'usuarios/confirmar_sesion',
+        'usuarios/salir',
+        'legajos/formulario_externo',
+        'legajos/guardar_borrador_formulario_externo',
+        'legajos/enviar_formulario_externo',
+        'legajos/confirmacion_formulario_externo',
+    ];
+    private const CONTROLADORES_PUBLICOS = ['errors'];
     public function __construct()
     {
-        //INICIAR SESIÓN (Si no está iniciada)
-        // vital que esto esté al principio del constructor padre
         if (session_status() == PHP_SESSION_NONE) {
             session_start();
         }
+        $this->exigirSesionWeb();
         $this->bootstrapJerarquiaRolesScantec();
-        // Cargas normales del framework
         $this->views = new Views();
         $this->loadModel();
-        // --- VALIDACIÓN DE SEGURIDAD CENTRALIZADA ---
-        // Se ejecuta después de cargar todo, para validar si el usuario sigue vivo
         $this->validarSesionActivaEnBD();
         $this->validarFuncionalidadHabilitada();
         $this->sincronizarEstadosLegajosDiario();
     }
-    
+
     public function loadModel()
     {
         $model = get_class($this) . "Model";
@@ -33,6 +47,49 @@ class Controllers
             $this->model = new $model();
         }
     }
+
+    private function rutaActualNormalizada(): string
+    {
+        $url = strtolower(trim((string) ($_GET['url'] ?? ''), '/'));
+        if ($url === '') {
+            return 'home/home';
+        }
+        $partes = explode('/', $url);
+        $controlador = $partes[0] !== '' ? $partes[0] : 'home';
+        $metodo = (isset($partes[1]) && $partes[1] !== '') ? $partes[1] : 'home';
+        return $controlador . '/' . $metodo;
+    }
+
+    // ===== NUEVO =====
+    private function exigirSesionWeb(): void
+    {
+        if (PHP_SAPI === 'cli') {
+            return;                       // tareas programadas
+        }
+        if (defined('IS_API') && IS_API === true) {
+            return;                       // la API usa JWT
+        }
+
+        $ruta = $this->rutaActualNormalizada();
+        $controlador = explode('/', $ruta)[0];
+
+        if (
+            in_array($controlador, self::CONTROLADORES_PUBLICOS, true)
+            || in_array($ruta, self::RUTAS_PUBLICAS, true)
+        ) {
+            return;
+        }
+
+        if (empty($_SESSION['ACTIVO']) || $_SESSION['ACTIVO'] !== true) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            header('Location: ' . base_url());
+            exit();
+        }
+    }
+
+
     // Método auxiliar para manejo de CSRF (No requiere cambios)
     protected function checkCsrfSafety()
     {
@@ -81,7 +138,7 @@ class Controllers
             exit();
         }
     }
-    // Ejemplo: checkAccessSafetyUpdate
+
     protected function checkAccessSafetyUpdate($allowedRoles, string $actionContext = 'sección desconocida')
     {
         if (!Validador::puedeVer($_SESSION, $allowedRoles)) {
@@ -95,6 +152,60 @@ class Controllers
             header('Location: ' . base_url() . 'expedientes/indice_busqueda');
             exit();
         }
+    }
+
+    /**
+     * Acceso dinámico por ítem de FuncionalidadesModel.
+     * Los roles 1 (superadmin Scantec) y 2 (admin local) siempre tienen acceso total.
+     * Cualquier otro rol se resuelve contra funcionalidades_acceso_rol_departamento.
+     */
+    protected function tieneAccesoFuncionalidad(string $itemKey): bool
+    {
+        if (Validador::puedeVer($_SESSION, [1, 2])) {
+            return true;
+        }
+
+        try {
+            require_once 'Models/FuncionalidadesModel.php';
+            $funcionalidadesModel = new FuncionalidadesModel();
+            return $funcionalidadesModel->puedeAccederItemPorContexto(
+                $itemKey,
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Igual que los checkAccessSafety*, pero dinámico por itemKey en vez de
+     * una lista fija de roles. Usar al inicio de cualquier acción que deba
+     * depender de funcionalidades_acceso_rol_departamento.
+     */
+    protected function asegurarAccesoFuncionalidad(string $itemKey, string $mensaje, string $actionContext = ''): void
+    {
+        if ($this->tieneAccesoFuncionalidad($itemKey)) {
+            return;
+        }
+
+        setAlert('warning', $mensaje);
+
+        try {
+            require_once 'Models/UsuariosModel.php';
+            if (class_exists('UsuariosModel')) {
+                $logModel = new UsuariosModel();
+                $logModel->bloquearPC_IP(
+                    $_SESSION['nombre'] ?? '',
+                    'Acceso no autorizado a: ' . ($actionContext !== '' ? $actionContext : $itemKey)
+                );
+            }
+        } catch (Throwable $e) {
+            // no bloqueamos el flujo por un fallo de logging
+        }
+
+        header('Location: ' . base_url() . 'expedientes/indice_busqueda');
+        exit();
     }
 
     /**
@@ -152,14 +263,18 @@ class Controllers
             $request = $usuariosModel->obtenerVisitaActivaPorSession($mi_session_id);
 
             if (empty($request)) {
-                // ¡NO EXISTE O ESTÁ INACTIVO! El Admin cerró la sesión.
                 session_unset();
                 session_destroy();
                 header("Location: " . base_url() . "?msg=kicked");
                 exit();
             }
+
+            // Sesión válida: registrar actividad como mucho una vez por minuto
+            if (($_SESSION['actividad_bd'] ?? 0) < time() - 60) {
+                $usuariosModel->registrarActividad($mi_session_id);
+                $_SESSION['actividad_bd'] = time();
+            }
         } catch (Throwable $e) {
-            // Si falla la conexión, no bloqueamos al usuario
             return;
         }
     }
@@ -203,7 +318,7 @@ class Controllers
             return;
         }
 
-        $rutaActual = strtolower(trim((string)($_GET['url'] ?? ''), '/'));
+        $rutaActual = strtolower(trim((string) ($_GET['url'] ?? ''), '/'));
         if ($rutaActual === '') {
             return;
         }
@@ -280,20 +395,18 @@ class Controllers
     private function bootstrapJerarquiaRolesScantec(): void
     {
         try {
-            require_once 'Models/UsuariosModel.php';
-            if (!class_exists('UsuariosModel')) {
+            // Solo para usuarios con sesión: refrescar el rol desde la base en cada petición.
+            // Si un administrador le cambia o quita el rol a alguien, el cambio aplica de inmediato.
+            if (empty($_SESSION['ACTIVO']) || empty($_SESSION['id'])) {
                 return;
             }
 
+            require_once 'Models/UsuariosModel.php';
             $usuariosModel = new UsuariosModel();
-            $usuariosModel->asegurarJerarquiaRolesScantec();
-
-            if (!empty($_SESSION['ACTIVO']) && !empty($_SESSION['id'])) {
-                $idRolActual = $usuariosModel->obtenerRolUsuarioPorId(intval($_SESSION['id']));
-                if ($idRolActual > 0) {
-                    $_SESSION['id_rol'] = $idRolActual;
-                    $_SESSION['PERMISOS'] = $usuariosModel->getPermisosByRol($idRolActual);
-                }
+            $idRolActual = $usuariosModel->obtenerRolUsuarioPorId(intval($_SESSION['id']));
+            if ($idRolActual > 0) {
+                $_SESSION['id_rol'] = $idRolActual;
+                $_SESSION['PERMISOS'] = $usuariosModel->getPermisosByRol($idRolActual);
             }
         } catch (Throwable $e) {
             return;

@@ -272,7 +272,9 @@ if (!headers_sent()) {
 }
 
 if (!defined('LICENCIA_CLIENTE')) {
-    die('<h1>Error Crítico de Seguridad</h1><p>No se han cargado las credenciales de acceso. Contacte al administrador.</p>');
+    $estadoLicencia = class_exists('LicenseLoader') ? LicenseLoader::verificarEstado() : ['msg' => 'No se pudo determinar el estado de la licencia.'];
+    $mensaje = $estadoLicencia['msg'] ?? 'No se han cargado las credenciales de acceso.';
+    die('<h1>Error Crítico de Seguridad</h1><p>' . htmlspecialchars($mensaje) . '</p>');
 }
 
 if (!defined('LICENCIA_AMBIENTE')) {
@@ -301,6 +303,43 @@ if (!LICENCIA_ACTIVA) {
 
 if (!defined('LIMITE_USUARIOS')) {
     define('LIMITE_USUARIOS', defined('LICENCIA_MAX_USUARIOS') ? intval(LICENCIA_MAX_USUARIOS) : 0);
+}
+
+if (!defined('LIMITE_TIPODOC')) {
+    define('LIMITE_TIPODOC', defined('LICENCIA_MAX_TIPODOC') ? intval(LICENCIA_MAX_TIPODOC) : 0);
+}
+
+if (!defined('LIMITE_TIPOLEGAJO')) {
+    define('LIMITE_TIPOLEGAJO', defined('LICENCIA_MAX_TIPOLEGAJO') ? intval(LICENCIA_MAX_TIPOLEGAJO) : 0);
+}
+
+if (!defined('LDAP_ID_GRUPO_DEFECTO')) {
+    define('LDAP_ID_GRUPO_DEFECTO', intval($SCANTEC_APP_CONFIG['ldap_id_grupo_defecto'] ?? 1));
+}
+
+if (!defined('LEGAJOS_REQUISITOS_POR_PAGINA')) {
+    define('LEGAJOS_REQUISITOS_POR_PAGINA', intval($SCANTEC_APP_CONFIG['legajos_requisitos_por_pagina'] ?? 5));
+}
+
+if (!defined('CONFIG_LISTADOS_POR_PAGINA')) {
+    define('CONFIG_LISTADOS_POR_PAGINA', intval($SCANTEC_APP_CONFIG['config_listados_por_pagina'] ?? 5));
+}
+
+if (!defined('LEGAJOS_AUTOSAVE_INTERVALO_SEGUNDOS')) {
+    define('LEGAJOS_AUTOSAVE_INTERVALO_SEGUNDOS', intval($SCANTEC_APP_CONFIG['legajos_autosave_intervalo_segundos'] ?? 180));
+}
+
+if (!defined('LEGAJOS_AUTOSAVE_MOSTRAR_TOAST')) {
+    $valorToast = strtolower(trim((string) ($SCANTEC_APP_CONFIG['legajos_autosave_mostrar_toast'] ?? '0')));
+    define('LEGAJOS_AUTOSAVE_MOSTRAR_TOAST', in_array($valorToast, ['1', 'true', 'si', 'sí', 'yes', 'on'], true));
+}
+
+if (!defined('CONSULTA_INDICE1_ETIQUETA')) {
+    define('CONSULTA_INDICE1_ETIQUETA', trim(scantecEnv('SCANTEC_CONSULTA_INDICE1_ETIQUETA', 'socio')));
+}
+
+if (!defined('CONSULTA_INDICE1_FORMATO')) {
+    define('CONSULTA_INDICE1_FORMATO', trim(scantecEnv('SCANTEC_CONSULTA_INDICE1_FORMATO', 'numerico')));
 }
 
 $_SERVER['SERVER_NAME'] = $_SERVER['SERVER_NAME'] ?? 'localhost';

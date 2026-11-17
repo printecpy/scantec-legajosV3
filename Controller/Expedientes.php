@@ -9,36 +9,68 @@ class Expedientes extends Controllers
 {
     public function __construct()
     {
-        // CORRECCIÓN: verificar antes de iniciar para evitar "session already started"
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
         if (empty($_SESSION['ACTIVO'])) {
+            $retorno = ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' ? rutaRetornoSegura((string) ($_SERVER['REQUEST_URI'] ?? ''), base_url()) : null;
+            if ($retorno !== null) {          // solo las dos rutas de la consulta devuelven algo
+                $_SESSION['retorno_login'] = $retorno;
+                setAlert('info', 'Inicie sesión para continuar con la consulta.');
+            }
             header("location: " . base_url());
-            exit(); // CORRECCIÓN: agregar exit() para detener la ejecución tras redirigir
+            exit();
         }
         parent::__construct();
     }
     public function expedientes()
     {
         $expediente = $this->model->selectExpediente();
-        $data = ['expediente' => $expediente];
+        $data = [
+            'expediente' => $expediente,
+            'puede_gestionar' => $this->tieneAccesoFuncionalidad('gestionar_expedientes'),
+        ];
         $this->views->getView($this, "listar", $data);
     }
 
     public function indice_busqueda()
     {
-        $indice_04 = $this->model->selectDocumento();
         $tipos_documentos = $this->model->selectTipoDoc();
-        // Asegúrate de que la clave sea la misma en la vista y en el controlador
-        $data = ['indice_04' => $indice_04, 'tipos_documentos' => $tipos_documentos];
+        $data = ['tipos_documentos' => $tipos_documentos];
         $this->views->getView($this, "indice_busqueda", $data);
+    }
+
+    // Valida el permiso de gestión y que el documento sea de un tipo del grupo del usuario. Rol 1: sin restricción de grupo.
+    private function expedienteGestionable(int $id_expediente): array
+    {
+        $this->asegurarAccesoFuncionalidad(
+            'gestionar_expedientes',
+            'No tienes permiso para modificar documentos.',
+            'expedientes/gestion'
+        );
+
+        $expediente = null;
+        if ($id_expediente > 0) {
+            if (intval($_SESSION['id_rol'] ?? 0) === 1) {
+                $res = $this->model->editExpediente($id_expediente);
+                $expediente = isset($res[0]) ? $res[0] : ($res ?: null);
+            } else {
+                $expediente = $this->model->obtenerExpedienteGestionable($id_expediente, intval($_SESSION['id_grupo'] ?? 0));
+            }
+        }
+
+        if (empty($expediente)) {
+            setAlert('warning', 'Documento no encontrado o sin permisos de acceso.');
+            header('Location: ' . base_url() . 'expedientes/busqueda');
+            exit();
+        }
+
+        return $expediente;
     }
 
     public function upload_files()
     {
         $tipos_documentos = $this->model->selectTipoDoc();
-        // Asegúrate de que la clave sea la misma en la vista y en el controlador
         $data = ['tipos_documentos' => $tipos_documentos];
         $this->views->getView($this, "upload_files", $data);
     }
@@ -49,12 +81,17 @@ class Expedientes extends Controllers
         exit();
     }
 
-
     public function busqueda()
     {
-        $id_tipoDoc = filter_input(INPUT_GET, 'id_tipoDoc', FILTER_SANITIZE_NUMBER_INT);
-        $termino = filter_input(INPUT_GET, 'termino', FILTER_SANITIZE_STRING);
-        $id_tipoDoc = $id_tipoDoc ? (int) $id_tipoDoc : 0;
+        // FILTER_SANITIZE_NUMBER_INT se mantiene, pero validamos explícitamente el tipo con VALIDATE_INT
+        $id_tipoDoc = filter_input(INPUT_GET, 'id_tipoDoc', FILTER_VALIDATE_INT);
+        $id_tipoDoc = $id_tipoDoc ?: 0;
+
+        // FILTER_SANITIZE_STRING está DEPRECADO desde PHP 8.1 (removido en 9.0).
+        // Reemplazado por trim + htmlspecialchars, que cumple el mismo propósito de forma soportada.
+        $terminoRaw = filter_input(INPUT_GET, 'termino', FILTER_UNSAFE_RAW);
+        $termino = $terminoRaw !== null ? trim($terminoRaw) : '';
+        $termino = htmlspecialchars($termino, ENT_QUOTES, 'UTF-8');
 
         $busqueda = $this->model->buscarExpedientePorTermino($id_tipoDoc, $termino);
         $data = ['busqueda' => $busqueda, 'termino' => $termino];
@@ -63,16 +100,156 @@ class Expedientes extends Controllers
 
     public function mostrar_registros()
     {
-        $indice_01 = htmlspecialchars($_GET['indice_01']);
-        $nombre_tipoDoc = htmlspecialchars($_GET['nombre_tipoDoc']);
-        $termino = htmlspecialchars($_GET['termino']);
-        $mostrar_registros = $this->model->selectRegistros2($indice_01, $nombre_tipoDoc, $termino);
-        $data = ['mostrar_registros' => $mostrar_registros];
-        if ($data == 0) {
-            $this->mostrar_registros();
-        } else {
-            $this->views->getView($this, "mostrar_registros", $data);
+        // Único parámetro que ahora viaja en la URL: id_expediente (numérico, no revela datos de negocio)
+        $id_expediente = filter_input(INPUT_GET, 'id_expediente', FILTER_VALIDATE_INT);
+
+        if (!$id_expediente || $id_expediente <= 0) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Solicitud inválida: expediente no especificado.'];
+            header('Location: ' . base_url() . 'expedientes/busqueda');
+            exit;
         }
+
+        $id_grupo = intval($_SESSION['id_grupo'] ?? 0);
+
+        // Resuelve indice_01 + id_tipoDoc de forma segura a partir del ID,
+        // validando en la misma consulta que el usuario tenga permiso sobre ese tipo de documento.
+        $referencia = $this->model->obtenerReferenciaExpediente($id_expediente, $id_grupo);
+
+        if (!$referencia) {
+            // No existe O no pertenece al grupo del usuario: mismo mensaje en ambos casos
+            // para no revelar si el ID existe (evita enumeración de expedientes ajenos).
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Expediente no encontrado o sin permisos de acceso.'];
+            header('Location: ' . base_url() . 'expedientes/busqueda');
+            exit;
+        }
+
+        $mostrar_registros = $this->model->selectRegistros2(
+            $referencia['indice_01'],
+            (int) $referencia['id_tipoDoc'],
+            $id_grupo
+        );
+
+        $data = [
+            'mostrar_registros' => $mostrar_registros,
+            'puede_gestionar' => $this->tieneAccesoFuncionalidad('gestionar_expedientes'),
+        ];
+        $this->views->getView($this, "mostrar_registros", $data);
+    }
+
+    // Formatos aceptados para el indice 1. Se elige UNO por nombre desde el .env (nunca una regex libre).
+    private const FORMATOS_INDICE_1 = [
+        'numerico' => '/^[0-9]{1,15}$/D',
+        'alfanumerico' => '/^[A-Za-z0-9._-]{1,30}$/D',
+    ];
+
+    private function etiquetaIndice1(): string
+    {
+        return (defined('CONSULTA_INDICE1_ETIQUETA') && CONSULTA_INDICE1_ETIQUETA !== '')
+            ? (string) CONSULTA_INDICE1_ETIQUETA
+            : 'socio';
+    }
+
+    private function patronIndice1(): string
+    {
+
+        $formato = defined('CONSULTA_INDICE1_FORMATO') ? strtolower(trim((string) CONSULTA_INDICE1_FORMATO)) : 'numerico';
+        return self::FORMATOS_INDICE_1[$formato] ?? self::FORMATOS_INDICE_1['numerico'];   // valor desconocido -> el mas estricto
+    }
+
+    public function buscarporindice01()
+    {
+        $id_grupo = $this->accesoConsultaIndice1();
+
+        $id_tipoDoc = max(0, (int) filter_var($_GET['id_tipoDoc'] ?? 0, FILTER_VALIDATE_INT));
+        $indice1 = is_string($_GET['indice1'] ?? null) ? trim($_GET['indice1']) : '';
+
+        $data = ['etiqueta' => $this->etiquetaIndice1(), 'indice1' => $indice1, 'buscarporindice' => [], 'error' => ''];
+
+        if (!preg_match($this->patronIndice1(), $indice1)) {
+            http_response_code(400);
+            $data['error'] = 'El valor de búsqueda no es válido.';
+        } else {
+            $data['buscarporindice'] = $this->model->buscarExpedientesPorIndice01($indice1, $id_tipoDoc, $id_grupo);
+        }
+
+        $this->views->getView($this, "buscarporindice", $data);
+    }
+
+    public function mostrar_resultados()
+    {
+        $id_grupo = $this->accesoConsultaIndice1();
+
+        $data = ['mostrar_resultados' => [], 'indice1' => '', 'volver' => '', 'error' => ''];
+        $id_expediente = (int) filter_var($_GET['id_expediente'] ?? 0, FILTER_VALIDATE_INT);
+
+        // Resuelve indice_01 + tipo desde el id, solo si el grupo tiene permiso vigente sobre ese tipo.
+        // Mismo mensaje si el id no existe o no tiene permiso: no se revela si existe.
+        $ref = $id_expediente > 0 ? $this->model->obtenerReferenciaExpediente2($id_expediente, $id_grupo) : null;
+
+        if (!$ref) {
+            http_response_code(404);
+            $data['error'] = 'Expediente no encontrado o sin permisos de acceso.';
+        } else {
+            $data['indice1'] = (string) $ref['indice_01'];
+            $data['mostrar_resultados'] = $this->model->selectRegistros($data['indice1'], (int) $ref['id_tipoDoc'], $id_grupo);
+            if (preg_match($this->patronIndice1(), $data['indice1'])) {
+                $data['volver'] = base_url() . 'expedientes/buscarporindice01?id_tipoDoc=0&indice1=' . urlencode($data['indice1']);
+            }
+        }
+
+        $this->views->getView($this, "mostrar_resultados", $data);
+    }
+
+    // Mismos permisos que el menu (header.php): seccion "archivos" habilitada y acceso "buscador_archivos"
+    // para su rol/departamento. Rol 1 y root las ignoran. Devuelve el id_grupo del usuario.
+    private function accesoConsultaIndice1(): int
+    {
+        if (!$this->tieneAccesoFuncionalidad('consulta_indice1')) {
+            http_response_code(403);
+            echo 'No tiene permiso para esta consulta.';
+            exit;
+        }
+        $id_grupo = intval($_SESSION['id_grupo'] ?? 0);
+        if ($id_grupo <= 0) {
+            http_response_code(403);
+            echo 'Su usuario no tiene un grupo asignado.';
+            exit;
+        }
+        header('Cache-Control: no-store, private');   // hay datos personales en pantalla
+        return $id_grupo;
+    }
+
+    // Valida la ruta relativa guardada en la BD y la resuelve dentro de RUTA_BASE.
+// No usa realpath(): funciona igual con disco local (C:, D:), carpetas enlazadas y NAS por UNC (\\servidor\recurso).
+    private function rutaDentroDeStorage(string $relativa): ?string
+    {
+        $relativa = trim(str_replace('\\', '/', $relativa));
+        if ($relativa === '' || preg_match('/[\x00-\x1F]/', $relativa)) {
+            return null;                                   // vacía o con caracteres de control (\0, saltos)
+        }
+        if ($relativa[0] === '/' || preg_match('#^[A-Za-z]:#', $relativa)) {
+            return null;                                   // absoluta, UNC (//servidor) o con letra de unidad
+        }
+
+        $partes = [];
+        foreach (explode('/', $relativa) as $seg) {
+            if ($seg === '' || $seg === '.') {
+                continue;
+            }
+            if (strpbrk($seg, ':*?"<>|') !== false) {
+                return null;                               // flujos alternos (::$DATA) y caracteres inválidos en Windows
+            }
+            if (trim($seg, ' .') === '') {
+                return null;                               // "..", "...", ".. " (Windows ignora puntos y espacios finales)
+            }
+            $partes[] = $seg;
+        }
+        if (!$partes) {
+            return null;
+        }
+
+        $ruta = rtrim(RUTA_BASE, '/\\') . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $partes);
+        return is_file($ruta) ? $ruta : null;
     }
 
     public function reporte()
@@ -89,82 +266,38 @@ class Expedientes extends Controllers
 
     public function editar()
     {
-        //Validar el ID que viene por URL
-        if (empty($_GET['id_expediente'])) {
-            header("Location: " . base_url() . "expedientes");
-            exit();
-        }
-        $id_expediente = $_GET['id_expediente'];
-        //Consultar al Modelo
-        $respuesta_modelo = $this->model->editExpediente($id_expediente);
-        // Verificamos si la respuesta tiene el índice 0 (es decir, si es un array de arrays)
-        if (!empty($respuesta_modelo) && isset($respuesta_modelo[0])) {
-            $expediente = $respuesta_modelo[0];
-        } else {
-            // Si no tiene índice 0, asumimos que ya es el array plano o está vacío
-            $expediente = $respuesta_modelo;
-        }
-        // validación final: Si después de limpiar sigue vacío, es que no existe el ID
-        if (empty($expediente)) {
-            header("Location: " . base_url() . "expedientes");
-            exit();
-        }
+        $expediente = $this->expedienteGestionable(intval($_GET['id_expediente'] ?? 0));
 
-        // 5. Enviar a la Vista
-        // Ahora $expediente es el array limpio: ['id_expediente' => 10273, 'indice_01' => 'AGOSTO'...]
         $data = [
             'page_title' => 'Modificar Expediente',
-            'expediente' => $expediente
+            'expediente' => $expediente,
         ];
-
         $this->views->getView($this, "editar", $data);
-    }
-    public function renombrar()
-    {
-        $id_expediente = $_GET['id_expediente'];
-        $expediente = $this->model->renomExpediente($id_expediente);
-        $data = ['expediente' => $expediente];
-        if ($data == 0) {
-            $this->expedientes();
-        } else {
-            $this->views->getView($this, "renombrar", $data);
-        }
     }
 
     public function modificar()
     {
-        // 1. Verificar Token CSRF (Seguridad)
-        // Si no existe o no coincide, detenemos la ejecución para evitar ataques.
-        if (!isset($_POST['token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
-            header("Location: " . base_url() . "expedientes?error=csrf");
-            die();
+        if (!Validador::csrfValido()) {
+            setAlert('error', 'Token de seguridad inválido o expirado.');
+            header('Location: ' . base_url() . 'expedientes/busqueda');
+            exit();
         }
 
-        // 2. Recibir datos del formulario (POST)
-        // Usamos el operador de fusión null (??) para evitar errores "Undefined index"
-        $id_expediente = $_POST['id_expediente'];
+        $id_expediente = intval($_POST['id_expediente'] ?? 0);
+        $this->expedienteGestionable($id_expediente);   // corta si no corresponde
 
-        // id_proceso puede venir vacío si el input estaba 'disabled' en el HTML.
-        // Si es vital, asegúrate de quitar el 'disabled' o usar 'readonly'.
-        $id_proceso = $_POST['id_proceso'] ?? '';
+        $id_proceso = (string) ($_POST['id_proceso'] ?? '');
+        $indice_01 = trim((string) ($_POST['indice_01'] ?? ''));
+        $indice_02 = trim((string) ($_POST['indice_02'] ?? ''));
+        $indice_03 = trim((string) ($_POST['indice_03'] ?? ''));
+        $indice_04 = trim((string) ($_POST['indice_04'] ?? ''));
+        $indice_05 = trim((string) ($_POST['indice_05'] ?? ''));
+        $indice_06 = trim((string) ($_POST['indice_06'] ?? ''));
+        $ubicacion = trim((string) ($_POST['ubicacion'] ?? ''));
+        $firma_digital = in_array($_POST['firma_digital'] ?? 'no', ['si', 'no'], true) ? $_POST['firma_digital'] : 'no';
+        $version = trim((string) ($_POST['version'] ?? '1.0'));
+        $paginas = max(1, intval($_POST['paginas'] ?? 1));
 
-        // Limpiamos los datos básicos con htmlspecialchars para evitar XSS
-        $indice_01 = htmlspecialchars($_POST['indice_01'] ?? '');
-        $indice_02 = htmlspecialchars($_POST['indice_02'] ?? '');
-        $indice_03 = htmlspecialchars($_POST['indice_03'] ?? '');
-        $indice_04 = htmlspecialchars($_POST['indice_04'] ?? '');
-        $indice_05 = htmlspecialchars($_POST['indice_05'] ?? '');
-        $indice_06 = htmlspecialchars($_POST['indice_06'] ?? '');
-        $ubicacion = htmlspecialchars($_POST['ubicacion'] ?? '');
-        $firma_digital = htmlspecialchars($_POST['firma_digital'] ?? 'no'); // Valor por defecto 'no'
-        $version = htmlspecialchars($_POST['version'] ?? '1.0');     // Valor por defecto '1.0'
-
-        // CORRECCIÓN CLAVE DEL ERROR 500:
-        // Aseguramos que 'paginas' sea un número entero. Si no viene, ponemos 1.
-        $paginas = !empty($_POST['paginas']) ? intval($_POST['paginas']) : 1;
-
-        // 3. Llamar al Modelo
-        // El orden de los argumentos debe coincidir EXACTAMENTE con la definición en tu Modelo.
         $actualizar = $this->model->actualizarExpediente(
             $id_proceso,
             $indice_01,
@@ -176,71 +309,55 @@ class Expedientes extends Controllers
             $ubicacion,
             $firma_digital,
             $version,
-            $paginas,       // <--- Este era el dato que faltaba antes
+            $paginas,
             $id_expediente
         );
 
-        // 4. Redireccionar con Mensaje
-        if ($actualizar) {
-            // Guardamos mensaje de ÉXITO en la sesión
-            $_SESSION['alert'] = [
-                'type' => 'success',
-                'message' => 'Expediente modificado correctamente.'
-            ];
-
-            // Redirigimos a la misma página de edición para ver los cambios reflejados
-            header("Location: " . base_url() . "expedientes/editar?id_expediente=" . $id_expediente);
-            die();
+        if ($actualizar !== false) {
+            setAlert('success', 'Expediente modificado correctamente.');
         } else {
-            // Guardamos mensaje de ERROR en la sesión
-            $_SESSION['alert'] = [
-                'type' => 'error',
-                'message' => 'Error al guardar los cambios en la base de datos.'
-            ];
-
-            // Redirigimos para que el usuario intente de nuevo
-            header("Location: " . base_url() . "expedientes/editar?id_expediente=" . $id_expediente);
-            die();
+            setAlert('error', 'Error al guardar los cambios en la base de datos.');
         }
+        header('Location: ' . base_url() . $this->rutaVolver('expedientes/editar?id_expediente=' . $id_expediente));
+        exit();
     }
+
     public function subir()
     {
-        // 1. 🚀 CONFIGURACIÓN DE RENDIMIENTO
-        // Evita que el script se corte por tiempo (Timeout)
-        set_time_limit(0);
-        // Aumenta memoria temporalmente para este proceso pesado
-        ini_set('memory_limit', '1024M');
+        // 1. CONFIGURACIÓN BÁSICA
+        set_time_limit(500);
 
-        // --- 🔐 SEGURIDAD: Validación de CSRF ---
         if (!isset($_POST['token']) || !isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token']) {
             header("Location: " . base_url() . "?error=csrf");
             die();
         }
 
-        // === ðŸ› ï¸ RUTAS ABSOLUTAS ===
-        $magick_escaped = escapeshellarg(MAGICK_EXECUTABLE_PATH);
-        $tesseract_escaped = escapeshellarg(TESSERACT_EXECUTABLE_PATH);
-
-        // --- ⚙️ PREPARACIÓN DE DATOS ---
         date_default_timezone_set('America/Asuncion');
         $id_proceso = date("Ymd-His");
 
-        // Saneamiento de entradas
+        // 2. RECUPERACIÓN DE DATOS E ÍNDICES
         $id_tipoDoc = filter_input(INPUT_POST, 'id_tipoDoc', FILTER_SANITIZE_STRING);
+
+        $tipoDocData = $this->model->getTipoDocById($id_tipoDoc);
+        $nombre_tipo = (!empty($tipoDocData) && isset($tipoDocData[0]['nombre_tipoDoc']))
+            ? $tipoDocData[0]['nombre_tipoDoc']
+            : 'Otros';
+        $nombre_carpeta_tipo = preg_replace('/[^a-zA-Z0-9_-]/', '', $nombre_tipo);
+
         $indice_01 = filter_input(INPUT_POST, 'indice_01', FILTER_SANITIZE_STRING);
         $indice_02 = filter_input(INPUT_POST, 'indice_02', FILTER_SANITIZE_STRING);
         $indice_03 = filter_input(INPUT_POST, 'indice_03', FILTER_SANITIZE_STRING);
-        $indice_04 = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['indice_04']); // Solo letras, nums y guiones
+        $indice_04 = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['indice_04']);
         $indice_05 = filter_input(INPUT_POST, 'indice_05', FILTER_SANITIZE_STRING);
         $indice_06 = filter_input(INPUT_POST, 'indice_06', FILTER_SANITIZE_STRING);
 
-        // --- ðŸ“ RUTAS DE ARCHIVOS ---
-        $nombreSeguro = preg_replace('/[^A-Za-z0-9._-]/', '_', (string)$indice_04);
+        $nombreSeguro = preg_replace('/[^A-Za-z0-9._-]/', '_', (string) $indice_04);
         $nombre_final = ($nombreSeguro !== '' ? $nombreSeguro : uniqid('expediente_', true)) . '.pdf';
-        $ruta_relativa = 'Expedientes/' . $nombre_final;
+
+        $ruta_relativa = 'Expedientes/' . $nombre_carpeta_tipo . '/' . $nombre_final;
         $ubicacion_fisica = RUTA_BASE . $ruta_relativa;
 
-        // --- ðŸ“¤ VALIDAR SUBIDA ---
+        // 3. VALIDACIÓN DE SEGURIDAD DEL ARCHIVO
         if (!isset($_FILES['file_pdf']) || $_FILES['file_pdf']['error'] !== UPLOAD_ERR_OK) {
             setAlert('error', "Error al subir el archivo.");
             header("location: " . base_url() . "expedientes/upload_files");
@@ -248,18 +365,17 @@ class Expedientes extends Controllers
         }
 
         if (!scantecValidarUpload($_FILES['file_pdf'], ['pdf'], ['application/pdf'], 50 * 1024 * 1024)) {
-            setAlert('error', "El archivo debe ser un PDF valido y no superar 50 MB.");
+            setAlert('error', "El archivo debe ser un PDF válido y no superar 50 MB.");
             header("location: " . base_url() . "expedientes/upload_files");
             exit();
         }
 
-        // Crear carpeta si no existe
+        // 4. GUARDAR ARCHIVO ORIGINAL (SIN ALTERACIONES)
         $dir_expedientes = dirname($ubicacion_fisica);
         if (!is_dir($dir_expedientes)) {
             mkdir($dir_expedientes, 0777, true);
         }
 
-        // Mover archivo
         if (!move_uploaded_file($_FILES['file_pdf']['tmp_name'], $ubicacion_fisica)) {
             setAlert('error', "Error al guardar el archivo en el servidor.");
             header("location: " . base_url() . "expedientes/upload_files");
@@ -267,108 +383,31 @@ class Expedientes extends Controllers
         }
 
         // =============================================
-        // ðŸ”„ PROCESAMIENTO: ENDEREZADO (DESKEW)
+        // 5. CONTEO DE PÁGINAS EXACTO E INOFENSIVO
         // =============================================
-        // Nota: Solo procesamos si realmente queremos corregir (Esto es LENTO)
+        $num_paginas = 1;
+        $magick_escaped = escapeshellarg(MAGICK_EXECUTABLE_PATH);
+        $pdf_escaped = escapeshellarg($ubicacion_fisica);
 
-        $temp_dir = RUTA_BASE . 'Temp/' . $id_proceso . '/';
-        if (!is_dir($temp_dir))
-            mkdir($temp_dir, 0777, true);
+        // Usamos identify básico: Esto devuelve una línea de texto por cada página que detecte
+        exec("$magick_escaped identify $pdf_escaped 2>&1", $salida_ident);
 
-        $temp_output = RUTA_BASE . 'Temp/oriented_' . $nombre_final;
-        $pdf_path_escaped = escapeshellarg($ubicacion_fisica);
-        $img_output_path = escapeshellarg($temp_dir . 'page_%03d.png');
-
-        // 1️⃣ Convertir PDF a imágenes (Bajamos a 200 DPI para velocidad, 300 es muy pesado)
-        $cmd_convert = "$magick_escaped -density 200 -units PixelsPerInch $pdf_path_escaped $img_output_path 2>&1";
-        exec($cmd_convert, $output_lines, $return_var);
-
-        if ($return_var === 0) {
-            $images = glob($temp_dir . "page_*.png");
-
-            if (!empty($images)) {
-                foreach ($images as $img) {
-                    $img_escaped = escapeshellarg($img);
-
-                    // 2ï¸âƒ£ Enderezar (Deskew)
-                    shell_exec("$magick_escaped mogrify -deskew 40% $img_escaped 2>&1");
-
-                    // 3️⃣ Detectar rotación con Tesseract (OSD)
-                    $cmd_tesseract = "$tesseract_escaped $img_escaped stdout --psm 0 -l osd 2>&1";
-                    $output_tess = [];
-                    exec($cmd_tesseract, $output_tess);
-                    $tess_result = implode("\n", $output_tess);
-
-                    if (preg_match('/Orientation in degrees: (\d+)/', $tess_result, $match)) {
-                        $angle = intval($match[1]);
-                        if ($angle > 0 && $angle < 360) {
-                            $rotate = 360 - $angle;
-                            shell_exec("$magick_escaped mogrify -rotate $rotate $img_escaped 2>&1");
-                        }
-                    }
+        if (!empty($salida_ident)) {
+            $paginas_reales = 0;
+            foreach ($salida_ident as $linea) {
+                // Filtramos que la línea sea legítima (contiene 'PDF')
+                if (stripos($linea, 'PDF') !== false) {
+                    $paginas_reales++;
                 }
-
-                // 4ï¸âƒ£ Reconstruir PDF
-                $temp_output_escaped = escapeshellarg($temp_output);
-                $img_input_path = escapeshellarg($temp_dir . "page_*.png");
-
-                // Reconstruimos el PDF
-                $cmd_rebuild = "$magick_escaped -density 200 $img_input_path $temp_output_escaped 2>&1";
-                shell_exec($cmd_rebuild);
-
-                // Si se creó bien, reemplazamos el original
-                if (file_exists($temp_output)) {
-                    copy($temp_output, $ubicacion_fisica);
-                    unlink($temp_output);
-                }
+            }
+            if ($paginas_reales > 0) {
+                $num_paginas = $paginas_reales;
             }
         }
 
-        // ========================================================
-        // 5️⃣ CONTAR PÁGINAS (MÉTODO ÓPTIMO SIN PHP_IMAGICK) 🚀
-        // ========================================================
-        // Usamos 'identify' de consola. Es mucho más ligero.
-        // -format %n : Devuelve el número de P�ginas.
-
-        $num_paginas = 1; // Valor por defecto
-
-        // Ejecutamos el comando
-        $cmd_count = "$magick_escaped identify -format %n $pdf_path_escaped";
-        $output_count = shell_exec($cmd_count);
-
-        // ImageMagick a veces devuelve un número por cada imagen procesada si hay ghostscript de fondo.
-        // O devuelve directamente el número. Lo limpiamos:
-        if ($output_count) {
-            // A veces devuelve "111" (tres P�ginas) o líneas separadas.
-            // La forma segura para PDF multipágina:
-            $output_lines_count = [];
-            exec($cmd_count, $output_lines_count);
-
-            // Si devuelve muchas líneas, el conteo es el número de líneas
-            if (count($output_lines_count) > 0) {
-                // Opción A: Contar líneas (típico comportamiento de identify en PDFs)
-                $num_paginas = count($output_lines_count);
-
-                // Opción B: Si devuelve un solo número
-                if ($num_paginas == 1 && is_numeric(trim($output_lines_count[0]))) {
-                    $num_paginas = intval(trim($output_lines_count[0]));
-                }
-            }
-        }
-
-        // Limpieza de temporales
-        if (is_dir($temp_dir)) {
-            array_map('unlink', glob($temp_dir . "*"));
-            rmdir($temp_dir);
-        }
-
-        // =============================
-        // ðŸ’¾ REGISTRO EN BD
-        // =============================
-        $ubicacion = "scantec";
-        $version = "1.0";
-        $fecha_indexado = date("Y-m-d");
-
+        // =============================================
+        // 6. REGISTRO EN BASE DE DATOS
+        // =============================================
         $registrar = $this->model->registrarExpediente(
             $id_proceso,
             $id_tipoDoc,
@@ -378,17 +417,17 @@ class Expedientes extends Controllers
             $indice_04,
             $indice_05,
             $indice_06,
-            $num_paginas, // Variable obtenida optimizadamente
+            $num_paginas,
             $ruta_relativa,
-            $ubicacion,
-            $version,
-            $fecha_indexado
+            "scantec",
+            "1.0",
+            date("Y-m-d")
         );
 
         if ($registrar) {
-            setAlert('success', "Procesado correctamente. Páginas detectadas: $num_paginas");
+            setAlert('success', "Procesado correctamente. Páginas: $num_paginas");
         } else {
-            setAlert('error', "Error al registrar en BD.");
+            setAlert('error', "Error al registrar en la base de datos.");
         }
 
         session_write_close();
@@ -396,376 +435,157 @@ class Expedientes extends Controllers
         exit();
     }
 
-    public function buscar()
-    {
-        $indice_05 = $_POST['indice_05'];
-        $actualizar = $this->model->buscarExpediente($indice_05);
-        if ($actualizar) {
-            header("location: " . base_url() . "expedientes/busqueda");
-            die();
-        }
-    }
-
-    public function modificar_nombre()
-    {
-        $id_expediente = $_POST['id_expediente'];
-        $indice_01 = $_POST['indice_01'];
-        $indice_02 = $_POST['indice_02'];
-        $indice_05 = $_POST['indice_05'];
-        //$nombre = $_POST['nombre_archivo'];
-        $file = 'Expedientes/' . $_POST['nombre_archivo'] . '.pdf';
-        $pathInfo = pathinfo($file);
-        //$nombre_archivo = 'C:/xampp/htdocs/Expedientes/'.$_POST['nombre_archivo'].'.pdf';
-        $archivo = 'Expedientes/' . $indice_01 . '_' . $indice_02 . '_' . $indice_05 . '.pdf';
-        $nombre_nuevo = $indice_01 . '_' . $indice_02 . '_' . $indice_05;
-        rename($file, $nombre_nuevo . $pathInfo['.pdf']);
-        $actualizar = $this->model->renombrarExpediente($indice_01, $indice_02, $indice_05, $archivo, $id_expediente);
-        if ($actualizar) {
-            header("location: " . base_url() . "expedientes");
-            die();
-        }
-    }
-    /* public function modificar()
-        {
-            $id_expediente = $_POST['id_expediente'];
-            $cantidad = $_POST['cantidad'];
-            $autor = $_POST['autor'];
-            $editorial = $_POST['editorial'];
-            $anio_edicion = $_POST['anio_edicion'];
-            $editorial = $_POST['editorial'];
-            $materia = $_POST['materia'];
-            $num_pagina = $_POST['num_pagina'];
-            $descripcion = $_POST['descripcion'];
-            $img = $_FILES['imagen'];
-            $imgName = $img['name'];
-            $nombreTemp = $img['tmp_name'];
-            $fecha = md5(date("Y-m-d h:i:s")) . "_" . $imgName;
-            $destino = "Assets/images/libros/".$fecha;
-            $imgAntigua = $_POST['foto'];
-            if ($imgName == null || $imgName == "") {
-                $actualizar = $this->model->actualizarLibro($titulo, $cantidad, $autor ,$editorial, $anio_edicion, $materia, $num_pagina, $descripcion, $imgAntigua, $id_expediente);
-            } else {
-                if (!scantecValidarUpload($img, ['png', 'jpg', 'jpeg', 'webp', 'gif'], ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], 5 * 1024 * 1024)) {
-                    setAlert('error', "La imagen debe ser valida y no superar 5 MB.");
-                    header("location: " . base_url() . "expedientes/listar");
-                    exit();
-                }
-                $extensionImagen = strtolower(pathinfo($imgName, PATHINFO_EXTENSION));
-                $fecha = md5(date("Y-m-d h:i:s") . $imgName) . "." . $extensionImagen;
-                $destino = "Assets/images/libros/" . $fecha;
-                $actualizar = $this->model->actualizarLibro($titulo, $cantidad, $autor ,$editorial, $anio_edicion, $materia, $num_pagina, $descripcion, $fecha, $id_expediente);
-                if ($actualizar) {
-                    move_uploaded_file($nombreTemp, $destino);
-                    if ($imgAntigua != "default-avatar.png") {
-                        unlink("Assets/images/libros/" . $imgAntigua);
-                    }
-                }
-            }
-            header("location: " . base_url() . "expedientes");
-            die();
-        } */
     public function eliminar()
     {
-        if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            // Redirigir y mostrar un mensaje de error en caso de token CSRF inválido o caducado
-            header("Location: " . base_url() . "?error=csrf");
-            die();
-        }
-        $id_expediente = $_POST['id_expediente'];
-        $this->model->estadoExpediente('Inactivo', $id_expediente);
-        header("location: " . base_url() . "expedientes");
-        die();
+        $this->cambiarEstadoExpediente('Inactivo', 'Documento anulado correctamente.');
     }
+
     public function reingresar()
     {
-        $id_expediente = $_POST['id_expediente'];
-        $this->model->estadoExpediente('Activo', $id_expediente);
-        header("location: " . base_url() . "expedientes");
-        die();
+        $this->cambiarEstadoExpediente('Activo', 'Documento reactivado correctamente.');
     }
 
-    public function api_verExpediente()
+    private function cambiarEstadoExpediente(string $estado, string $mensaje): void
     {
-        header('Content-Type: application/json');
-
-        if (isset($_GET['ruta']) && !empty($_GET['ruta']) && isset($_GET['id_expediente']) && !empty($_GET['id_expediente'])) {
-
-            $ruta_original = RUTA_BASE . urldecode($_GET['ruta']);
-            $id_expediente = intval($_GET['id_expediente']);
-
-            if (file_exists($ruta_original)) {
-                // ✅ Registrar visualización
-                date_default_timezone_set('America/Asuncion');
-                $fecha = date("Y-m-d H:i:s");
-                $direccion_ip = $_SERVER["REMOTE_ADDR"] ?? "";
-                $nombre_pc = gethostbyaddr($_SERVER['REMOTE_ADDR']);
-                $nombre_expediente = urldecode($_GET['ruta']);
-                // ⚠️ Reemplazar con datos seguros si usás tokens
-                $id_user = 1;
-                $usuario = 'api_user';
-                $this->model->registrar_visualizacion($id_user, $id_expediente, $usuario, $nombre_pc, $nombre_expediente, $direccion_ip, $fecha);
-                // âœ… Mostrar PDF
-                header('Content-Type: application/pdf');
-                header('Content-Disposition: inline; filename="' . basename($ruta_original) . '"');
-                readfile($ruta_original);
-                exit;
-            } else {
-                http_response_code(404);
-                echo json_encode(['error' => 'El archivo no existe o fue removido']);
-                exit;
-            }
-        } else {
-            http_response_code(400);
-            echo json_encode(['error' => 'par�metros inválidos']);
-            exit;
+        if (!Validador::csrfValido()) {
+            setAlert('error', 'Token de seguridad inválido o expirado.');
+            header('Location: ' . base_url() . $this->rutaVolver());
+            exit();
         }
+
+        $id_expediente = intval($_POST['id_expediente'] ?? 0);
+        $this->expedienteGestionable($id_expediente);
+
+        $this->model->estadoExpediente($estado, $id_expediente);
+        setAlert('success', $mensaje);
+        header('Location: ' . base_url() . 'expedientes/busqueda');
+        exit();
     }
 
-    public function ver_expediente2()
+    // Ruta interna a la que volver después de una acción. Solo se aceptan pantallas conocidas del módulo,
+// nunca una URL completa: así no se abre una redirección hacia otro sitio.
+    private function rutaVolver(string $porDefecto = 'expedientes/busqueda'): string
     {
-        // CORRECCIÓN: validar la ruta para prevenir Path Traversal (igual que ver_expediente())
-        if (!isset($_GET['ruta']) || empty($_GET['ruta'])) {
-            setAlert('warning', 'Se requiere una ruta válida.');
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit;
-        }
-
-        $archivo_relativo = urldecode($_GET['ruta']);
-        $ruta_base_real   = realpath(RUTA_BASE);
-        $ruta_archivo_real = realpath(RUTA_BASE . $archivo_relativo);
-
-        if ($ruta_archivo_real === false || strpos($ruta_archivo_real, $ruta_base_real) !== 0) {
-            setAlert('warning', 'Ruta inválida o fuera de la carpeta segura.');
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit;
-        }
-
-        if (!file_exists($ruta_archivo_real)) {
-            setAlert('warning', 'El archivo no existe o ha sido removido.');
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit;
-        }
-
-        header('Content-Type: application/pdf');
-        header('Content-Disposition: inline; filename="' . basename($ruta_archivo_real) . '"');
-        header('Content-Length: ' . filesize($ruta_archivo_real));
-        readfile($ruta_archivo_real);
-        exit;
+        $volver = trim((string) ($_POST['volver'] ?? ''));
+        $permitida = '#^expedientes/(busqueda|listar|mostrar_registros|editar)(\?[A-Za-z0-9_=&%+.\-]*)?$#';
+        return preg_match($permitida, $volver) ? $volver : $porDefecto;
     }
 
+    // Método auxiliar privado para validar la seguridad del archivo
+    private function getRutaSegura(int $id_expediente)
+    {
+        $expedienteData = $this->model->obtenerRutaExpediente($id_expediente);
 
-    /*   public function ver_expediente() 
-        {
-            // Verificar si se ha seleccionado un archivo y un ID de expediente
-                if (isset($_GET['ruta']) && !empty($_GET['ruta']) && isset($_GET['id_expediente']) && !empty($_GET['id_expediente'])) {
-                    // Obtener la ruta del archivo PDF almacenada en la base de datos
-                    $ruta_original = RUTA_BASE . urldecode($_GET['ruta']);
-                    $id_expediente = isset($_GET['id_expediente']) ? intval($_GET['id_expediente']) : 0;
+        if (!$expedienteData || empty($expedienteData['ruta_original'])) {
+            return false;
+        }
 
-                    $ruta_original = RUTA_BASE . urldecode($_GET['ruta']);
-                    echo "Ruta construida: $ruta_original";
+        $ruta_absoluta = realpath(RUTA_BASE . $expedienteData['ruta_original']);
+        $ruta_base_segura = realpath(RUTA_BASE);
 
-                    if (file_exists($ruta_original)) { // Verificar si el archivo existe
-                    // Registra la visualización del expediente
-                    date_default_timezone_set('America/Asuncion');
-                    $fecha = date("Y-m-d H:i:s");
-                    $direccion_ip = $_SERVER["REMOTE_ADDR"] ?? "";
-                    $nombre_pc = gethostbyaddr($_SERVER['REMOTE_ADDR']);
-                    $nombre_expediente = urldecode($_GET['ruta']);
-                    $id_user = intval($_SESSION['id']);
-                    $usuario= htmlspecialchars($_SESSION['usuario']);
-                    $this->model->registrar_visualizacion($id_user, $id_expediente, $usuario, $nombre_pc, $nombre_expediente, $direccion_ip, $fecha);
-                    // Mostrar el PDF directamente en el navegador
-                    header('Content-Type: application/pdf');
-                    readfile($ruta_original);
-                    //exit;
-                } else {
-                    echo "<script>alert(El archivo no existe o ha sido removido de la ruta establecida!);window.history.back();</script>";
-                }
-            } else {
-                echo "<script>alert('No se ha proporcionado la ruta del archivo o el ID del expediente!');window.history.back();</script>";
-            }
-        } */
+        // Validación: El archivo debe existir y estar dentro de RUTA_BASE
+        if ($ruta_absoluta === false || strpos($ruta_absoluta, $ruta_base_segura) !== 0 || !file_exists($ruta_absoluta)) {
+            return false;
+        }
+
+        return $ruta_absoluta;
+    }
 
     public function ver_expediente()
     {
-        // Validar parámetros
-        if (!isset($_GET['ruta'], $_GET['id_expediente']) || empty($_GET['ruta']) || empty($_GET['id_expediente'])) {
-            die("Error: No se ha proporcionado la ruta del archivo o el ID del expediente.");
-        }
+        $id_expediente = intval($_GET['id_expediente'] ?? 0);
+        $ruta_archivo = $this->getRutaSegura($id_expediente);
 
-        $archivo_relativo = urldecode($_GET['ruta']);
-        $id_expediente = intval($_GET['id_expediente']);
-
-        // Construir ruta completa
-        $ruta_original = RUTA_BASE . $archivo_relativo;
-
-        // Validar que la ruta esté dentro de la carpeta base
-        $ruta_base_real = realpath(RUTA_BASE);
-        $ruta_archivo_real = realpath($ruta_original);
-
-        // Validar ruta segura
-        if ($ruta_archivo_real === false || strpos($ruta_archivo_real, $ruta_base_real) !== 0) {
-            setAlert('warning', 'Ruta inválida o fuera de la carpeta segura.');
-            $return_url = $_GET['return_url'] ?? base_url() . 'expedientes/mostrar_registros';
-            header('Location: ' . $return_url);
+        if (!$ruta_archivo) {
+            setAlert('warning', 'Archivo no encontrado o acceso no autorizado.');
+            if (!$ruta_archivo) {
+                setAlert('warning', 'Archivo no encontrado o acceso no autorizado.');
+                header('Location: ' . base_url() . 'expedientes/busqueda');
+                exit;
+            }
             exit;
         }
-        // Verificar existencia del archivo
-        if (!file_exists($ruta_archivo_real)) {
-            setAlert('warning', 'El archivo no existe o ha sido removido.');
-            $return_url = $_GET['return_url'] ?? base_url() . 'expedientes/mostrar_registros';
-            header('Location: ' . $return_url);
-            exit;
-        }
+
         // Registrar visualización
-        date_default_timezone_set('America/Asuncion');
-        $fecha = date("Y-m-d H:i:s");
-        $direccion_ip = $_SERVER['REMOTE_ADDR'] ?? '';
-        $nombre_pc = @gethostbyaddr($_SERVER['REMOTE_ADDR']);
-        $id_user = intval($_SESSION['id']);
-        $usuario = htmlspecialchars($_SESSION['usuario']);
-        $nombre_expediente = basename($ruta_archivo_real);
-
         $this->model->registrar_visualizacion(
-            $id_user,
+            intval($_SESSION['id']),
             $id_expediente,
-            $usuario,
-            $nombre_pc,
-            $nombre_expediente,
-            $direccion_ip,
-            $fecha
+            htmlspecialchars($_SESSION['usuario']),
+            @gethostbyaddr($_SERVER['REMOTE_ADDR']),
+            basename($ruta_archivo),
+            $_SERVER['REMOTE_ADDR'] ?? '',
+            date("Y-m-d H:i:s")
         );
-        // Mostrar PDF
+
         header('Content-Type: application/pdf');
-        header('Content-Disposition: inline; filename="' . $nombre_expediente . '"');
-        header('Content-Length: ' . filesize($ruta_archivo_real));
-        readfile($ruta_archivo_real);
+        header('Content-Disposition: inline; filename="' . basename($ruta_archivo) . '"');
+        header('Content-Length: ' . filesize($ruta_archivo));
+        readfile($ruta_archivo);
         exit;
     }
 
     public function expediente()
     {
-        // Verificar que se recibieron los parámetros necesarios
-        if (!isset($_GET['ruta']) || empty($_GET['ruta']) || !isset($_GET['id_expediente']) || empty($_GET['id_expediente'])) {
-            echo "<script>alert('No se ha proporcionado la ruta del archivo o el ID del expediente!');window.history.back();</script>";
+        $id_expediente = intval($_GET['id_expediente'] ?? 0);
+        $ruta_archivo = $this->getRutaSegura($id_expediente);
+
+        if (!$ruta_archivo) {
+            echo "<script>alert('Archivo no encontrado!');window.history.back();</script>";
             exit;
         }
 
-        $archivo = urldecode($_GET['ruta']);
-        $id_expediente = intval($_GET['id_expediente']);
+        // 1. Registramos la visualización primero para asegurarnos de que quede en el log
+        $this->model->registrar_visualizacion(
+            intval($_SESSION['id']),
+            $id_expediente,
+            htmlspecialchars($_SESSION['usuario']),
+            @gethostbyaddr($_SERVER['REMOTE_ADDR']),
+            basename($ruta_archivo),
+            $_SERVER['REMOTE_ADDR'] ?? '',
+            date('Y-m-d H:i:s')
+        );
 
-        // Definir carpeta base segura
-        $ruta_base_segura = realpath(RUTA_BASE);
-        $ruta_archivo_real = realpath(RUTA_BASE . $archivo);
+        // 2. Intentamos usar FPDI. Si el PDF es moderno (1.5+) y explota, lo capturamos.
+        try {
+            $pdf = new FPDI();
+            $pdf->SetFont('Arial', 'B', 8);
+            $pdf->SetTextColor(128, 128, 128);
+            $fecha_hora = date('Y-m-d H:i:s');
+            $token = bin2hex(random_bytes(16));
 
-        // Validar ruta segura
-        if ($ruta_archivo_real === false || strpos($ruta_archivo_real, $ruta_base_segura) !== 0) {
-            setAlert('warning', 'Ruta inválida o fuera de la carpeta segura.');
-            $return_url = $_GET['return_url'] ?? base_url() . 'expedientes/mostrar_registros';
-            header('Location: ' . $return_url);
-            exit;
+            // Esta es la línea que causaba el Error 500
+            $pageCount = $pdf->setSourceFile($ruta_archivo);
+
+            for ($i = 1; $i <= $pageCount; $i++) {
+                $tpl = $pdf->importPage($i);
+                $size = $pdf->getTemplateSize($tpl);
+                $pdf->AddPage($size['orientation'], $size);
+                $pdf->useTemplate($tpl, 0, 0, $size['width'], $size['height'], true);
+                $pdf->SetXY(10, 5);
+                $pdf->Write(0, "{$token}_{$fecha_hora}_User:{$_SESSION['nombre']}");
+            }
+
+            ob_clean();
+            $pdf->Output('I', basename($ruta_archivo));
+
+        } catch (\Exception $e) {
+            // FALLBACK 1: Excepción de FPDI. Mostramos el original sin colapsar.
+            ob_clean();
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: inline; filename="' . basename($ruta_archivo) . '"');
+            header('Content-Length: ' . filesize($ruta_archivo));
+            readfile($ruta_archivo);
+        } catch (\Throwable $e) {
+            // FALLBACK 2: Error Fatal general de PHP.
+            ob_clean();
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: inline; filename="' . basename($ruta_archivo) . '"');
+            header('Content-Length: ' . filesize($ruta_archivo));
+            readfile($ruta_archivo);
         }
-
-        // Verificar existencia del archivo
-        if (!file_exists($ruta_archivo_real)) {
-            setAlert('warning', 'El archivo no existe o ha sido removido.');
-            $return_url = $_GET['return_url'] ?? base_url() . 'expedientes/mostrar_registros';
-            header('Location: ' . $return_url);
-            exit;
-        }
-
-        // Crear PDF con marca de agua
-        $pdf = new FPDI();
-        $pdf->SetFont('Arial', 'B', 8);
-        $pdf->SetTextColor(128, 128, 128); // Gris
-        date_default_timezone_set('America/Asuncion');
-        $fecha_hora = date('Y-m-d H:i:s');
-        $csrf_token = bin2hex(random_bytes(32));
-        $usuario = $_SESSION['nombre'];
-
-        $pageCount = $pdf->setSourceFile($ruta_archivo_real);
-        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-            $tplIdx = $pdf->importPage($pageNumber);
-            $size = $pdf->getTemplateSize($pageNumber);
-            $pdf->AddPage($size['orientation'], $size);
-            $pdf->useTemplate($tplIdx, null, null, null, null, true);
-            $pdf->SetXY(10, 5);
-            $pdf->Write(0, $csrf_token . "_" . $fecha_hora . "_Usuario:" . $usuario);
-        }
-
-        ob_clean();
-        $pdf->Output('I', basename($archivo));
-
-        // Registrar visualización
-        $direccion_ip = $_SERVER["REMOTE_ADDR"] ?? "";
-        $nombre_pc = gethostbyaddr($_SERVER['REMOTE_ADDR']);
-        $nombre_expediente = basename($archivo);
-        $id_user = intval($_SESSION['id']);
-        $usuario = htmlspecialchars($_SESSION['usuario']);
-        $this->model->registrar_visualizacion($id_user, $id_expediente, $usuario, $nombre_pc, $nombre_expediente, $direccion_ip, $fecha_hora);
+        exit;
     }
 
-
-    /* public function expediente()
-{
-    if (isset($_GET['ruta']) && !empty($_GET['ruta']) && isset($_GET['id_expediente']) && !empty($_GET['id_expediente'])) {
-
-        $ruta_original = RUTA_BASE . urldecode($_GET['ruta']);
-        $archivo = urldecode($_GET['ruta']);
-        $id_expediente = intval($_GET['id_expediente']);
-
-        if (!file_exists($ruta_original)) {
-            echo "<script>alert('El archivo no existe o ha sido removido de la ruta establecida!');window.history.back();</script>";
-            exit;
-        }
-
-        $extension = strtolower(pathinfo($ruta_original, PATHINFO_EXTENSION));
-
-        switch ($extension) {
-            case 'pdf':
-                // === Tu Código original para FPDI ===
-                $pdf = new FPDI();
-                $pdf->SetFont('Arial', 'B', 8);
-                $pdf->SetTextColor(128, 128, 128);
-                date_default_timezone_set('America/Asuncion');
-                $fecha_hora = date('Y-m-d H:i:s');
-                $csrf_token = bin2hex(random_bytes(32));
-                $usuario = $_SESSION['nombre'];
-
-                $pageCount = $pdf->setSourceFile($ruta_original);
-                for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
-                    $tplIdx = $pdf->importPage($pageNumber);
-                    $size = $pdf->getTemplateSize($pageNumber);
-                    $pdf->AddPage($size['orientation'], $size);
-                    $pdf->useTemplate($tplIdx, null, null, null, null, true);
-                    $pdf->SetXY(10, 5);
-                    $pdf->Write(0, $csrf_token . "_" . $fecha_hora . "_Usuario:" . $usuario);
-                }
-
-                ob_clean();
-                $pdf->Output('I', $archivo);
-                break;
-
-            case 'doc':
-            case 'docx':
-            case 'ppt':
-            case 'pptx':
-                // Redirige al visor de Google Docs
-                $url_publica = base_url() . urldecode($_GET['ruta']);
-                header("Location: https://docs.google.com/gview?url=" . urlencode($url_publica) . "&embedded=true");
-                exit;
-
-            default:
-                echo "<script>alert('Formato no soportado para vista previa.');window.history.back();</script>";
-                exit;
-        }
-    } else {
-        echo "<script>alert('No se ha proporcionado la ruta del archivo o el ID del expediente!');window.history.back();</script>";
-    }
-} */
-
-    // M�todo para obtener el token dinámicamente al firmar el archivo
     public function getApiToken()
     {
         $credentials = $this->model->getApiCredentials('API de Firma Digital');
@@ -834,76 +654,25 @@ class Expedientes extends Controllers
         return $result;
     }
 
-
-    /*         public function obtener_metadatos()
-        {
-            // Asegúrate de sanitizar el parámetro de entrada
-            $ruta_archivo = htmlspecialchars($_GET['ruta']);
-            $ruta_completa = RUTA_BASE . $ruta_archivo;
-
-            if (!file_exists($ruta_completa)) {
-                echo json_encode(['success' => false, 'error' => 'El archivo no existe.']);
-                return;
-            }
-
-            // Ruta del ExifTool
-            $exiftool = "C:/Tools/exiftool.exe"; // Ajustar según tu instalación
-            $comando = "$exiftool -j \"$ruta_completa\"";
-
-            // Ejecutar comando
-            $output = shell_exec($comando);
-
-            if ($output) {
-                $metadatos = json_decode($output, true);
-                echo json_encode(['success' => true, 'data' => $metadatos[0]]);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'No se pudieron obtener los metadatos.']);
-            }
-        } */
-
     public function metadatos()
     {
-        // 1. Recibir ruta por POST (Tu JS usa FormData, que es POST)
-        $ruta_relativa = $_POST['ruta'] ?? '';
+        $id_expediente = intval($_POST['id_expediente'] ?? 0);
+        $archivo_pdf = $this->getRutaSegura($id_expediente);
 
-        if (empty($ruta_relativa)) {
-            echo "<div class='text-red-500 p-4'>Error: No se recibió la ruta del archivo.</div>";
+        if (!$archivo_pdf) {
+            http_response_code(404);
+            echo "<div class='text-red-500 p-4'>Archivo no encontrado o sin permisos de acceso.</div>";
             exit;
         }
 
-        // 2. Construir y validar ruta física
-        // RUTA_BASE debe terminar en '/' o asegurarse al concatenar
-        $archivo_pdf = RUTA_BASE . $ruta_relativa;
-
-        if (!file_exists($archivo_pdf)) {
-            echo "<div class='text-red-500 p-4'>Error: El archivo no existe en el servidor.<br><small class='text-gray-400'>$archivo_pdf</small></div>";
-            exit;
-        }
-
-        // 3. Datos básicos (PHP Nativo - Siempre funcionan)
         $nombre = basename($archivo_pdf);
         $peso = round(filesize($archivo_pdf) / 1024, 2) . " KB";
         $fecha = date("d/m/Y H:i:s", filemtime($archivo_pdf));
 
-        // 4. Intentar obtener Metadatos Avanzados con ExifTool
         $meta_avanzada = [];
-
-        // Verificar si la constante y el ejecutable existen
-        if (defined('RUTA_EXIFTOOL') && file_exists(RUTA_EXIFTOOL)) {
-            // USAR escapeshellarg PARA RUTAS CON ESPACIOS
-            $cmd_tool = escapeshellarg(RUTA_EXIFTOOL);
-            $cmd_file = escapeshellarg($archivo_pdf);
-
-            // Ejecutar comando (-j para JSON, -g para agrupar)
-            // En Windows a veces se requiere llamar directo al exe sin comillas externas en todo el comando
-            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $comando = RUTA_EXIFTOOL . " -j " . $cmd_file;
-            } else {
-                $comando = "$cmd_tool -j $cmd_file";
-            }
-
+        if (defined('RUTA_EXIFTOOL') && is_file(RUTA_EXIFTOOL)) {
+            $comando = escapeshellarg(RUTA_EXIFTOOL) . ' -j ' . escapeshellarg($archivo_pdf);
             $output = shell_exec($comando);
-
             if ($output) {
                 $data = json_decode($output, true);
                 if (!empty($data) && isset($data[0])) {
@@ -912,19 +681,20 @@ class Expedientes extends Controllers
             }
         }
 
-        // 5. Generar HTML para el Modal
-        // Esto es lo que tu JavaScript espera recibir
+        $e = function ($v) {
+            return htmlspecialchars(is_scalar($v) ? (string) $v : json_encode($v), ENT_QUOTES, 'UTF-8');
+        };
         ?>
         <div class="space-y-4">
             <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <h4 class="font-bold text-scantec-blue mb-2 text-sm uppercase">Información del Archivo</h4>
                 <ul class="text-sm text-gray-700 space-y-1">
-                    <li class="flex justify-between"><span class="font-semibold">Nombre:</span>
-                        <span><?php echo $nombre; ?></span></li>
-                    <li class="flex justify-between"><span class="font-semibold">Tamaño:</span>
-                        <span><?php echo $peso; ?></span></li>
-                    <li class="flex justify-between"><span class="font-semibold">Modificado:</span>
-                        <span><?php echo $fecha; ?></span></li>
+                    <li class="flex justify-between"><span
+                            class="font-semibold">Nombre:</span><span><?php echo $e($nombre); ?></span></li>
+                    <li class="flex justify-between"><span
+                            class="font-semibold">Tamaño:</span><span><?php echo $e($peso); ?></span></li>
+                    <li class="flex justify-between"><span
+                            class="font-semibold">Modificado:</span><span><?php echo $e($fecha); ?></span></li>
                 </ul>
             </div>
 
@@ -933,7 +703,6 @@ class Expedientes extends Controllers
                     <h4 class="font-bold text-gray-600 mb-3 text-sm uppercase">Metadatos Internos (PDF)</h4>
                     <div class="grid grid-cols-1 gap-2 text-sm">
                         <?php
-                        // Campos de interés a mostrar (para no mostrar basura técnica)
                         $campos_interes = [
                             'Title' => 'Título',
                             'Author' => 'Autor',
@@ -943,72 +712,344 @@ class Expedientes extends Controllers
                             'Producer' => 'Productor PDF',
                             'CreateDate' => 'Fecha Creación',
                             'PageCount' => 'Páginas',
-                            'PDFVersion' => 'Versión PDF'
+                            'PDFVersion' => 'Versión PDF',
                         ];
-
                         foreach ($campos_interes as $key => $label):
-                            if (isset($meta_avanzada[$key])):
-                                ?>
+                            if (isset($meta_avanzada[$key])): ?>
                                 <div class="flex flex-col border-b border-gray-50 pb-1">
-                                    <span class="text-xs text-gray-400 font-bold uppercase"><?php echo $label; ?></span>
-                                    <span class="text-gray-800"><?php echo $meta_avanzada[$key]; ?></span>
+                                    <span class="text-xs text-gray-400 font-bold uppercase"><?php echo $e($label); ?></span>
+                                    <span class="text-gray-800"><?php echo $e($meta_avanzada[$key]); ?></span>
                                 </div>
-                            <?php
-                            endif;
-                        endforeach;
-                        ?>
+                            <?php endif;
+                        endforeach; ?>
                     </div>
                 </div>
             <?php else: ?>
                 <div class="text-center py-2">
-                    <p class="text-xs text-gray-400 italic">
-                        No se pudieron leer metadatos internos (ExifTool no configurado o sin datos).
-                    </p>
+                    <p class="text-xs text-gray-400 italic">No se pudieron leer metadatos internos (ExifTool no configurado o sin
+                        datos).</p>
                 </div>
             <?php endif; ?>
         </div>
         <?php
     }
 
-    public function obtener_metadatos_pdf()
+    private function asegurarAccesoFacturacionExpedientes(): void
     {
-        header('Content-Type: application/json');
-        // Validar el parámetro 'ruta'
-        if (!isset($_GET['ruta']) || empty($_GET['ruta'])) {
-            echo json_encode(['success' => false, 'error' => 'La ruta del archivo PDF es requerida.']);
-            exit;
+        $idRol = intval($_SESSION['id_rol'] ?? 0);
+        if ($idRol === 1) {
+            return;
         }
 
-        // Sanitizar y verificar que el archivo existe
-        $archivo_pdf = realpath(RUTA_BASE . htmlspecialchars($_GET['ruta']));
-        if (!$archivo_pdf || !file_exists($archivo_pdf)) {
-            echo json_encode(['success' => false, 'error' => 'El archivo no existe o la ruta es inválida.']);
-            exit;
+        require_once 'Models/FuncionalidadesModel.php';
+        $funcionalidadesModel = new FuncionalidadesModel();
+        $idDepartamento = intval($_SESSION['id_departamento'] ?? 0);
+
+        if ($funcionalidadesModel->puedeAccederItemPorContexto('facturacion', $idRol, $idDepartamento)) {
+            return;
         }
 
-        // Ejecutar ExifTool
-        $exiftool = RUTA_EXIFTOOL;
-        if (!file_exists($exiftool)) {
-            echo json_encode(['success' => false, 'error' => 'ExifTool no se encuentra en la ruta especificada.']);
-            exit;
+        if (function_exists('setAlert')) {
+            setAlert('warning', 'No tienes permiso para acceder a facturación.');
+        }
+        header('Location: ' . base_url() . 'dashboard/dashboard');
+        exit();
+    }
+
+    private function facturacionFechaValida(string $fecha): bool
+    {
+        $d = DateTime::createFromFormat('Y-m-d', $fecha);
+        return $d !== false && $d->format('Y-m-d') === $fecha;
+    }
+
+    private function facturacionFiltros(): array
+    {
+        $desde = trim((string) ($_GET['desde'] ?? ''));
+        $hasta = trim((string) ($_GET['hasta'] ?? ''));
+
+        if (!$this->facturacionFechaValida($desde)) {
+            $desde = date('Y-m-01');
+        }
+        if (!$this->facturacionFechaValida($hasta)) {
+            $hasta = date('Y-m-t');
+        }
+        if ($desde > $hasta) {
+            [$desde, $hasta] = [$hasta, $desde];
         }
 
-        $comando = escapeshellcmd("$exiftool -j \"$archivo_pdf\"");
-        $output = shell_exec($comando);
+        return ['desde' => $desde, 'hasta' => $hasta];
+    }
 
-        // Respuesta del comando
-        if ($output) {
-            $metadatos = json_decode($output, true);
-            if (!empty($metadatos)) {
-                echo json_encode(['success' => true, 'data' => $metadatos[0]]);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'No se encontraron metadatos en el archivo.']);
+    /** Definiciones que se imprimen en pantalla, PDF y Excel: lo que se factura y lo que no, sin zonas grises. */
+    private function facturacionCriterios(): array
+    {
+        return [
+            'Documento: un archivo PDF indexado en SCANTEC (un registro por archivo), cargado desde la aplicación o desde Umango.',
+            'Documentos nuevos: se cuentan una sola vez por documento, según su fecha de indexado.',
+            'Actualizaciones: se registra una actualización cuando cambia la cantidad de páginas de un documento o se le asigna una nueva fecha de actualización. Se cuentan según la fecha de actualización y todas las páginas del documento actualizado se consideran procesadas.',
+            'Páginas: la cantidad registrada en el sistema en el momento de cada hecho. El total de páginas es la suma de las páginas de los documentos nuevos y de las actualizaciones.',
+            'Anular o reingresar un documento no agrega ni quita hechos. La columna "Activos hoy" informa cuántos de los documentos del período siguen activos al generar el reporte; es solo informativa.',
+            'No se incluyen los documentos de legajos: se informan en la pestaña Legajos.',
+            'Limitación: dos actualizaciones del mismo documento en el mismo día y con la misma cantidad de páginas no se pueden distinguir y se registran como una.',
+            'Hechos reconstruidos: los documentos que ya existían al activar este registro se cargaron con su fecha de indexado y sus páginas actuales. Se indican en el control del reporte.',
+        ];
+    }
+
+    /** Todas las cifras del reporte, en un solo lugar: pantalla, PDF y Excel salen de los mismos numeros. */
+    private function facturacionDatos(array $filtros): array
+    {
+        $instalada = $this->model->existeFacturacionExpedientes();
+        $nuevos = $instalada ? $this->model->selectFacturacionNuevos($filtros['desde'], $filtros['hasta']) : [];
+        $actualizados = $instalada ? $this->model->selectFacturacionActualizados($filtros['desde'], $filtros['hasta']) : [];
+
+        $t = [
+            'nuevos_documentos' => 0,
+            'nuevos_paginas' => 0,
+            'nuevos_activos_documentos' => 0,
+            'nuevos_activos_paginas' => 0,
+            'act_actualizaciones' => 0,
+            'act_archivos' => 0,
+            'act_paginas' => 0,
+            'sin_conteo' => 0,
+            'reconstruidos' => 0,
+        ];
+        foreach ($nuevos as $f) {
+            $t['nuevos_documentos'] += intval($f['documentos'] ?? 0);
+            $t['nuevos_paginas'] += intval($f['paginas'] ?? 0);
+            $t['nuevos_activos_documentos'] += intval($f['documentos_activos_hoy'] ?? 0);
+            $t['nuevos_activos_paginas'] += intval($f['paginas_activas_hoy'] ?? 0);
+            $t['sin_conteo'] += intval($f['sin_conteo'] ?? 0);
+            $t['reconstruidos'] += intval($f['reconstruidos'] ?? 0);
+        }
+        foreach ($actualizados as $f) {
+            $t['act_actualizaciones'] += intval($f['actualizaciones'] ?? 0);
+            $t['act_archivos'] += intval($f['archivos'] ?? 0);
+            $t['act_paginas'] += intval($f['paginas'] ?? 0);
+            $t['sin_conteo'] += intval($f['sin_conteo'] ?? 0);
+            $t['reconstruidos'] += intval($f['reconstruidos'] ?? 0);
+        }
+        $t['total_paginas'] = $t['nuevos_paginas'] + $t['act_paginas'];
+        $t['total_operaciones'] = $t['nuevos_documentos'] + $t['act_actualizaciones'];
+        $t['nuevos_no_activos'] = $t['nuevos_documentos'] - $t['nuevos_activos_documentos'];
+
+        return [
+            'instalada' => $instalada,
+            'nuevos' => $nuevos,
+            'actualizados' => $actualizados,
+            'totales' => $t,
+            'inicio_registro' => $instalada ? $this->model->selectFacturacionInicioRegistro() : null,
+            'criterios' => $this->facturacionCriterios(),
+        ];
+    }
+
+    public function facturacion()
+    {
+        $this->asegurarAccesoFacturacionExpedientes();
+        $filtros = $this->facturacionFiltros();
+        $datos = $this->facturacionDatos($filtros);
+
+        $limiteDetalle = 300;
+        $detalle = $datos['instalada'] ? $this->model->selectFacturacionDetalle($filtros['desde'], $filtros['hasta']) : [];
+
+        $data = [
+            'filtros' => $filtros,
+            'datos' => $datos,
+            'detalle_total' => count($detalle),
+            'detalle' => array_slice($detalle, 0, $limiteDetalle),
+            'detalle_limite' => $limiteDetalle,
+        ];
+
+        header('Cache-Control: no-store, private');
+        $this->views->getView($this, "facturacion", $data);
+    }
+
+    private function facturacionPdfTexto($texto): string
+    {
+        $r = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT', (string) $texto);
+        return $r === false ? '' : $r;
+    }
+
+    /** Dibuja una tabla con encabezado que se repite en cada pagina y filas que nunca se parten entre paginas. */
+    private function facturacionPdfTabla($pdf, array $encabezados, array $anchos, array $alineaciones, array $filas, ?array $total): void
+    {
+        $alto = 6;
+        $dibujarEncabezado = function () use ($pdf, $encabezados, $anchos, $alto) {
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->SetFillColor(24, 37, 65);
+            $pdf->SetTextColor(255, 255, 255);
+            foreach ($encabezados as $i => $h) {
+                $pdf->Cell($anchos[$i], $alto + 1, $this->facturacionPdfTexto($h), 1, 0, 'C', true);
             }
-        } else {
-            echo json_encode(['success' => false, 'error' => 'Error ejecutando ExifTool.']);
+            $pdf->Ln();
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetFont('Arial', '', 9);
+        };
+        $ajustar = function (string $texto, float $ancho) use ($pdf): string {
+            $t = $this->facturacionPdfTexto($texto);
+            if ($pdf->GetStringWidth($t) <= $ancho - 2) {
+                return $t;
+            }
+            while (strlen($t) > 3 && $pdf->GetStringWidth($t . '...') > $ancho - 2) {
+                $t = substr($t, 0, -1);
+            }
+            return $t . '...';
+        };
+        $hayEspacio = function (float $necesario) use ($pdf): bool {
+            return $pdf->GetY() + $necesario <= $pdf->GetPageHeight() - 25;
+        };
+
+        if (!$hayEspacio($alto * 3)) {
+            $pdf->AddPage();
+        }
+        $dibujarEncabezado();
+        foreach ($filas as $fila) {
+            if (!$hayEspacio($alto)) {
+                $pdf->AddPage();
+                $dibujarEncabezado();
+            }
+            foreach ($fila as $i => $valor) {
+                $pdf->Cell($anchos[$i], $alto, $ajustar((string) $valor, $anchos[$i]), 1, 0, $alineaciones[$i]);
+            }
+            $pdf->Ln();
+        }
+        if ($total !== null) {
+            if (!$hayEspacio($alto)) {
+                $pdf->AddPage();
+                $dibujarEncabezado();
+            }
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->SetFillColor(230, 230, 230);
+            foreach ($total as $i => $valor) {
+                $pdf->Cell($anchos[$i], $alto, $ajustar((string) $valor, $anchos[$i]), 1, 0, $alineaciones[$i], true);
+            }
+            $pdf->Ln();
+            $pdf->SetFont('Arial', '', 9);
         }
     }
 
+    public function facturacionPdf()
+    {
+        $this->asegurarAccesoFacturacionExpedientes();
+        $filtros = $this->facturacionFiltros();
+        $datos = $this->facturacionDatos($filtros);
+        $t = $datos['totales'];
+        $fmt = function ($n) {
+            return number_format((int) $n, 0, ',', '.');
+        };
+        $fecha = function ($iso) {
+            $ts = strtotime((string) $iso);
+            return $ts ? date('d/m/Y', $ts) : '';
+        };
+
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+        require_once 'Helpers/ReportTemplatePDF.php';
+
+        $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Facturacion de expedientes', 'L', 'A4');
+        $pdf->SetFont('Arial', 'B', 12);
+        $pdf->Cell(0, 8, $this->facturacionPdfTexto('Reporte de Facturación de Expedientes'), 0, 1, 'L');
+
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell(0, 6, $this->facturacionPdfTexto('Período: ' . $fecha($filtros['desde']) . ' a ' . $fecha($filtros['hasta'])), 0, 1, 'L');
+        $pdf->Cell(0, 6, $this->facturacionPdfTexto('Generado: ' . date('d/m/Y H:i') . ' por ' . ($_SESSION['nombre'] ?? '')), 0, 1, 'L');
+        if (!$datos['instalada']) {
+            $pdf->Ln(2);
+            $pdf->Cell(0, 6, $this->facturacionPdfTexto('El registro de facturación de expedientes todavía no está instalado en esta base de datos.'), 0, 1, 'L');
+            $pdf->Output("Facturacion_Expedientes.pdf", "I");
+            exit();
+        }
+        $pdf->Ln(3);
+
+        // Resumen
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->SetFillColor(230, 230, 230);
+        $pdf->Cell(65, 7, $this->facturacionPdfTexto('Documentos nuevos'), 0, 0, 'L', true);
+        $pdf->Cell(65, 7, $this->facturacionPdfTexto('Actualizaciones'), 0, 0, 'L', true);
+        $pdf->Cell(65, 7, $this->facturacionPdfTexto('Total de operaciones'), 0, 0, 'L', true);
+        $pdf->Cell(65, 7, $this->facturacionPdfTexto('Total de páginas'), 0, 1, 'L', true);
+        $pdf->SetFont('Arial', 'B', 14);
+        $pdf->SetFillColor(240, 240, 240);
+        $pdf->Cell(65, 10, $fmt($t['nuevos_documentos']), 0, 0, 'C', true);
+        $pdf->Cell(65, 10, $fmt($t['act_actualizaciones']), 0, 0, 'C', true);
+        $pdf->Cell(65, 10, $fmt($t['total_operaciones']), 0, 0, 'C', true);
+        $pdf->Cell(65, 10, $fmt($t['total_paginas']), 0, 1, 'C', true);
+        $pdf->Ln(5);
+
+        // A. Nuevos
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 7, $this->facturacionPdfTexto('A. Documentos digitalizados (nuevos) por tipo de documento'), 0, 1, 'L');
+        $filas = [];
+        foreach ($datos['nuevos'] as $f) {
+            $filas[] = [$f['tipo'], $fmt($f['documentos']), $fmt($f['paginas']), $fmt($f['documentos_activos_hoy']), $fmt($f['paginas_activas_hoy'])];
+        }
+        $this->facturacionPdfTabla(
+            $pdf,
+            ['Tipo de documento', 'Documentos', 'Páginas', 'Activos hoy (docs)', 'Activos hoy (págs)'],
+            [95, 35, 35, 45, 45],
+            ['L', 'R', 'R', 'R', 'R'],
+            $filas,
+            ['TOTAL', $fmt($t['nuevos_documentos']), $fmt($t['nuevos_paginas']), $fmt($t['nuevos_activos_documentos']), $fmt($t['nuevos_activos_paginas'])]
+        );
+        if (!$filas) {
+            $pdf->Cell(0, 6, $this->facturacionPdfTexto('No hay documentos nuevos en el período.'), 0, 1, 'L');
+        }
+        $pdf->Ln(5);
+
+        // B. Actualizados
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 7, $this->facturacionPdfTexto('B. Documentos actualizados por tipo de documento'), 0, 1, 'L');
+        $filas = [];
+        foreach ($datos['actualizados'] as $f) {
+            $filas[] = [$f['tipo'], $fmt($f['archivos']), $fmt($f['actualizaciones']), $fmt($f['paginas'])];
+        }
+        $this->facturacionPdfTabla(
+            $pdf,
+            ['Tipo de documento', 'Archivos actualizados', 'Actualizaciones', 'Páginas'],
+            [95, 50, 45, 40],
+            ['L', 'R', 'R', 'R'],
+            $filas,
+            ['TOTAL', $fmt($t['act_archivos']), $fmt($t['act_actualizaciones']), $fmt($t['act_paginas'])]
+        );
+        if (!$filas) {
+            $pdf->Cell(0, 6, $this->facturacionPdfTexto('No hay actualizaciones en el período.'), 0, 1, 'L');
+        }
+        $pdf->Ln(5);
+
+        // Total general
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 7, $this->facturacionPdfTexto('Total de páginas procesadas en el período: ' . $fmt($t['total_paginas'])
+            . ' (nuevos: ' . $fmt($t['nuevos_paginas']) . ' + actualizaciones: ' . $fmt($t['act_paginas']) . ')'), 0, 1, 'L');
+        $pdf->Ln(2);
+
+        // Control
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 7, $this->facturacionPdfTexto('Control'), 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $control = [
+            'Documentos nuevos del período que hoy no están activos (anulados o eliminados): ' . $fmt($t['nuevos_no_activos']),
+            'Hechos con cantidad de páginas sin registrar (menor a 1): ' . $fmt($t['sin_conteo']),
+            'Hechos reconstruidos de la carga inicial dentro del período: ' . $fmt($t['reconstruidos']),
+            $datos['inicio_registro']
+            ? 'El registro en el momento en que ocurren los hechos rige desde: ' . date('d/m/Y H:i', strtotime($datos['inicio_registro']))
+            : 'Todavía no hay hechos registrados en el momento en que ocurren: todos los datos son reconstruidos.',
+        ];
+        foreach ($control as $linea) {
+            $pdf->MultiCell(0, 5, $this->facturacionPdfTexto('- ' . $linea), 0, 'L');
+        }
+        $pdf->Ln(3);
+
+        // Criterios
+        $pdf->SetFont('Arial', 'B', 10);
+        $pdf->Cell(0, 7, $this->facturacionPdfTexto('Criterios de facturación'), 0, 1, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        foreach ($datos['criterios'] as $linea) {
+            $pdf->MultiCell(0, 5, $this->facturacionPdfTexto('- ' . $linea), 0, 'L');
+        }
+
+        $pdf->Output("Facturacion_Expedientes.pdf", "I");
+        exit();
+    }
 
     public function pdf_email()
     {
@@ -1066,7 +1107,7 @@ class Expedientes extends Controllers
 
         // Validar si el archivo se generó correctamente
         if (file_exists($filePath)) {
-            if ($mailController->sendEmailWithAttachment($filePath, [$destinatario => $nombreDestinatario], $asunto, $mensaje)) {
+            if ($mailController->model->sendEmailWithAttachment($filePath, [$destinatario => $nombreDestinatario], $asunto, $mensaje)) {
                 echo 'Correo enviado correctamente.';
             } else {
                 echo 'Error al enviar correo: ';
@@ -1145,7 +1186,7 @@ class Expedientes extends Controllers
         $pdf->Output('F', $filePath);
 
         if (file_exists($filePath)) {
-            $mailController->sendEmailWithAttachment($filePath, $destinatarios, $asunto, $mensaje);
+            $mailController->model->sendEmailWithAttachment($filePath, $destinatarios, $asunto, $mensaje);
             unlink($filePath);
         } else {
             echo 'Error al generar el PDF.';
@@ -1342,6 +1383,207 @@ class Expedientes extends Controllers
 
         $nombreArchivo = 'Expedientes_' . date('Y_m_d_His');
         $excel->output($nombreArchivo);
+    }
+
+    public function facturacionExcel()
+    {
+        $this->asegurarAccesoFacturacionExpedientes();
+        $filtros = $this->facturacionFiltros();
+        $datos = $this->facturacionDatos($filtros);
+
+        if (!$datos['instalada']) {
+            if (function_exists('setAlert')) {
+                setAlert('warning', 'El registro de facturación de expedientes todavía no está instalado.');
+            }
+            header('Location: ' . base_url() . 'expedientes/facturacion?' . http_build_query($filtros));
+            exit();
+        }
+
+        @ini_set('memory_limit', '512M');
+        @set_time_limit(120);
+        $detalle = $this->model->selectFacturacionDetalle($filtros['desde'], $filtros['hasta']);
+        $t = $datos['totales'];
+
+        ob_start();
+        require_once 'Helpers/ReportTemplateExcel.php';
+        date_default_timezone_set('America/Asuncion');
+
+        $TEXTO = \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING;
+        $col = function (int $n) {
+            return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($n);
+        };
+        $fecha = function ($iso) {
+            $ts = strtotime((string) $iso);
+            return $ts ? date('d/m/Y', $ts) : '';
+        };
+        $periodo = $fecha($filtros['desde']) . ' a ' . $fecha($filtros['hasta']);
+        $generado = date('d/m/Y H:i') . ' por ' . ($_SESSION['nombre'] ?? '');
+
+        $estiloEncabezado = [
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '878787']],
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER, 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER],
+        ];
+        $estiloContenido = ['font' => ['size' => 9], 'alignment' => ['vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER]];
+        $estiloTotal = [
+            'font' => ['bold' => true, 'size' => 9],
+            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E6E6E6']],
+        ];
+
+        // Todo texto que viene de los datos se escribe como TEXTO explicito: un valor que empiece con "=" no se interpreta como formula.
+        $poner = function ($hoja, string $celda, $valor, bool $esTexto) use ($TEXTO) {
+            if ($esTexto) {
+                $hoja->setCellValueExplicit($celda, (string) $valor, $TEXTO);
+            } else {
+                $hoja->setCellValue($celda, $valor);
+            }
+        };
+        $titulo = function ($hoja, string $texto) use ($periodo) {
+            $hoja->setCellValue('A1', $texto);
+            $hoja->getStyle('A1')->getFont()->setBold(true)->setSize(12);
+            $hoja->setCellValue('A2', 'Período: ' . $periodo);
+        };
+        $tabla = function ($hoja, int $filaEnc, array $encabezados, array $filas, ?array $total, array $columnasTexto) use ($col, $poner, $estiloEncabezado, $estiloContenido, $estiloTotal) {
+            $ultima = $col(count($encabezados));
+            foreach ($encabezados as $i => $h) {
+                $hoja->setCellValue($col($i + 1) . $filaEnc, $h);
+            }
+            $hoja->getStyle("A{$filaEnc}:{$ultima}{$filaEnc}")->applyFromArray($estiloEncabezado);
+            $fila = $filaEnc + 1;
+            foreach ($filas as $f) {
+                foreach (array_values($f) as $i => $v) {
+                    $poner($hoja, $col($i + 1) . $fila, $v, in_array($i, $columnasTexto, true));
+                }
+                $hoja->getStyle("A{$fila}:{$ultima}{$fila}")->applyFromArray($estiloContenido);
+                $fila++;
+            }
+            if ($total !== null) {
+                foreach (array_values($total) as $i => $v) {
+                    $poner($hoja, $col($i + 1) . $fila, $v, in_array($i, $columnasTexto, true));
+                }
+                $hoja->getStyle("A{$fila}:{$ultima}{$fila}")->applyFromArray($estiloTotal);
+                $fila++;
+            }
+            return $fila;
+        };
+
+        $excel = new ReportTemplateExcel('FACTURACION DE EXPEDIENTES', 'SCANTEC');
+
+        // ---------------- Hoja 1: Resumen ----------------
+        $hoja = $excel->getSheet();
+        $hoja->setTitle('Resumen');
+        $hoja->setCellValue('A4', 'Período');
+        $hoja->setCellValue('B4', $periodo);
+        $hoja->setCellValue('A5', 'Generado');
+        $hoja->setCellValue('B5', $generado);
+        $hoja->setCellValue('A6', 'Registro en el momento en que ocurren los hechos, desde');
+        $hoja->setCellValue('B6', $datos['inicio_registro'] ? date('d/m/Y H:i', strtotime($datos['inicio_registro'])) : 'Todavía no hay: todos los datos son reconstruidos');
+        $hoja->getStyle('A4:A6')->getFont()->setBold(true);
+        $fila = $tabla($hoja, 8, ['CONCEPTO', 'DOCUMENTOS / OPERACIONES', 'PÁGINAS'], [
+            ['Documentos nuevos', $t['nuevos_documentos'], $t['nuevos_paginas']],
+            ['Actualizaciones', $t['act_actualizaciones'], $t['act_paginas']],
+            ['   (archivos distintos actualizados)', $t['act_archivos'], ''],
+        ], ['TOTAL (nuevos + actualizaciones)', $t['total_operaciones'], $t['total_paginas']], [0]);
+        $fila = $tabla($hoja, $fila + 1, ['INFORMATIVO', 'DOCUMENTOS', 'PÁGINAS'], [
+            ['De los documentos nuevos, siguen activos hoy', $t['nuevos_activos_documentos'], $t['nuevos_activos_paginas']],
+        ], null, [0]);
+        $fila = $tabla($hoja, $fila + 1, ['CONTROL', 'CANTIDAD', ''], [
+            ['Documentos nuevos del período que hoy no están activos (anulados o eliminados)', $t['nuevos_no_activos'], ''],
+            ['Hechos con cantidad de páginas sin registrar (menor a 1)', $t['sin_conteo'], ''],
+            ['Hechos reconstruidos de la carga inicial dentro del período', $t['reconstruidos'], ''],
+        ], null, [0]);
+        $excel->setColumnWidths(['A' => 70, 'B' => 28, 'C' => 16]);
+
+        // ---------------- Hoja 2: Nuevos por tipo ----------------
+        $h2 = $excel->createSheet();
+        $h2->setTitle('Nuevos por tipo');
+        $titulo($h2, 'DOCUMENTOS NUEVOS POR TIPO DE DOCUMENTO');
+        $filas = [];
+        foreach ($datos['nuevos'] as $f) {
+            $filas[] = [$f['tipo'], intval($f['documentos']), intval($f['paginas']), intval($f['documentos_activos_hoy']), intval($f['paginas_activas_hoy'])];
+        }
+        $tabla(
+            $h2,
+            4,
+            ['TIPO DE DOCUMENTO', 'DOCUMENTOS', 'PÁGINAS', 'ACTIVOS HOY (DOCS)', 'ACTIVOS HOY (PÁGS)'],
+            $filas,
+            ['TOTAL', $t['nuevos_documentos'], $t['nuevos_paginas'], $t['nuevos_activos_documentos'], $t['nuevos_activos_paginas']],
+            [0]
+        );
+        foreach (['A' => 45, 'B' => 14, 'C' => 14, 'D' => 20, 'E' => 20] as $c => $w) {
+            $h2->getColumnDimension($c)->setWidth($w);
+        }
+
+        // ---------------- Hoja 3: Actualizados por tipo ----------------
+        $h3 = $excel->createSheet();
+        $h3->setTitle('Actualizados por tipo');
+        $titulo($h3, 'DOCUMENTOS ACTUALIZADOS POR TIPO DE DOCUMENTO');
+        $filas = [];
+        foreach ($datos['actualizados'] as $f) {
+            $filas[] = [$f['tipo'], intval($f['archivos']), intval($f['actualizaciones']), intval($f['paginas'])];
+        }
+        $tabla(
+            $h3,
+            4,
+            ['TIPO DE DOCUMENTO', 'ARCHIVOS ACTUALIZADOS', 'ACTUALIZACIONES', 'PÁGINAS'],
+            $filas,
+            ['TOTAL', $t['act_archivos'], $t['act_actualizaciones'], $t['act_paginas']],
+            [0]
+        );
+        foreach (['A' => 45, 'B' => 24, 'C' => 18, 'D' => 14] as $c => $w) {
+            $h3->getColumnDimension($c)->setWidth($w);
+        }
+
+        // ---------------- Hoja 4: Detalle (completo, sin limite) ----------------
+        $h4 = $excel->createSheet();
+        $h4->setTitle('Detalle');
+        $titulo($h4, 'DETALLE DE LOS HECHOS DEL PERÍODO');
+        $encabezados = ['FECHA', 'HECHO', 'TIPO DE DOCUMENTO', 'ID DOCUMENTO', 'ÍNDICE 01', 'PÁGINAS', 'PÁGINAS PREVIAS', 'ESTADO HOY', 'CUENTA', 'ORIGEN DEL DATO'];
+        foreach ($encabezados as $i => $h) {
+            $h4->setCellValue($col($i + 1) . '4', $h);
+        }
+        $h4->getStyle('A4:J4')->applyFromArray($estiloEncabezado);
+        $fila = 5;
+        foreach ($detalle as $f) {
+            $ts = strtotime((string) $f['fecha_negocio']);
+            if ($ts) {
+                $h4->setCellValue('A' . $fila, \PhpOffice\PhpSpreadsheet\Shared\Date::PHPToExcel($ts));
+            }
+            $poner($h4, 'B' . $fila, $f['tipo_evento'] === 'NUEVO' ? 'Nuevo' : 'Actualización', true);
+            $poner($h4, 'C' . $fila, $f['tipo'], true);
+            $h4->setCellValue('D' . $fila, intval($f['id_expediente']));
+            $poner($h4, 'E' . $fila, $f['indice_01'] ?? '', true);
+            $h4->setCellValue('F' . $fila, intval($f['paginas']));
+            if ($f['paginas_previas'] !== null) {
+                $h4->setCellValue('G' . $fila, intval($f['paginas_previas']));
+            }
+            $poner($h4, 'H' . $fila, $f['estado_hoy'], true);
+            $poner($h4, 'I' . $fila, $f['usuario_db'] ?? '', true);
+            $poner($h4, 'J' . $fila, intval($f['reconstruido']) === 1 ? 'Reconstruido' : 'Registrado', true);
+            $fila++;
+        }
+        $ultimaFila = max(5, $fila - 1);
+        $h4->getStyle("A5:J{$ultimaFila}")->applyFromArray($estiloContenido);
+        $h4->getStyle("A5:A{$ultimaFila}")->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+        $h4->setAutoFilter("A4:J{$ultimaFila}");
+        $h4->freezePane('A5');
+        foreach (['A' => 12, 'B' => 14, 'C' => 38, 'D' => 14, 'E' => 30, 'F' => 10, 'G' => 16, 'H' => 14, 'I' => 16, 'J' => 18] as $c => $w) {
+            $h4->getColumnDimension($c)->setWidth($w);
+        }
+
+        // ---------------- Hoja 5: Criterios ----------------
+        $h5 = $excel->createSheet();
+        $h5->setTitle('Criterios');
+        $h5->setCellValue('A1', 'CRITERIOS DE FACTURACIÓN');
+        $h5->getStyle('A1')->getFont()->setBold(true)->setSize(12);
+        $fila = 3;
+        foreach ($datos['criterios'] as $criterio) {
+            $poner($h5, 'A' . $fila, $criterio, true);
+            $fila++;
+        }
+        $h5->getColumnDimension('A')->setWidth(150);
+
+        $excel->output('Facturacion_Expedientes_' . date('Y_m_d_His'));
     }
 
     public function excel_filtroFecha()

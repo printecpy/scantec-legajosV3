@@ -279,54 +279,82 @@
                     </p>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-gray-50 border-b border-gray-200">
-                                <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 min-w-[180px] sticky left-0 bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Rol</th>
-                                <?php foreach (($data['dashboard_cards'] ?? []) as $claveCard => $cardInfo): ?>
-                                    <th class="text-center px-3 py-3 font-bold text-[10px] uppercase tracking-wider text-gray-600 min-w-[120px]">
-                                        <div class="flex flex-col items-center gap-1">
-                                            <i class="<?php echo htmlspecialchars($cardInfo['icono'] ?? 'fas fa-square'); ?> text-gray-400 text-xs"></i>
-                                            <span class="leading-tight"><?php echo htmlspecialchars($cardInfo['etiqueta'] ?? $claveCard); ?></span>
-                                        </div>
-                                    </th>
-                                <?php endforeach; ?>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            $dashboardCardsPorRol = $data['dashboard_cards_por_rol'] ?? [];
-                            foreach ($roles as $rol):
-                                $idRol = intval($rol['id_rol']);
-                                $cardsRol = $dashboardCardsPorRol[$idRol] ?? [];
-                            ?>
-                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors role-filter-row" data-rol="<?php echo $idRol; ?>">
-                                    <td class="px-4 py-3 font-bold text-gray-800 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                                        <?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?>
-                                    </td>
-                                    <?php foreach (($data['dashboard_cards'] ?? []) as $claveCard => $cardInfo): ?>
-                                        <?php $checkedCard = intval($cardsRol[$claveCard] ?? 1) === 1; ?>
-                                        <td class="text-center px-3 py-3">
-                                            <input type="checkbox"
-                                                name="dashboard_cards[<?php echo $idRol; ?>][<?php echo htmlspecialchars($claveCard); ?>]"
-                                                value="1"
-                                                class="w-5 h-5 text-scantec-blue bg-white border-2 border-gray-300 rounded focus:ring-0 focus:ring-offset-0 transition-all cursor-pointer hover:border-scantec-blue checked:border-scantec-blue checked:bg-scantec-blue"
-                                                <?php echo $checkedCard ? 'checked' : ''; ?>>
-                                        </td>
+                <?php
+                // Agrupamos las cards por su grupo (Legajos / Expedientes) para el encabezado.
+                $cardsAgrupadas = [];
+                foreach (($data['dashboard_cards'] ?? []) as $claveCard => $cardInfo) {
+                    $grupoCard = $cardInfo['grupo'] ?? 'Otros';
+                    $cardsAgrupadas[$grupoCard][$claveCard] = $cardInfo;
+                }
+                ?>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <!-- Fila de grupos -->
+                                <tr class="bg-gray-100 border-b border-gray-200">
+                                    <th class="px-4 py-2 sticky left-0 bg-gray-100 z-10 min-w-[180px]"></th>
+                                    <?php foreach ($cardsAgrupadas as $nombreGrupo => $cardsDelGrupo): ?>
+                                        <th colspan="<?php echo count($cardsDelGrupo); ?>"
+                                            class="text-center px-3 py-2 font-bold text-[11px] uppercase tracking-widest text-scantec-blue border-l-2 border-scantec-blue/30 bg-scantec-blue/5">
+                                            <?php echo htmlspecialchars($nombreGrupo); ?>
+                                        </th>
                                     <?php endforeach; ?>
                                 </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                                <!-- Fila de cards -->
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 min-w-[180px] sticky left-0 bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Rol</th>
+                                    <?php foreach ($cardsAgrupadas as $nombreGrupo => $cardsDelGrupo): ?>
+                                        <?php $primeraDelGrupo = true; ?>
+                                        <?php foreach ($cardsDelGrupo as $claveCard => $cardInfo): ?>
+                                            <th class="text-center px-3 py-3 font-bold text-[10px] uppercase tracking-wider text-gray-600 min-w-[120px] <?php echo $primeraDelGrupo ? 'border-l-2 border-scantec-blue/30' : ''; ?>">
+                                                <div class="flex flex-col items-center gap-1">
+                                                    <i class="<?php echo htmlspecialchars($cardInfo['icono'] ?? 'fas fa-square'); ?> text-gray-400 text-xs"></i>
+                                                    <span class="leading-tight"><?php echo htmlspecialchars($cardInfo['etiqueta'] ?? $claveCard); ?></span>
+                                                </div>
+                                            </th>
+                                            <?php $primeraDelGrupo = false; ?>
+                                        <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                $dashboardCardsPorRol = $data['dashboard_cards_por_rol'] ?? [];
+                                foreach ($roles as $rol):
+                                    $idRol = intval($rol['id_rol']);
+                                    $cardsRol = $dashboardCardsPorRol[$idRol] ?? [];
+                                ?>
+                                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors role-filter-row" data-rol="<?php echo $idRol; ?>">
+                                        <td class="px-4 py-3 font-bold text-gray-800 sticky left-0 bg-white z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                            <?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?>
+                                        </td>
+                                        <?php foreach ($cardsAgrupadas as $nombreGrupo => $cardsDelGrupo): ?>
+                                            <?php $primeraDelGrupo = true; ?>
+                                            <?php foreach ($cardsDelGrupo as $claveCard => $cardInfo): ?>
+                                                <?php $checkedCard = intval($cardsRol[$claveCard] ?? 1) === 1; ?>
+                                                <td class="text-center px-3 py-3 <?php echo $primeraDelGrupo ? 'border-l-2 border-scantec-blue/30' : ''; ?>">
+                                                    <input type="checkbox"
+                                                        name="dashboard_cards[<?php echo $idRol; ?>][<?php echo htmlspecialchars($claveCard); ?>]"
+                                                        value="1"
+                                                        class="w-5 h-5 text-scantec-blue bg-white border-2 border-gray-300 rounded focus:ring-0 focus:ring-offset-0 transition-all cursor-pointer hover:border-scantec-blue checked:border-scantec-blue checked:bg-scantec-blue"
+                                                        <?php echo $checkedCard ? 'checked' : ''; ?>>
+                                                </td>
+                                                <?php $primeraDelGrupo = false; ?>
+                                            <?php endforeach; ?>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                        <button type="button"
+                            class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
+                            <i class="fas fa-save mr-2"></i> Guardar permisos
+                        </button>
+                    </div>
                 </div>
-                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
-                    <button type="button"
-                        class="btn-guardar-permisos bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2.5 px-6 rounded-xl shadow-sm transition-all flex items-center">
-                        <i class="fas fa-save mr-2"></i> Guardar permisos
-                    </button>
-                </div>
-            </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                 <div class="px-6 py-4 border-b border-blue-800 bg-scantec-blue">

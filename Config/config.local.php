@@ -40,7 +40,14 @@ return [
     'db_usuarios_field_nombre_completo' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_DB_USUARIOS_FIELD_NOMBRE_COMPLETO', '') : '',
     'db_usuarios_field_ci' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_DB_USUARIOS_FIELD_CI', 'nro_cedula') : 'nro_cedula',
     'db_usuarios_field_solicitud' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_DB_USUARIOS_FIELD_SOLICITUD', 'nro_solicitud') : 'nro_solicitud',
+    'db_usuarios_field_nro_socio' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_DB_USUARIOS_FIELD_NRO_SOCIO', '') : '',
 
+    'ldap_id_grupo_defecto' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_LDAP_ID_GRUPO_DEFECTO', '1') : '1',
+    'legajos_requisitos_por_pagina' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_LEGAJOS_REQUISITOS_POR_PAGINA', '5') : '5',
+    'config_listados_por_pagina' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_CONFIG_LISTADOS_POR_PAGINA', '5') : '5',
+    'legajos_autosave_intervalo_segundos' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_LEGAJOS_AUTOSAVE_INTERVALO_SEGUNDOS', '180') : '180',
+    'legajos_autosave_mostrar_toast' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_LEGAJOS_AUTOSAVE_MOSTRAR_TOAST', '0') : '0',
+    
     // Rutas locales de almacenamiento y backups.
     'storage_path' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_STORAGE_PATH', 'C:/xampp/scantec_storage/') : 'C:/xampp/scantec_storage/',
     'backup_path' => function_exists('scantecEnv') ? scantecEnv('SCANTEC_BACKUP_PATH', 'C:/xampp/backups_scantec/') : 'C:/xampp/backups_scantec/',

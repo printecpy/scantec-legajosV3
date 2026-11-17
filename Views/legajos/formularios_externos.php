@@ -19,7 +19,7 @@ $link_generado = trim((string)($data['link_generado'] ?? ''));
                     Genere enlaces únicos para solicitar documentos y datos a clientes o empleados sin que ingresen al sistema.
                 </p>
             </div>
-            <a href="<?php echo base_url(); ?>dashboard/dashboard_legajos"
+            <a href="<?php echo base_url(); ?>dashboard/dashboard"
                 class="px-4 h-10 rounded-xl bg-gray-600 text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm">
                 <i class="fas fa-arrow-left mr-2"></i> Volver
             </a>

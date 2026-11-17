@@ -14,8 +14,8 @@ class Logs extends Controllers
 
     private function resolverFiltrosReportePaginasLegajos(): array
     {
-        $desde = trim((string)($_GET['desde'] ?? ''));
-        $hasta = trim((string)($_GET['hasta'] ?? ''));
+        $desde = trim((string) ($_GET['desde'] ?? ''));
+        $hasta = trim((string) ($_GET['hasta'] ?? ''));
 
         if (!$this->fechaIsoValida($desde)) {
             $desde = date('Y-m-01');
@@ -67,46 +67,11 @@ class Logs extends Controllers
         }
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit();
         }
         parent::__construct();
     }
-    private function checkAdminAccess()
-    {
-        if ($_SESSION['id_rol'] != 1) {
-            $_SESSION['alert_message'] = 'No tienes permiso para acceder a esta página';
-            $motivo = 'Acceso no autorizado';
-            $usuario = $_SESSION['nombre'];
-            // Obtener la instancia de UsuariosModel
-            $usuariosModel = new UsuariosModel();
-            // Llama al método bloquarPC_IP() del modelo de Usuarios
-            $usuariosModel->bloquarPC_IP($usuario, $motivo);
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda', true, 302); // Redirigir a la página de índice de búsqueda
-            exit();
-        }
-    }
 
-    // Método auxiliar para verificar el acceso basado en roles específicos
-    protected function checkRoleAccess($allowedRoles)
-    {
-        if (!in_array($_SESSION['id_rol'], $allowedRoles)) {
-            $_SESSION['alert_message'] = 'No tienes permiso para acceder a esta página';
-            $motivo = 'Acceso no autorizado';
-            $usuario = $_SESSION['nombre'];
-            // Obtener la instancia de UsuariosModel
-            $usuariosModel = new UsuariosModel();
-            // Llama al método bloquarPC_IP() del modelo de Usuarios
-            $usuariosModel->bloquarPC_IP($usuario, $motivo);
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda', true, 302); // Redirigir a la página de índice de búsqueda
-            exit();
-        }
-    }
-
-    public function anotherMethodForSpecificRoles()
-    {
-        $allowedRoles = [1, 2, 3]; // IDs de roles permitidos
-        $this->checkRoleAccess($allowedRoles);
-        // Lógica del método
-    }
 
     public function views()
     {
@@ -155,17 +120,19 @@ class Logs extends Controllers
     }
     public function pdf()
     {
-        if (ob_get_length()) ob_end_clean();
+        $this->asegurarAccesoAuditoria('log_sistema');
+        if (ob_get_length())
+            ob_end_clean();
         $logsumango = $this->model->selectLogs();
-        
+
         require_once 'Helpers/ReportTemplatePDF.php';
         $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Bitácora de Auditoría SQL', 'L', 'LEGAL');
-        
+
         // Cabeceras
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->SetFillColor(192, 192, 192);
         $pdf->SetTextColor(0, 0, 0);
-        
+
         $pdf->Cell(35, 6, utf8_decode('Fecha'), 1, 0, 'C', true);
         $pdf->Cell(150, 6, utf8_decode('Execute SQL'), 1, 0, 'C', true);
         $pdf->Cell(150, 6, utf8_decode('Reverse SQL'), 1, 1, 'C', true);
@@ -174,7 +141,7 @@ class Logs extends Controllers
         $pdf->SetWidths(array(35, 150, 150));
         $pdf->SetAligns(array('C', 'L', 'L'));
         $pdf->SetFont('Arial', '', 7);
-        
+
         // Contenido (Ya no es necesario usar substr para truncar)
         foreach ($logsumango as $row) {
             $pdf->Row(array(
@@ -183,21 +150,23 @@ class Logs extends Controllers
                 utf8_decode($row['reverseSQL'])
             ));
         }
-        
+
         $pdf->Output("Logs_SQL.pdf", "I");
     }
 
     public function registro_sesionesPdf()
     {
-        if (ob_get_length()) ob_end_clean();
+        $this->asegurarAccesoAuditoria('sesiones');
+        if (ob_get_length())
+            ob_end_clean();
         $sesiones = $this->model->selectSesions();
-        
+
         require_once 'Helpers/ReportTemplatePDF.php';
         $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Reporte de Sesiones Activas e Históricas', 'L', 'A4');
-        
+
         $pdf->SetFont('Arial', 'B', 9);
         $pdf->SetFillColor(192, 192, 192);
-        
+
         $pdf->Cell(40, 6, utf8_decode('Fecha Inicio'), 1, 0, 'C', true);
         $pdf->Cell(35, 6, utf8_decode('Dirección IP'), 1, 0, 'C', true);
         $pdf->Cell(50, 6, utf8_decode('Nombre HOST'), 1, 0, 'C', true);
@@ -208,7 +177,7 @@ class Logs extends Controllers
         $pdf->SetWidths(array(40, 35, 50, 60, 50, 40));
         $pdf->SetAligns(array('C', 'C', 'L', 'L', 'L', 'C'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($sesiones as $row) {
             $pdf->Row(array(
                 utf8_decode($row['fecha']),
@@ -219,21 +188,23 @@ class Logs extends Controllers
                 utf8_decode($row['fecha_cierre'])
             ));
         }
-        
+
         $pdf->Output("Sesiones_Scantec.pdf", "I");
     }
 
     public function registro_session_failPdf()
     {
-        if (ob_get_length()) ob_end_clean();
+        $this->asegurarAccesoAuditoria('fallos_sesion');
+        if (ob_get_length())
+            ob_end_clean();
         $sesionFails = $this->model->selectSesionFails();
-        
+
         require_once 'Helpers/ReportTemplatePDF.php';
         $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Auditoría: Sesiones Fallidas y Bloqueos', 'L', 'A4');
-        
+
         $pdf->SetFont('Arial', 'B', 9);
         $pdf->SetFillColor(192, 192, 192);
-        
+
         $pdf->Cell(45, 6, utf8_decode('Usuario / Intento'), 1, 0, 'C', true);
         $pdf->Cell(45, 6, utf8_decode('Nombre HOST'), 1, 0, 'C', true);
         $pdf->Cell(35, 6, utf8_decode('Dirección IP'), 1, 0, 'C', true);
@@ -243,7 +214,7 @@ class Logs extends Controllers
         $pdf->SetWidths(array(45, 45, 35, 40, 112));
         $pdf->SetAligns(array('C', 'C', 'C', 'C', 'L'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($sesionFails as $row) {
             $pdf->Row(array(
                 utf8_decode($row['usuario']),
@@ -253,21 +224,23 @@ class Logs extends Controllers
                 utf8_decode($row['motivo'])
             ));
         }
-        
+
         $pdf->Output("Alertas_Seguridad.pdf", "I");
     }
 
     public function registro_viewsPdf()
     {
-        if (ob_get_length()) ob_end_clean();
+        $this->asegurarAccesoAuditoria('visitas_archivos');
+        if (ob_get_length())
+            ob_end_clean();
         $views = $this->model->selectViews();
-        
+
         require_once 'Helpers/ReportTemplatePDF.php';
         $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Registro de Visualización de Documentos', 'L', 'A4');
-        
+
         $pdf->SetFont('Arial', 'B', 9);
         $pdf->SetFillColor(192, 192, 192);
-        
+
         $pdf->Cell(40, 6, utf8_decode('Usuario'), 1, 0, 'C', true);
         $pdf->Cell(40, 6, utf8_decode('Nombre HOST'), 1, 0, 'C', true);
         $pdf->Cell(35, 6, utf8_decode('Dirección IP'), 1, 0, 'C', true);
@@ -277,7 +250,7 @@ class Logs extends Controllers
         $pdf->SetWidths(array(40, 40, 35, 40, 122));
         $pdf->SetAligns(array('C', 'C', 'C', 'C', 'L'));
         $pdf->SetFont('Arial', '', 8);
-        
+
         foreach ($views as $row) {
             $pdf->Row(array(
                 utf8_decode($row['usuario']),
@@ -287,7 +260,7 @@ class Logs extends Controllers
                 utf8_decode($row['nombre_expediente'])
             ));
         }
-        
+
         $pdf->Output("Views_Documentos.pdf", "I");
     }
 
@@ -298,7 +271,8 @@ class Logs extends Controllers
         $totales = $this->model->selectTotalesPaginasLegajos($filtros['desde'], $filtros['hasta']);
         $detalle = $this->model->selectDetallePaginasLegajos($filtros['desde'], $filtros['hasta']);
 
-        if (ob_get_length()) ob_end_clean();
+        if (ob_get_length())
+            ob_end_clean();
         require_once 'Helpers/ReportTemplatePDF.php';
 
         $pdf = new ReportTemplatePDF(['nombre' => 'SCANTEC'], 'Reporte de paginas procesadas de legajos', 'L', 'A4');
@@ -308,7 +282,7 @@ class Logs extends Controllers
         $pdf->SetFont('Arial', '', 9);
         $pdf->Cell(90, 7, utf8_decode('Legajos contabilizados: ' . intval($totales['total_legajos'] ?? 0)), 0, 0, 'L');
         $pdf->Cell(90, 7, utf8_decode('Paginas procesadas: ' . intval($totales['total_paginas'] ?? 0)), 0, 0, 'L');
-        $pdf->Cell(90, 7, utf8_decode('Promedio por legajo: ' . number_format((float)($totales['promedio_paginas'] ?? 0), 2, ',', '.')), 0, 1, 'L');
+        $pdf->Cell(90, 7, utf8_decode('Promedio por legajo: ' . number_format((float) ($totales['promedio_paginas'] ?? 0), 2, ',', '.')), 0, 1, 'L');
         $pdf->Ln(3);
 
         $pdf->SetFont('Arial', 'B', 8);
@@ -325,13 +299,13 @@ class Logs extends Controllers
         $pdf->SetFont('Arial', '', 7);
         foreach ($detalle as $row) {
             $pdf->Cell(18, 6, strval($row['id_legajo']), 1, 0, 'C');
-            $pdf->Cell(28, 6, utf8_decode(substr((string)$row['fecha_creacion'], 0, 10)), 1, 0, 'C');
-            $pdf->Cell(42, 6, utf8_decode((string)($row['nombre_tipo_legajo'] ?? '')), 1, 0, 'L');
-            $pdf->Cell(38, 6, utf8_decode((string)($row['ci_socio'] ?? '')), 1, 0, 'L');
-            $pdf->Cell(70, 6, utf8_decode((string)($row['nombre_completo'] ?? '')), 1, 0, 'L');
-            $pdf->Cell(32, 6, utf8_decode((string)($row['nro_solicitud'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(28, 6, utf8_decode(substr((string) $row['fecha_creacion'], 0, 10)), 1, 0, 'C');
+            $pdf->Cell(42, 6, utf8_decode((string) ($row['nombre_tipo_legajo'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(38, 6, utf8_decode((string) ($row['ci_socio'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(70, 6, utf8_decode((string) ($row['nombre_completo'] ?? '')), 1, 0, 'L');
+            $pdf->Cell(32, 6, utf8_decode((string) ($row['nro_solicitud'] ?? '')), 1, 0, 'L');
             $pdf->Cell(20, 6, strval(intval($row['cantidad_paginas_procesadas'] ?? 0)), 1, 0, 'C');
-            $pdf->Cell(26, 6, utf8_decode((string)($row['estado'] ?? '')), 1, 1, 'C');
+            $pdf->Cell(26, 6, utf8_decode((string) ($row['estado'] ?? '')), 1, 1, 'C');
         }
 
         $pdf->Output("Paginas_Legajos.pdf", "I");
@@ -339,10 +313,11 @@ class Logs extends Controllers
 
     public function excel()
     {
+        $this->asegurarAccesoAuditoria('log_sistema');
         ob_start();
         require_once 'Helpers/ReportTemplateExcel.php';
         date_default_timezone_set('America/Asuncion');
-        
+
         $logs = $this->model->selectLogs();
         $excel = new ReportTemplateExcel('Bitácora de Auditoría SQL', 'SCANTEC');
         $sheet = $excel->getSheet();
@@ -352,7 +327,7 @@ class Logs extends Controllers
             'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => '878787']],
             'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
         ];
-
+        
         $sheet->setCellValue('A4', 'Fecha');
         $sheet->setCellValue('B4', 'Execute SQL');
         $sheet->setCellValue('C4', 'Reverse SQL');
@@ -360,9 +335,9 @@ class Logs extends Controllers
 
         $row = 5;
         foreach ($logs as $value) {
-            $sheet->setCellValue('A' . $row, $value["fecha"]);
-            $sheet->setCellValue('B' . $row, $value['executedSQL']);
-            $sheet->setCellValue('C' . $row, $value["reverseSQL"]);
+            excelTexto($sheet, 'A' . $row, $value["fecha"]);
+            excelTexto($sheet, 'B' . $row, $value['executedSQL']);
+            excelTexto($sheet, 'C' . $row, $value["reverseSQL"]);
             $row++;
         }
 
@@ -378,10 +353,11 @@ class Logs extends Controllers
 
     public function registro_sesionesExcel()
     {
+        $this->asegurarAccesoAuditoria('sesiones');
         ob_start();
-        require_once 'Helpers/ReportTemplateExcel.php'; 
+        require_once 'Helpers/ReportTemplateExcel.php';
         date_default_timezone_set('America/Asuncion');
-        
+
         $sesiones = $this->model->selectSesions();
         $excel = new ReportTemplateExcel('Reporte de Sesiones', 'SCANTEC');
         $sheet = $excel->getSheet();
@@ -402,12 +378,12 @@ class Logs extends Controllers
 
         $row = 5;
         foreach ($sesiones as $value) {
-            $sheet->setCellValue('A' . $row, $value["fecha"]);
-            $sheet->setCellValue('B' . $row, $value['ip']);
-            $sheet->setCellValue('C' . $row, $value["servidor"]);
-            $sheet->setCellValue('D' . $row, $value["nombre"]);
-            $sheet->setCellValue('E' . $row, $value["usuario"]);
-            $sheet->setCellValue('F' . $row, $value["fecha_cierre"]);
+            excelTexto($sheet, 'A' . $row, $value["fecha"]);
+            excelTexto($sheet, 'B' . $row, $value['ip']);
+            excelTexto($sheet, 'C' . $row, $value["servidor"]);
+            excelTexto($sheet, 'D' . $row, $value["nombre"]);
+            excelTexto($sheet, 'E' . $row, $value["usuario"]);
+            excelTexto($sheet, 'F' . $row, $value["fecha_cierre"]);
             $row++;
         }
 
@@ -425,10 +401,11 @@ class Logs extends Controllers
 
     public function registro_session_failExcel()
     {
+        $this->asegurarAccesoAuditoria('fallos_sesion');
         ob_start();
-        require_once 'Helpers/ReportTemplateExcel.php'; 
+        require_once 'Helpers/ReportTemplateExcel.php';
         date_default_timezone_set('America/Asuncion');
-        
+
         $sesionfails = $this->model->selectSesionFails();
         $excel = new ReportTemplateExcel('Sesiones Fallidas y Bloqueos', 'SCANTEC');
         $sheet = $excel->getSheet();
@@ -448,11 +425,11 @@ class Logs extends Controllers
 
         $row = 5;
         foreach ($sesionfails as $value) {
-            $sheet->setCellValue('A' . $row, $value["usuario"]);
-            $sheet->setCellValue('B' . $row, $value['nombre_pc']);
-            $sheet->setCellValue('C' . $row, $value["direccion_ip"]);
-            $sheet->setCellValue('D' . $row, $value["timestamp"]);
-            $sheet->setCellValue('E' . $row, $value["motivo"]);
+            excelTexto($sheet, 'A' . $row, $value['usuario']);
+            excelTexto($sheet, 'B' . $row, $value['nombre_pc']);
+            excelTexto($sheet, 'C' . $row, $value['direccion_ip']);
+            excelTexto($sheet, 'D' . $row, $value['timestamp']);
+            excelTexto($sheet, 'E' . $row, $value['motivo']);
             $row++;
         }
 
@@ -469,10 +446,11 @@ class Logs extends Controllers
 
     public function registro_viewExcel()
     {
+        $this->asegurarAccesoAuditoria('visitas_archivos');
         ob_start();
-        require_once 'Helpers/ReportTemplateExcel.php'; 
+        require_once 'Helpers/ReportTemplateExcel.php';
         date_default_timezone_set('America/Asuncion');
-        
+
         $views = $this->model->selectViews();
         $excel = new ReportTemplateExcel('Registro de Visualizaciones', 'SCANTEC');
         $sheet = $excel->getSheet();
@@ -492,6 +470,7 @@ class Logs extends Controllers
 
         $row = 5;
         foreach ($views as $value) {
+           //  excelTexto($sheet, 'A' . $row, $value['usuario']);
             $sheet->setCellValue('A' . $row, $value["usuario"]);
             $sheet->setCellValue('B' . $row, $value['nombre_pc']);
             $sheet->setCellValue('C' . $row, $value["direccion_ip"]);
@@ -552,14 +531,14 @@ class Logs extends Controllers
         $row = 6;
         foreach ($detalle as $value) {
             $sheet->setCellValue('A' . $row, intval($value['id_legajo'] ?? 0));
-            $sheet->setCellValue('B' . $row, (string)($value['fecha_creacion'] ?? ''));
-            $sheet->setCellValue('C' . $row, (string)($value['nombre_tipo_legajo'] ?? ''));
-            $sheet->setCellValue('D' . $row, (string)($value['ci_socio'] ?? ''));
-            $sheet->setCellValue('E' . $row, (string)($value['nombre_completo'] ?? ''));
-            $sheet->setCellValue('F' . $row, (string)($value['nro_solicitud'] ?? ''));
+            $sheet->setCellValue('B' . $row, (string) ($value['fecha_creacion'] ?? ''));
+            $sheet->setCellValue('C' . $row, (string) ($value['nombre_tipo_legajo'] ?? ''));
+            $sheet->setCellValue('D' . $row, (string) ($value['ci_socio'] ?? ''));
+            $sheet->setCellValue('E' . $row, (string) ($value['nombre_completo'] ?? ''));
+            $sheet->setCellValue('F' . $row, (string) ($value['nro_solicitud'] ?? ''));
             $sheet->setCellValue('G' . $row, intval($value['cantidad_paginas_procesadas'] ?? 0));
-            $sheet->setCellValue('H' . $row, (string)($value['estado'] ?? ''));
-            $sheet->setCellValue('I' . $row, (string)($value['usuario_responsable'] ?? ''));
+            $sheet->setCellValue('H' . $row, (string) ($value['estado'] ?? ''));
+            $sheet->setCellValue('I' . $row, (string) ($value['usuario_responsable'] ?? ''));
             $row++;
         }
 

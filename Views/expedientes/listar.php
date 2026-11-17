@@ -51,12 +51,6 @@
                                             <i class="fas fa-folder-open text-warning"></i>
                                         </a>
                                     </td>
-                                    <!-- <td>
-                                        <?php if ($_SESSION['id_rol'] == 1) { ?>
-                                        <a href="<?php echo base_url(); ?>expedientes/editar?id_expediente=<?php echo $expediente['id_expediente']; ?>"
-                                            class="btn btn-primary btn-sm"><i class="fas fa-edit"></i></a>
-                                        <?php } ?>
-                                    </td> -->
                                 </tr>
                                 <?php } ?>
                             </tbody>

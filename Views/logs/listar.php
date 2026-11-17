@@ -46,13 +46,13 @@
                             ?>
                                 <tr class="hover:bg-gray-50/70 transition-colors group">
                                     <td class="px-6 py-4 text-xs text-gray-600 whitespace-nowrap align-top">
-                                        <i class="far fa-clock mr-1 opacity-50"></i> <?php echo $log['fecha']; ?>
+                                        <i class="far fa-clock mr-1 opacity-50"></i> <?php echo escapar($log['fecha']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs font-mono text-gray-700 align-top max-w-xl truncate" title="<?php echo htmlspecialchars($log['executedSQL']); ?>">
-                                        <?php echo $log['executedSQL']; ?>
+                                        <?php echo escapar($log['executedSQL']); ?>
                                     </td>
                                     <td class="px-6 py-4 text-xs font-mono text-gray-500 align-top max-w-xl truncate" title="<?php echo htmlspecialchars($log['reverseSQL']); ?>">
-                                        <?php echo $log['reverseSQL']; ?>
+                                        <?php echo escapar($log['reverseSQL']); ?>
                                     </td>
                                 </tr>
                             <?php 

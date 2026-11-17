@@ -96,39 +96,39 @@
                             ?>
                             <tr class="hover:bg-gray-50/70 transition-colors">
                                 <td class="px-4 py-3 text-xs font-bold text-gray-800 whitespace-nowrap">
-                                    <?php echo $logsumango['id_proceso_umango']; ?></td>
+                                    <?php echo escapar($logsumango['id_proceso_umango']); ?></td>
                                 <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                                    <?php echo $logsumango['id_lote']; ?></td>
+                                    <?php echo escapar($logsumango['id_lote']); ?></td>
                                 <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                                    <?php echo $logsumango['fuente_captura']; ?></td>
+                                    <?php echo escapar($logsumango['fuente_captura']); ?></td>
                                 <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap max-w-xs truncate"
-                                    title="<?php echo $logsumango['archivo_origen']; ?>">
-                                    <?php echo $logsumango['archivo_origen']; ?></td>
+                                    title="<?php echo escapar($logsumango['archivo_origen']); ?>">
+                                    <?php echo escapar($logsumango['archivo_origen']); ?></td>
                                 <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap text-center">
-                                    <?php echo $logsumango['orden_documento']; ?></td>
+                                    <?php echo escapar($logsumango['orden_documento']); ?></td>
                                 <td class="px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap text-center">
-                                    <?php echo $logsumango['paginas_exportadas']; ?></td>
+                                    <?php echo escapar($logsumango['paginas_exportadas']); ?></td>
                                 <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap"><i
-                                        class="far fa-calendar-alt mr-1 opacity-50"></i><?php echo $logsumango['fecha_inicio']; ?>
+                                        class="far fa-calendar-alt mr-1 opacity-50"></i><?php echo escapar($logsumango['fecha_inicio']); ?>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap"><i
-                                        class="far fa-calendar-check mr-1 opacity-50"></i><?php echo $logsumango['fecha_finalizacion']; ?>
+                                        class="far fa-calendar-check mr-1 opacity-50"></i><?php echo escapar($logsumango['fecha_finalizacion']); ?>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                                    <?php echo $logsumango['creador']; ?></td>
+                                    <?php echo escapar($logsumango['creador']); ?></td>
                                 <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">
-                                    <?php echo $logsumango['usuario']; ?></td>
+                                    <?php echo escapar($logsumango['usuario']); ?></td>
                                 <td class="px-4 py-3 text-xs whitespace-nowrap text-center">
                                     <span
                                         class="px-2.5 py-1 rounded-md border <?php echo $badgeBg; ?> font-bold text-[10px] tracking-wide">
-                                        <?php echo $logsumango['estado']; ?>
+                                        <?php echo escapar($logsumango['estado']); ?>
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap"><i
-                                        class="fas fa-desktop mr-1 opacity-50"></i><?php echo $logsumango['nombre_host']; ?>
+                                        class="fas fa-desktop mr-1 opacity-50"></i><?php echo escapar($logsumango['nombre_host']); ?>
                                 </td>
                                 <td class="px-4 py-3 text-xs text-gray-500 font-mono whitespace-nowrap">
-                                    <?php echo $logsumango['ip_host']; ?></td>
+                                    <?php echo escapar($logsumango['ip_host']); ?></td>
                             </tr>
                             <?php 
                                 } 

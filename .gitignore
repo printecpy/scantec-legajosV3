@@ -4,6 +4,7 @@
 apache/
 mysql/
 Temp/
+temp/
 Expedientes/
 .env
 .env.*
@@ -20,6 +21,7 @@ backups/
 *.log
 *.cache
 test_ldap.php
+test_*.php
 documentacion/
 fix_*.php
 temp_*.php
@@ -35,3 +37,9 @@ rename_da.php
 *.bat
 *.cmd
 *.sh
+*.lic
+# Agregado por publicar_git.ps1 - nunca subir configuracion, datos ni logs
+.env.bak-*
+BD/
+logs/
+tools/reportes/

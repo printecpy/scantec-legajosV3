@@ -30,7 +30,7 @@ class FuncionalidadesModel extends Mysql
             'log_documentos' => ['etiqueta' => 'Log Documentos', 'ruta' => 'logsumango/views', 'modulo' => 'archivos'],
             'visitas_archivos' => ['etiqueta' => 'Visitas Archivos', 'ruta' => 'logs/registro_views', 'modulo' => 'archivos'],
             'reporte_paginas_legajos' => ['etiqueta' => 'Páginas de Legajos', 'ruta' => 'logs/reporte_paginas_legajos', 'modulo' => 'legajos'],
-            'dashboard_legajos' => ['etiqueta' => 'Dashboard Legajos', 'ruta' => 'dashboard/dashboard_legajos', 'modulo' => 'legajos'],
+            'dashboard_legajos' => ['etiqueta' => 'Dashboard', 'ruta' => 'dashboard/dashboard', 'modulo' => 'legajos'],
             'armar_legajo' => ['etiqueta' => 'Armar legajo', 'ruta' => 'legajos/armar_legajo', 'modulo' => 'legajos'],
             'buscar_legajos' => ['etiqueta' => 'Buscar legajos', 'ruta' => 'legajos/buscar_legajos', 'modulo' => 'legajos'],
             'verificar_legajos' => ['etiqueta' => 'Verificar legajos', 'ruta' => 'legajos/verificar_legajos', 'modulo' => 'legajos'],
@@ -61,6 +61,12 @@ class FuncionalidadesModel extends Mysql
         ];
     }
 
+    /**
+     * Catalogo de ventanas y funciones que se pueden habilitar por rol y departamento.
+     *  - 'defecto' => 1  : el item nace habilitado para roles no configurados.
+     *                      Sin 'defecto', el item nace cerrado (solo roles 1 y 2 lo tienen hasta que se habilite en la pantalla de accesos).
+     *  - 'inicio'  => N  : el item puede ser pantalla de inicio al iniciar sesion; N es la prioridad (menor = primero).
+     */
     public static function getAccesosDisponibles(): array
     {
         return [
@@ -70,6 +76,8 @@ class FuncionalidadesModel extends Mysql
                 'descripcion' => 'Permite entrar al buscador principal de archivos.',
                 'grupo' => 'Archivos',
                 'rutas' => ['expedientes/indice_busqueda*'],
+                'inicio' => 20,
+                'defecto' => 1,
             ],
             'reporte_expedientes' => [
                 'etiqueta' => 'Reporte de expedientes',
@@ -84,6 +92,21 @@ class FuncionalidadesModel extends Mysql
                 'descripcion' => 'Habilita la carga de archivos al sistema.',
                 'grupo' => 'Archivos',
                 'rutas' => ['expedientes/upload_files*'],
+            ],
+            'gestionar_expedientes' => [
+                'etiqueta' => 'Editar y anular documentos',
+                'ruta' => 'expedientes/editar',
+                'descripcion' => 'Permite modificar índices, anular y reactivar documentos de los tipos de su grupo.',
+                'grupo' => 'Archivos',
+                'rutas' => ['expedientes/editar*', 'expedientes/modificar*', 'expedientes/eliminar*', 'expedientes/reingresar*'],
+            ],
+            'consulta_indice1' => [
+                'etiqueta' => 'Consulta por índice 1 (enlace externo)',
+                'ruta' => 'expedientes/buscarporindice01',
+                'descripcion' => 'Permite abrir la consulta de documentos por índice 1 desde un enlace de otro sistema.',
+                'grupo' => 'Archivos',
+                'rutas' => ['expedientes/buscarporindice01', 'expedientes/mostrar_resultados'],
+                'defecto' => 0,
             ],
             'grupos' => [
                 'etiqueta' => 'Grupos',
@@ -104,13 +127,13 @@ class FuncionalidadesModel extends Mysql
                 'ruta' => 'logs/registro_views',
                 'descripcion' => 'Muestra las visitas a archivos.',
                 'grupo' => 'Auditoría',
-                'rutas' => ['logs/registro_views*'],
+                'rutas' => ['logs/registro_views*', 'logs/registro_viewexcel*'],
             ],
             'reporte_paginas_legajos' => [
                 'etiqueta' => 'Páginas de legajos',
                 'ruta' => 'logs/reporte_paginas_legajos',
                 'descripcion' => 'Muestra el reporte de páginas procesadas de legajos por período.',
-                'grupo' => 'Auditorí­a',
+                'grupo' => 'Auditoría',
                 'rutas' => ['logs/reporte_paginas_legajos*', 'logs/reporte_paginas_legajosPdf*', 'logs/reporte_paginas_legajosExcel*'],
             ],
             'unir_pdf' => [
@@ -121,11 +144,13 @@ class FuncionalidadesModel extends Mysql
                 'rutas' => ['unirpdf/*'],
             ],
             'dashboard_legajos' => [
-                'etiqueta' => 'Dashboard Legajos',
-                'ruta' => 'dashboard/dashboard_legajos',
-                'descripcion' => 'Muestra el tablero general de legajos.',
+                'etiqueta' => 'Dashboard',
+                'ruta' => 'dashboard/dashboard',
+                'descripcion' => 'Muestra el tablero general unificado.',
                 'grupo' => 'Dashboard',
-                'rutas' => ['dashboard/dashboard_legajos*'],
+                'rutas' => ['dashboard/dashboard*', 'dashboard/dashboard_legajos*', 'dashboard/listar*'],
+                'inicio' => 10,
+                'defecto' => 1,
             ],
             'armar_legajo' => [
                 'etiqueta' => 'Armar legajo',
@@ -140,6 +165,7 @@ class FuncionalidadesModel extends Mysql
                 'descripcion' => 'Permite consultar legajos existentes.',
                 'grupo' => 'Legajos',
                 'rutas' => ['legajos/buscar_legajos*', 'legajos/documentos_procesados*', 'legajos/documentos_procesadosPdf*', 'legajos/documentos_procesadosExcel*', 'legajos/estado_legajo*', 'legajos/ver_pdf_legajo*', 'legajos/descargar_pdf_legajo*'],
+                'inicio' => 30,
             ],
             'verificar_legajos' => [
                 'etiqueta' => 'Verificar legajos',
@@ -197,6 +223,20 @@ class FuncionalidadesModel extends Mysql
                 'grupo' => 'Configuración',
                 'rutas' => ['configuracion/base_datos_externa*', 'configuracion/probar_base_datos_externa*', 'configuracion/guardar_base_datos_externa*'],
             ],
+            'servidor_ad' => [
+                'etiqueta' => 'Servidor Active Directory',
+                'ruta' => 'configuracion/servidor_AD',
+                'descripcion' => 'Permite configurar la conexión LDAP/AD y su sincronización.',
+                'grupo' => 'Configuración',
+                'rutas' => ['configuracion/servidor_ad*', 'configuracion/saveldap_server*', 'configuracion/probar_conexionad*', 'configuracion/guardar_formato_ldap*'],
+            ],
+            'servidor_smtp' => [
+                'etiqueta' => 'Servidor de correo (SMTP)',
+                'ruta' => 'configuracion/servidor_smtp',
+                'descripcion' => 'Permite configurar y probar el servidor de correo.',
+                'grupo' => 'Configuración',
+                'rutas' => ['configuracion/servidor_smtp*', 'configuracion/guardarservcorreo*', 'configuracion/probar_smtp*', 'configuracion/enviarcorreo*', 'configuracion/desactivar_servicio_smtp*'],
+            ],
             'backup' => [
                 'etiqueta' => 'Backup',
                 'ruta' => 'configuracion/mantenimiento',
@@ -251,14 +291,14 @@ class FuncionalidadesModel extends Mysql
                 'ruta' => 'seguridad/roles',
                 'descripcion' => 'Permite administrar roles del sistema.',
                 'grupo' => 'Administración',
-                'rutas' => ['seguridad/roles*', 'seguridad/crear_rol*', 'seguridad/actualizar_rol*', 'seguridad/eliminar_rol*', 'seguridad/cambiar_estado_rol*'],
+                'rutas' => ['seguridad/roles*', 'seguridad/guardar_rol*', 'seguridad/actualizar_rol*', 'seguridad/eliminar_rol*', 'seguridad/cambiar_estado_rol*'],   // <- guardar_rol
             ],
             'log_sistema' => [
                 'etiqueta' => 'Log Sistema',
                 'ruta' => 'logs/views',
                 'descripcion' => 'Muestra el log general del sistema.',
                 'grupo' => 'Auditoría',
-                'rutas' => ['logs/views*'],
+                'rutas' => ['logs/views*', 'logs/pdf*', 'logs/excel*'],
             ],
             'fallos_sesion' => [
                 'etiqueta' => 'Fallos de sesión',
@@ -297,11 +337,11 @@ class FuncionalidadesModel extends Mysql
             ],
             'dashboard' => [
                 'etiqueta' => 'Dashboard',
-                'descripcion' => 'Controla el acceso al tablero general de legajos.',
+                'descripcion' => 'Controla el acceso al tablero general.',
                 'icono' => 'fas fa-chart-line',
                 'grupo' => 'Módulo',
                 'rutas' => ['dashboard/*'],
-                'ruta_menu' => 'dashboard/dashboard_legajos',
+                'ruta_menu' => 'dashboard/dashboard',
             ],
             'archivos' => [
                 'etiqueta' => 'Archivos',
@@ -573,17 +613,25 @@ class FuncionalidadesModel extends Mysql
     public function selectAccesosPorRolDepartamento(int $idRol, int $idDepartamento): array
     {
         $definiciones = self::getAccesosDisponibles();
-        $accesos = array_fill_keys(array_keys($definiciones), 1);
 
-        if ($idRol === 1 || $idRol <= 0) {
-            return $accesos;
+        // Superadmin Scantec: todo habilitado
+        if ($idRol === 1) {
+            return array_fill_keys(array_keys($definiciones), 1);
         }
 
+        // Sin sesión o rol inválido: nada habilitado
+        if ($idRol <= 0) {
+            return array_fill_keys(array_keys($definiciones), 0);
+        }
+
+        // Valor por defecto desde el catálogo: 'defecto' => 1 nace habilitado; sin 'defecto', nace cerrado
+        $accesos = [];
+        foreach ($definiciones as $clave => $info) {
+            $accesos[$clave] = intval($info['defecto'] ?? 0);
+        }
+
+        // Lo configurado en la pantalla de accesos pisa el valor por defecto
         $idDepartamento = $this->resolverDepartamentoRol($idRol, $idDepartamento);
-        if ($idDepartamento < 0) {
-            return $accesos;
-        }
-
         $configurados = $this->selectAccesosRolDepartamentoConfigurados($idRol, $idDepartamento);
         foreach ($configurados as $clave => $habilitado) {
             if (isset($accesos[$clave])) {
@@ -594,15 +642,26 @@ class FuncionalidadesModel extends Mysql
         return $accesos;
     }
 
-    public function guardarAccesosRolDepartamento(int $idRol, int $idDepartamento, array $items, int $idUsuario): bool
+
+    /**
+     * Guarda los accesos de un rol. Solo escribe los items de $itemsGestionables (los que quien guarda puede ver y gestionar);
+     * los demas quedan como estaban. Sin lista, recorre todo el catalogo.
+     */
+    public function guardarAccesosRolDepartamento(int $idRol, int $idDepartamento, array $items, int $idUsuario, ?array $itemsGestionables = null): bool
     {
         $this->asegurarTablaAccesosRolDepartamento();
         if ($idRol <= 0 || $idDepartamento < 0) {
             return false;
         }
 
+        $definiciones = self::getAccesosDisponibles();
+        $claves = $itemsGestionables ?? array_keys($definiciones);
+
         try {
-            foreach (array_keys(self::getAccesosDisponibles()) as $itemKey) {
+            foreach ($claves as $itemKey) {
+                if (!isset($definiciones[$itemKey])) {
+                    continue;
+                }
                 $habilitado = isset($items[$itemKey]) ? 1 : 0;
                 $sql = "INSERT INTO funcionalidades_acceso_rol_departamento (id_rol, id_departamento, item_key, habilitado, actualizado_por)
                         VALUES (?, ?, ?, ?, ?)
@@ -642,6 +701,42 @@ class FuncionalidadesModel extends Mysql
             return true;
         } catch (Throwable $e) {
             error_log('Error guardando acceso individual por rol/departamento: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    // Pantalla de inicio elegida para un rol ('' = automatica). Se guarda en funcionalidades_parametros.
+    public function selectInicioRol(int $idRol): string
+    {
+        try {
+            $row = $this->select("SELECT valor FROM funcionalidades_parametros WHERE clave = ? LIMIT 1", ['inicio_rol_' . $idRol]);
+            if (is_array($row) && isset($row[0])) {
+                $row = $row[0];
+            }
+            return (string) ($row['valor'] ?? '');
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    public function guardarInicioRol(int $idRol, string $itemKey, int $idUsuario): bool
+    {
+        // solo se acepta '' (automatica) o un item marcado como pantalla de inicio en el catalogo
+        if ($idRol <= 0 || ($itemKey !== '' && !isset(self::getAccesosDisponibles()[$itemKey]['inicio']))) {
+            return false;
+        }
+
+        try {
+            $sql = "INSERT INTO funcionalidades_parametros (clave, valor, actualizado_por)
+                    VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        valor = VALUES(valor),
+                        actualizado_por = VALUES(actualizado_por),
+                        actualizado_en = NOW()";
+            $this->insert($sql, ['inicio_rol_' . $idRol, $itemKey, $idUsuario]);
+            return true;
+        } catch (Throwable $e) {
+            error_log('Error guardando la pantalla de inicio del rol: ' . $e->getMessage());
             return false;
         }
     }
@@ -695,17 +790,21 @@ class FuncionalidadesModel extends Mysql
 
     public function puedeAccederItemPorContexto(string $itemKey, int $idRol = 0, int $idDepartamento = 0): bool
     {
+        if ($idRol <= 0) {
+            return false;
+        }
         if ($idRol === 1) {
             return true;
         }
 
         $definiciones = self::getAccesosDisponibles();
         if (!isset($definiciones[$itemKey])) {
-            return true;
+            error_log('Clave de funcionalidad inexistente: ' . $itemKey);
+            return false;
         }
 
-        $accesos = $this->selectAccesosPorRolDepartamento($idRol, $this->resolverDepartamentoRol($idRol, $idDepartamento));
-        return intval($accesos[$itemKey] ?? 1) === 1;
+        $accesos = $this->selectAccesosPorRolDepartamento($idRol, $idDepartamento);
+        return intval($accesos[$itemKey] ?? 0) === 1;
     }
 
     public static function resolverSeccionPorRuta(string $ruta): ?string
@@ -758,38 +857,42 @@ class FuncionalidadesModel extends Mysql
         return $mejorCoincidencia;
     }
 
+    /**
+     * Ruta a la que se envia al usuario despues de iniciar sesion (y cuando se le deniega una seccion):
+     * la pantalla de inicio elegida para su rol si sigue permitida; si no, la primera permitida por prioridad
+     * (los items marcados con 'inicio' en el catalogo). Ultimo recurso: rol 1 -> gestion de modulos; resto -> cambiar contrasena.
+     */
     public static function obtenerRutaRedireccionSegura(int $idRol = 0, int $idDepartamento = 0): string
     {
-        $prioridades = [
-            ['seccion' => 'dashboard', 'item' => 'dashboard_legajos', 'ruta' => 'dashboard/dashboard_legajos'],
-            ['seccion' => 'legajos', 'item' => 'buscar_legajos', 'ruta' => 'legajos/buscar_legajos'],
-            ['seccion' => 'archivos', 'item' => 'buscador_archivos', 'ruta' => 'expedientes/indice_busqueda'],
-            ['seccion' => 'unir_pdf', 'item' => 'unir_pdf', 'ruta' => 'unirpdf/unir_documentos'],
-        ];
-
         try {
             $model = new self();
+            $items = self::getAccesosDisponibles();
             $estados = $model->selectEstadosSecciones();
-
-            foreach ($prioridades as $prioridad) {
-                $claveSeccion = $prioridad['seccion'];
-                if (intval($estados[$claveSeccion] ?? 1) !== 1) {
+            $accesos = $model->selectAccesosPorRolDepartamento($idRol, $idDepartamento);
+            $candidatas = [];                                              // item => prioridad: solo los permitidos y con la seccion activa
+            foreach ($items as $clave => $info) {
+                if (!isset($info['inicio']) || intval($accesos[$clave] ?? 0) !== 1) {
                     continue;
                 }
-
-                if ($model->puedeAccederItemPorContexto($prioridad['item'], $idRol, $idDepartamento)) {
-                    return $prioridad['ruta'];
+                $seccion = self::resolverSeccionPorRuta($info['ruta']);
+                if ($seccion !== null && intval($estados[$seccion] ?? 1) !== 1) {
+                    continue;
                 }
+                $candidatas[$clave] = intval($info['inicio']);
+            }
+            if ($candidatas) {
+                $elegida = $model->selectInicioRol($idRol);                // la que configuro el administrador, si sigue permitida
+                if (!isset($candidatas[$elegida])) {
+                    asort($candidatas);                                    // si no, la de mayor prioridad
+                    $elegida = array_key_first($candidatas);
+                }
+                return $items[$elegida]['ruta'];
             }
         } catch (Throwable $e) {
             error_log('Error obteniendo redireccion segura de funcionalidades: ' . $e->getMessage());
         }
 
-        if ($idRol === 1) {
-            return 'funcionalidades/listar';
-        }
-
-        return 'usuarios/cambiar_pass';
+        return $idRol === 1 ? 'funcionalidades/listar' : 'usuarios/cambiar_pass';
     }
 
     private static function rutaCoincideConPatron(string $ruta, string $patron): bool

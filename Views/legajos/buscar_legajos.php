@@ -23,7 +23,8 @@ $formatearCi = static function ($valor) {
                     <i class="fas fa-search mr-3"></i> Búsqueda de Legajos
                 </h1>
                 <p class="text-sm text-gray-500 mt-1 ml-1">
-                    Busque legajos por CI, nombre completo o número de solicitud. Use `*.*` para listar todos.
+                    Busque legajos por CI, nombre, número de solicitud, secuencia u operación. Use `*.*` para listar
+                    todos.
                 </p>
             </div>
 
@@ -45,44 +46,59 @@ $formatearCi = static function ($valor) {
             <div class="p-6">
                 <form action="<?php echo base_url(); ?>legajos/buscar_legajos" method="get" autocomplete="off">
                     <?php if ($filtro_documentos !== ''): ?>
-                    <input type="hidden" name="filtro_documentos" value="<?php echo htmlspecialchars($filtro_documentos); ?>">
+                    <input type="hidden" name="filtro_documentos"
+                        value="<?php echo htmlspecialchars($filtro_documentos); ?>">
                     <?php endif; ?>
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                         <div class="md:col-span-12">
-                            <label for="termino" class="block text-sm font-bold text-gray-700 mb-2">Dato básico del legajo:</label>
+                            <label for="termino" class="block text-sm font-bold text-gray-700 mb-2">Dato básico del
+                                legajo:</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <i class="fas fa-id-card text-gray-400"></i>
                                 </div>
-                                <input id="termino" class="w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                                <input id="termino"
+                                    class="w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                                     type="text" name="termino" value="<?php echo htmlspecialchars($termino); ?>"
                                     placeholder="Ej: 1234567, Juan Perez, 56584 o *.*">
                             </div>
                         </div>
 
                         <div class="md:col-span-4">
-                            <label for="estado_legajo" class="block text-sm font-bold text-gray-700 mb-2">Estado de legajo:</label>
+                            <label for="estado_legajo" class="block text-sm font-bold text-gray-700 mb-2">Estado de
+                                legajo:</label>
                             <select id="estado_legajo" name="estado_legajo"
                                 class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-700 transition-shadow">
                                 <option value="">Todos los estados</option>
-                                <option value="Proceso" <?php echo $estado_legajo === 'Proceso' ? 'selected' : ''; ?>>Proceso</option>
-                                <option value="Incompleto" <?php echo $estado_legajo === 'Incompleto' ? 'selected' : ''; ?>>Incompleto</option>
-                                <option value="Vencido" <?php echo $estado_legajo === 'Vencido' ? 'selected' : ''; ?>>Vencido</option>
-                                <option value="Completado" <?php echo $estado_legajo === 'Completado' ? 'selected' : ''; ?>>Completado</option>
-                                <option value="Generado" <?php echo $estado_legajo === 'Generado' ? 'selected' : ''; ?>>Generado</option>
-                                <option value="Verificación rechazada" <?php echo $estado_legajo === 'Verificación rechazada' ? 'selected' : ''; ?>>Verificación rechazada</option>
-                                <option value="Verificado" <?php echo $estado_legajo === 'Verificado' ? 'selected' : ''; ?>>Verificado</option>
-                                <option value="Cerrado" <?php echo $estado_legajo === 'Cerrado' ? 'selected' : ''; ?>>Cerrado</option>
+                                <option value="Proceso" <?php echo $estado_legajo === 'Proceso' ? 'selected' : ''; ?>>
+                                    Proceso</option>
+                                <option value="Incompleto"
+                                    <?php echo $estado_legajo === 'Incompleto' ? 'selected' : ''; ?>>Incompleto</option>
+                                <option value="Vencido" <?php echo $estado_legajo === 'Vencido' ? 'selected' : ''; ?>>
+                                    Vencido</option>
+                                <option value="Completado"
+                                    <?php echo $estado_legajo === 'Completado' ? 'selected' : ''; ?>>Completado</option>
+                                <option value="Generado" <?php echo $estado_legajo === 'Generado' ? 'selected' : ''; ?>>
+                                    Generado</option>
+                                <option value="Verificación rechazada"
+                                    <?php echo $estado_legajo === 'Verificación rechazada' ? 'selected' : ''; ?>>
+                                    Verificación rechazada</option>
+                                <option value="Verificado"
+                                    <?php echo $estado_legajo === 'Verificado' ? 'selected' : ''; ?>>Verificado</option>
+                                <option value="Cerrado" <?php echo $estado_legajo === 'Cerrado' ? 'selected' : ''; ?>>
+                                    Cerrado</option>
                             </select>
                         </div>
 
                         <div class="md:col-span-5">
-                            <label for="id_tipo_legajo" class="block text-sm font-bold text-gray-700 mb-2">Tipo de legajo:</label>
+                            <label for="id_tipo_legajo" class="block text-sm font-bold text-gray-700 mb-2">Tipo de
+                                legajo:</label>
                             <select id="id_tipo_legajo" name="id_tipo_legajo"
                                 class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-700 transition-shadow">
                                 <option value="0">Todos los tipos</option>
                                 <?php foreach ($tipos_legajo as $tipo_legajo): ?>
-                                <option value="<?php echo intval($tipo_legajo['id_tipo_legajo']); ?>" <?php echo intval($tipo_legajo['id_tipo_legajo']) === $id_tipo_legajo ? 'selected' : ''; ?>>
+                                <option value="<?php echo intval($tipo_legajo['id_tipo_legajo']); ?>"
+                                    <?php echo intval($tipo_legajo['id_tipo_legajo']) === $id_tipo_legajo ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($tipo_legajo['nombre']); ?>
                                 </option>
                                 <?php endforeach; ?>
@@ -108,40 +124,60 @@ $formatearCi = static function ($valor) {
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
+                <table class="w-full text-left border-collapse" id="table">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
                             <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">CI</th>
-                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre Completo</th>
-                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo de Legajo</th>
-                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nro. Solicitud</th>
+                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre
+                                Completo</th>
+                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo de
+                                Legajo</th>
+                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nro.
+                                Solicitud</th>
+                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Secuencia
+                            </th>
+                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nro.
+                                Operación</th>
                             <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Acción</th>
+                            <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">
+                                Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <?php if (!empty($resultados)): ?>
-                            <?php foreach ($resultados as $resultado): ?>
-                                <tr class="hover:bg-slate-50 transition-colors">
-                                    <td class="px-6 py-3 font-bold text-sm">
-                                        <a href="<?php echo base_url(); ?>personas/listar?termino=<?php echo urlencode($resultado['ci_socio'] ?? ''); ?>" 
-                                           class="text-scantec-blue hover:text-blue-800 hover:underline transition-colors flex items-center w-max group"
-                                           title="Ver datos de la persona">
-                                            <?php echo htmlspecialchars($formatearCi($resultado['ci_socio'] ?? '')); ?>
-                                            <i class="fas fa-external-link-alt ml-2 opacity-0 group-hover:opacity-100 text-[10px] transition-opacity"></i>
-                                        </a>
-                                    </td>
-                                    <td class="px-6 py-3 text-gray-700 text-sm">
-                                        <?php echo htmlspecialchars($resultado['nombre_completo'] ?? ''); ?>
-                                    </td>
-                                    <td class="px-6 py-3 text-gray-600 text-sm">
-                                        <?php echo htmlspecialchars($resultado['nombre_tipo_legajo'] ?? ''); ?>
-                                    </td>
-                                    <td class="px-6 py-3 text-gray-600 text-sm">
-                                        <?php echo htmlspecialchars($resultado['nro_solicitud'] ?? ''); ?>
-                                    </td>
-                                    <td class="px-6 py-3 text-sm">
-                                        <?php
+                        <?php foreach ($resultados as $resultado): ?>
+                        <?php
+                                $secuenciaLegajo = trim((string) ($resultado['secuencia'] ?? ''));
+                                $operacionLegajo = trim((string) ($resultado['nro_operacion'] ?? ''));
+                                $solicitudLegajo = trim((string) ($resultado['nro_solicitud'] ?? ''));
+                                ?>
+                        <tr class="hover:bg-slate-50 transition-colors">
+                            <td class="px-6 py-3 font-bold text-sm">
+                                <a href="<?php echo base_url(); ?>personas/listar?termino=<?php echo urlencode($resultado['ci_socio'] ?? ''); ?>"
+                                    class="text-scantec-blue hover:text-blue-800 hover:underline transition-colors flex items-center w-max group"
+                                    title="Ver datos de la persona">
+                                    <?php echo htmlspecialchars($formatearCi($resultado['ci_socio'] ?? '')); ?>
+                                    <i
+                                        class="fas fa-external-link-alt ml-2 opacity-0 group-hover:opacity-100 text-[10px] transition-opacity"></i>
+                                </a>
+                            </td>
+                            <td class="px-6 py-3 text-gray-700 text-sm">
+                                <?php echo htmlspecialchars($resultado['nombre_completo'] ?? ''); ?>
+                            </td>
+                            <td class="px-6 py-3 text-gray-600 text-sm">
+                                <?php echo htmlspecialchars($resultado['nombre_tipo_legajo'] ?? ''); ?>
+                            </td>
+                            <td class="px-6 py-3 text-gray-600 text-sm">
+                                <?php echo $solicitudLegajo !== '' ? htmlspecialchars($solicitudLegajo) : '<span class="text-gray-300">—</span>'; ?>
+                            </td>
+                            <td class="px-6 py-3 text-gray-600 text-sm">
+                                <?php echo $secuenciaLegajo !== '' ? htmlspecialchars($secuenciaLegajo) : '<span class="text-gray-300">—</span>'; ?>
+                            </td>
+                            <td class="px-6 py-3 text-gray-600 text-sm font-mono">
+                                <?php echo $operacionLegajo !== '' ? htmlspecialchars($operacionLegajo) : '<span class="text-gray-300">—</span>'; ?>
+                            </td>
+                            <td class="px-6 py-3 text-sm">
+                                <?php
                                         $estadoTexto = $resultado['estado_legajo_texto'] ?? ucfirst($resultado['estado'] ?? '');
                                         $claseEstado = 'bg-gray-100 text-gray-700';
                                         if ($estadoTexto === 'Cerrado') {
@@ -162,43 +198,43 @@ $formatearCi = static function ($valor) {
                                             $claseEstado = 'bg-red-100 text-red-800';
                                         }
                                         ?>
-                                        <span class="px-2 py-1 inline-flex text-xs font-bold rounded-full <?php echo $claseEstado; ?>">
-                                            <?php echo htmlspecialchars($estadoTexto); ?>
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-3 text-right">
-                                        <?php $puedeVerPdfFinal = !empty($resultado['pdf_final_disponible']); ?>
-                                        <?php $puedeDuplicar = !empty($resultado['requiere_nro_solicitud']); ?>
-                                        <div class="flex justify-end gap-2">
-                                            <?php if ($puedeVerPdfFinal): ?>
-                                            <a href="<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                class="w-10 h-10 bg-red-700 text-white rounded-lg font-bold text-xs hover:bg-red-900 transition-all inline-flex items-center justify-center"
-                                                title="Ver PDF"
-                                                target="_blank"
-                                                rel="noopener noreferrer">
-                                                <i class="fas fa-file-pdf"></i>
-                                            </a>
-                                            <?php endif; ?>
-                                            <a href="<?php echo base_url(); ?>legajos/armar_legajo?id_legajo=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                class="w-10 h-10 bg-scantec-blue text-white rounded-lg font-bold text-xs hover:bg-blue-800 transition-all inline-flex items-center justify-center"
-                                                title="Abrir">
-                                                <i class="fas fa-folder-open"></i>
-                                            </a>
-                                            <?php if ($puedeDuplicar): ?>
-                                            <a href="<?php echo base_url(); ?>legajos/armar_legajo?duplicar_desde=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
-                                                class="w-10 h-10 bg-gray-700 text-white rounded-lg font-bold text-xs hover:bg-gray-900 transition-all inline-flex items-center justify-center"
-                                                title="Duplicar">
-                                                <i class="fas fa-copy"></i>
-                                            </a>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                                <span
+                                    class="px-2 py-1 inline-flex text-xs font-bold rounded-full <?php echo $claseEstado; ?>">
+                                    <?php echo htmlspecialchars($estadoTexto); ?>
+                                </span>
+                            </td>
+                            <td class="px-6 py-3 text-right">
+                                <?php $puedeVerPdfFinal = !empty($resultado['pdf_final_disponible']); ?>
+                                <?php $puedeDuplicar = !empty($resultado['requiere_nro_solicitud']); ?>
+                                <div class="flex justify-end gap-2">
+                                    <?php if ($puedeVerPdfFinal): ?>
+                                    <button type="button"
+                                        onclick="mostrarPDFModal('<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo intval($resultado['id_legajo'] ?? 0); ?>')"
+                                        class="w-10 h-10 bg-red-700 text-white rounded-lg font-bold text-xs hover:bg-red-900 transition-all inline-flex items-center justify-center"
+                                        title="Ver PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </button>
+                                    <?php endif; ?>
+                                    <a href="<?php echo base_url(); ?>legajos/armar_legajo?id_legajo=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
+                                        class="w-10 h-10 bg-scantec-blue text-white rounded-lg font-bold text-xs hover:bg-blue-800 transition-all inline-flex items-center justify-center"
+                                        title="Abrir">
+                                        <i class="fas fa-folder-open"></i>
+                                    </a>
+                                    <?php if ($puedeDuplicar): ?>
+                                    <a href="<?php echo base_url(); ?>legajos/armar_legajo?duplicar_desde=<?php echo intval($resultado['id_legajo'] ?? 0); ?>"
+                                        class="w-10 h-10 bg-gray-700 text-white rounded-lg font-bold text-xs hover:bg-gray-900 transition-all inline-flex items-center justify-center"
+                                        title="Duplicar">
+                                        <i class="fas fa-copy"></i>
+                                    </a>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
                         <?php else: ?>
-                            <tr>
-                                <td colspan="6" class="px-6 py-6 text-center text-sm text-gray-500">
-                                    <?php
+                        <tr>
+                            <td colspan="8" class="px-6 py-6 text-center text-sm text-gray-500">
+                                <?php
                                     if (!$busqueda_ejecutada) {
                                         echo 'Ingrese un dato básico, seleccione filtros o use *.* para listar todos.';
                                     } elseif ($termino !== '' || $estado_legajo !== '' || $id_tipo_legajo > 0) {
@@ -207,8 +243,8 @@ $formatearCi = static function ($valor) {
                                         echo 'No hay legajos para mostrar.';
                                     }
                                     ?>
-                                </td>
-                            </tr>
+                            </td>
+                        </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -217,5 +253,65 @@ $formatearCi = static function ($valor) {
 
     </div>
 </main>
+<div id="pdfModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-90 transition-opacity backdrop-blur-md" onclick="cerrarModalPDF()">
+    </div>
 
+    <div class="fixed inset-0 z-10 overflow-y-auto pointer-events-none">
+        <div class="flex min-h-full items-center justify-center p-2 text-center sm:p-0">
+            <div
+                class="pointer-events-auto relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-7xl h-[90vh] flex flex-col border border-gray-600">
+
+                <div class="bg-gray-900 px-4 py-3 flex justify-between items-center shrink-0">
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fas fa-file-pdf text-red-500 mr-2"></i> Visor de Documento
+                    </h3>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="cerrarModalPDF()"
+                            class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-gray-200 relative w-full h-full">
+                    <iframe id="pdf_preview_modal" class="absolute inset-0 w-full h-full border-none" src=""></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <?php pie() ?>
+<script>
+function mostrarPDFModal(url) {
+    const iframe = document.getElementById('pdf_preview_modal');
+    const modal = document.getElementById('pdfModal');
+
+    // Ajustes para que el PDF cargue ajustado a la pantalla y sin paneles molestos
+    const urlAjustada = url + "#view=FitH&toolbar=1&navpanes=0";
+
+    iframe.src = urlAjustada;
+
+    // Mostrar modal usando clases de Tailwind
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Evitar que el fondo de la página haga scroll
+    document.body.style.overflow = 'hidden';
+}
+
+function cerrarModalPDF() {
+    const modal = document.getElementById('pdfModal');
+    const iframe = document.getElementById('pdf_preview_modal');
+
+    // Ocultar modal
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+
+    // Limpiar iframe para no consumir memoria y detener la descarga si seguía cargando
+    iframe.src = "";
+
+    // Restaurar scroll de la página
+    document.body.style.overflow = 'auto';
+}
+</script>

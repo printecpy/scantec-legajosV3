@@ -1,9 +1,31 @@
 <?php
-class ApiLogModel extends Mysql // O la clase base de tus modelos
+class ApiLogModel extends Mysql
 {
     public function __construct()
     {
         parent::__construct();
+        $this->asegurarTabla();
+    }
+
+    private function asegurarTabla(): void
+    {
+        try {
+            $this->insert("CREATE TABLE IF NOT EXISTS api_logs (
+                id INT NOT NULL AUTO_INCREMENT,
+                fecha_hora DATETIME NOT NULL,
+                id_usuario INT DEFAULT NULL,
+                endpoint VARCHAR(255) DEFAULT NULL,
+                metodo_http VARCHAR(10) DEFAULT NULL,
+                codigo_respuesta INT DEFAULT NULL,
+                mensaje_log VARCHAR(255) DEFAULT NULL,
+                ip_origen VARCHAR(45) DEFAULT NULL,
+                PRIMARY KEY (id),
+                KEY idx_usuario (id_usuario),
+                KEY idx_fecha (fecha_hora)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_spanish_ci", []);
+        } catch (Throwable $e) {
+            error_log('Error asegurando tabla api_logs: ' . $e->getMessage());
+        }
     }
 
     public function registrarLogApi(
@@ -14,25 +36,18 @@ class ApiLogModel extends Mysql // O la clase base de tus modelos
         $mensaje_log,
         $ip_origen
     ) {
-        // 1. Definir la sentencia SQL con placeholders '?'
-        // Asegúrate de que los nombres de columna coincidan con tu tabla `api_logs`
         $query = "INSERT INTO api_logs (fecha_hora, id_usuario, endpoint, metodo_http, codigo_respuesta, mensaje_log, ip_origen) 
-              VALUES (?, ?, ?, ?, ?, ?, ?);";
-
-        // 2. Ensamblar los datos como un array indexado (listado de valores)
+                  VALUES (?, ?, ?, ?, ?, ?, ?);";
         $data = array(
-            date('Y-m-d H:i:s'), // 1. fecha_hora
-            $id_usuario,         // 2. id_usuario
-            $endpoint,           // 3. endpoint
-            $metodo_http,        // 4. metodo_http
-            $codigo_respuesta,   // 5. codigo_respuesta
-            substr($mensaje_log, 0, 255), // 6. mensaje_log (Truncado)
-            $ip_origen           // 7. ip_origen
+            date('Y-m-d H:i:s'),
+            $id_usuario,
+            $endpoint,
+            $metodo_http,
+            $codigo_respuesta,
+            substr($mensaje_log, 0, 255),
+            $ip_origen
         );
-
-        // 3. LLAMADA CORRECTA: Pasar el string SQL primero, y el array de datos segundo.
         $this->insert($query, $data);
-
         return true;
     }
 }

@@ -1,0 +1,761 @@
+<?php encabezado(); ?>
+<?php
+// Devuelve SIEMPRE una fila, sin importar si el modelo entrego una fila o una lista de filas
+$fila = function ($dato) {
+    if (!is_array($dato)) { return []; }
+    return (isset($dato[0]) && is_array($dato[0])) ? $dato[0] : $dato;
+};
+?>
+<?php
+// ==========================================================
+//  Variables de control de visibilidad (por permiso de rol)
+// ==========================================================
+$dashboardCards = $data['dashboard_cards'] ?? [];
+
+// --- Cards de Expedientes ---
+$mostrarExpTotales        = !empty($dashboardCards['dashboard_card_exp_totales']);
+$mostrarExpConsultados    = !empty($dashboardCards['dashboard_card_exp_consultados']);
+$mostrarExpPaginas        = !empty($dashboardCards['dashboard_card_exp_paginas']);
+$mostrarExpUsuariosOnline = !empty($dashboardCards['dashboard_card_exp_usuarios_online']);
+$mostrarExpArchivosPorTipo = !empty($dashboardCards['dashboard_card_exp_archivos_por_tipo']);
+$mostrarExpPaginasPorTipo  = !empty($dashboardCards['dashboard_card_exp_paginas_por_tipo']);
+$mostrarExpProductividad15 = !empty($dashboardCards['dashboard_card_exp_productividad_15dias']);
+$mostrarExpLogsUmango      = !empty($dashboardCards['dashboard_card_exp_logs_umango']);
+
+$hayCardsExpArriba = $mostrarExpTotales || $mostrarExpConsultados || $mostrarExpPaginas || $mostrarExpUsuariosOnline;
+
+// --- Cards de Legajos ---
+$mostrarCardProceso        = !empty($dashboardCards['dashboard_card_legajos_proceso']);
+$mostrarCardCompletados    = !empty($dashboardCards['dashboard_card_legajos_completados']);
+$mostrarCardRechazados     = !empty($dashboardCards['dashboard_card_legajos_rechazados']);
+$mostrarCardVerificados    = !empty($dashboardCards['dashboard_card_legajos_verificados']);
+$mostrarCardCerrados       = !empty($dashboardCards['dashboard_card_legajos_cerrados']);
+$mostrarCardDocsVigentes   = !empty($dashboardCards['dashboard_card_docs_vigentes']);
+$mostrarCardDocsPorVencer  = !empty($dashboardCards['dashboard_card_docs_por_vencer']);
+$mostrarCardDocsVencidos   = !empty($dashboardCards['dashboard_card_docs_vencidos']);
+$mostrarLegajosPorTipo     = !empty($dashboardCards['dashboard_card_legajos_por_tipo']);
+$mostrarLegajosPorUsuario  = !empty($dashboardCards['dashboard_card_legajos_por_usuario']);
+$mostrarGraficoProductividad = !empty($dashboardCards['dashboard_card_grafico_productividad']);
+
+// --- Scope / metadatos de legajos ---
+$dashboardSoloPropios   = !empty($data['dashboard_scope_solo_propios']);
+$puedeVerificarLegajos  = !empty($data['puede_verificar_legajos']);
+$totalLegajosUsuario    = intval($data['cant_legajos']['cant_legajos'] ?? 0);
+
+// --- Filtro por tipos de legajo ---
+$tiposLegajoDashboard = $data['tipos_legajo_disponibles_dashboard'] ?? [];
+$tiposLegajoSeleccionadosDashboard = array_map('intval', (array)($data['tipos_legajo_seleccionados_dashboard'] ?? []));
+$nombresTiposSeleccionadosDashboard = [];
+foreach ($tiposLegajoDashboard as $tipoLegajoDashboard) {
+    $idTipoDashboard = intval($tipoLegajoDashboard['id_tipo_legajo'] ?? 0);
+    if (in_array($idTipoDashboard, $tiposLegajoSeleccionadosDashboard, true)) {
+        $nombresTiposSeleccionadosDashboard[] = trim((string)($tipoLegajoDashboard['nombre'] ?? ''));
+    }
+}
+$resumenTiposDashboard = 'Todos los tipos permitidos';
+if (!empty($nombresTiposSeleccionadosDashboard)) {
+    $resumenTiposDashboard = count($nombresTiposSeleccionadosDashboard) === 1
+        ? $nombresTiposSeleccionadosDashboard[0]
+        : count($nombresTiposSeleccionadosDashboard) . ' tipos seleccionados';
+}
+
+// --- Período de productividad de legajos ---
+$periodoProductividad = (string)($data['periodo_productividad'] ?? '1w');
+?>
+
+<div id="layoutSidenav_content" class="bg-gray-50">
+
+    <?php if (isset($_GET['no_s'])): ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        Swal.fire({
+            icon: 'info',
+            title: 'Sin datos',
+            text: 'No hay registros disponibles para la consulta realizada.',
+            confirmButtonColor: '#182541'
+        });
+    });
+    </script>
+    <?php endif; ?>
+
+    <main class="p-6">
+
+        <?php if ($dashboardSoloPropios): ?>
+        <div id="dashboard-aviso-solo-propios" class="hidden mb-6 rounded-2xl border border-yellow-200 bg-yellow-50 px-5 py-4 text-sm text-yellow-800">
+            Este dashboard está mostrando solamente legajos creados por tu propio usuario dentro de los tipos permitidos para tu rol.
+        </div>
+        <?php endif; ?>
+
+        <?php if ($dashboardSoloPropios && $totalLegajosUsuario === 0): ?>
+        <div id="dashboard-aviso-sin-legajos" class="hidden mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
+            Todavía no tenés legajos creados con tu usuario. Las tarjetas se muestran en cero hasta que generes tus propios registros.
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN EXPEDIENTES — Tarjetas superiores          -->
+        <!-- ================================================== -->
+        <?php if ($hayCardsExpArriba): ?>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+            <?php if ($mostrarExpTotales): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-blue">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-scantec-blue/5 rounded-xl">
+                        <i class="fas fa-file-invoice text-scantec-blue fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-gray uppercase tracking-widest">Global</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['cant_expedient']['cant_expediente'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-4">Expedientes totales</p>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($mostrarExpConsultados): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-red">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-scantec-red/5 rounded-xl">
+                        <i class="fas fa-folder-open text-scantec-red fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-gray uppercase tracking-widest">Activo</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['exp_consultados']['exp_consultados'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-4">Expedientes consultados hoy</p>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($mostrarExpPaginas): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-blue">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-scantec-blue/5 rounded-xl">
+                        <i class="fas fa-copy text-scantec-blue fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-gray uppercase tracking-widest">Producción</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format((int) ($fila($data['pagina_procesada'] ?? null)['paginas_procesadas'] ?? 0), 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-4">Páginas procesadas</p>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($mostrarExpUsuariosOnline): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-green-500">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-green-50 rounded-xl">
+                        <i class="fas fa-users text-green-600 fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-green-600 uppercase tracking-widest">Online</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['usuarios_activos']['cant_usuarios'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-4">Usuarios en línea</p>
+                <div class="text-[10px] font-bold text-scantec-gray uppercase">Monitoreo activo</div>
+            </div>
+            <?php endif; ?>
+
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN LEGAJOS — Tarjetas de estado               -->
+        <!-- ================================================== -->
+        <?php if ($mostrarCardProceso || $mostrarCardCompletados || $mostrarCardRechazados || $mostrarCardVerificados || $mostrarCardCerrados): ?>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
+
+            <?php if ($mostrarCardProceso): ?>
+            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?termino=*.*&estado_legajo=Proceso"
+                class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-blue">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-indigo-50 rounded-xl">
+                        <i class="fas fa-copy text-scantec-blue fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-blue600 uppercase tracking-widest">Proceso</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['cant_legajos_proceso']['cant_legajos_proceso'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Legajos en proceso</p>
+                <span class="inline-block text-[10px] font-bold text-scantec-blue px-3 py-1 rounded-full uppercase tracking-wide">Ver legajos</span>
+            </a>
+            <?php endif; ?>
+
+            <?php if ($mostrarCardCompletados): ?>
+            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?termino=*.*&estado_legajo=Completado"
+                class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-blue">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-scantec-blue/5 rounded-xl">
+                        <i class="fas fa-folder-open text-scantec-blue fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-blue uppercase tracking-widest">Completado</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['cant_legajos_completados']['cant_legajos_completados'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Legajos completados</p>
+                <?php if ($puedeVerificarLegajos): ?>
+                <span class="inline-flex items-center gap-2 rounded-xl bg-scantec-blue px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-all hover:bg-scantec-blue">
+                    <i class="fas fa-user-check"></i>
+                    <span>Verificar legajos</span>
+                </span>
+                <?php endif; ?>
+            </a>
+            <?php endif; ?>
+
+            <?php if ($mostrarCardRechazados): ?>
+            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?estado_legajo=Verificaci%C3%B3n%20rechazada"
+                class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-blue">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-white rounded-xl">
+                        <i class="fas fa-circle-xmark text-scantec-blue fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-blue uppercase tracking-widest">Rechazado</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['cant_legajos_rechazados']['cant_legajos_rechazados'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Legajos rechazados</p>
+                <span class="inline-block text-[10px] font-bold bg-scantec-blue text-white px-3 py-1 rounded-full uppercase tracking-wide">Ver legajos</span>
+            </a>
+            <?php endif; ?>
+
+            <?php if ($mostrarCardVerificados): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-blue">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-sky-50 rounded-xl">
+                        <i class="fas fa-check-double text-scantec-blue fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-blue uppercase tracking-widest">Verificado</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['cant_legajos_verificados']['cant_legajos_verificados'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-4">Legajos verificados</p>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($mostrarCardCerrados): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-scantec-blue">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-stone-50 rounded-xl">
+                        <i class="fas fa-box-archive text-scantec-blue fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-scantec-blue uppercase tracking-widest">Cerrado</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['cant_legajos_cerrados']['cant_legajos_cerrados'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-4">Legajos cerrados</p>
+            </div>
+            <?php endif; ?>
+
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN LEGAJOS — Tarjetas de documentos           -->
+        <!-- ================================================== -->
+        <?php if ($mostrarCardDocsVigentes || $mostrarCardDocsPorVencer || $mostrarCardDocsVencidos): ?>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+            <?php if ($mostrarCardDocsVigentes): ?>
+            <a href="<?php echo base_url(); ?>expedientes/busqueda?id_tipoDoc=0&termino="
+                class="block bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-green-500">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-green-50 rounded-xl">
+                        <i class="fas fa-circle-check text-green-600 fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-green-600 uppercase tracking-widest">Vigentes</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['docs_vigentes']['cant_documentos_vigentes'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Documentos vigentes</p>
+            </a>
+            <?php endif; ?>
+
+            <?php if ($mostrarCardDocsPorVencer): ?>
+            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?filtro_documentos=por_vencer"
+                class="block bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-yellow-400">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-yellow-50 rounded-xl">
+                        <i class="fas fa-clock text-yellow-500 fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest">Por vencer</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-scantec-blue">
+                    <?php echo number_format($data['docs_por_vencer']['cant_documentos_por_vencer'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Próximos a vencer</p>
+                <span class="inline-block text-[10px] font-bold bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full uppercase tracking-wide">Ver legajos</span>
+            </a>
+            <?php endif; ?>
+
+            <?php if ($mostrarCardDocsVencidos): ?>
+            <a href="<?php echo base_url(); ?>legajos/buscar_legajos?filtro_documentos=vencidos"
+                class="block bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md border-b-4 border-b-red-500">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="p-3 bg-red-50 rounded-xl">
+                        <i class="fas fa-circle-exclamation text-red-500 fa-2x"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-red-500 uppercase tracking-widest">Crítico</span>
+                </div>
+                <h3 class="text-3xl font-montserrat font-bold text-red-500">
+                    <?php echo number_format($data['docs_vencidos']['cant_documentos_criticos'] ?? 0, 0, ',', '.'); ?>
+                </h3>
+                <p class="text-sm text-scantec-gray font-medium mb-2">Vencidos / faltantes</p>
+                <span class="inline-block text-[10px] font-bold bg-red-100 text-red-700 px-3 py-1 rounded-full uppercase tracking-wide">Ver legajos</span>
+            </a>
+            <?php endif; ?>
+
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  Filtro por tipo de legajo                          -->
+        <!-- ================================================== -->
+        <?php if (!empty($tiposLegajoDashboard)): ?>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8">
+            <form action="<?php echo base_url(); ?>dashboard/dashboard" method="get"
+                class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <input type="hidden" name="periodo_productividad" value="<?php echo htmlspecialchars($periodoProductividad); ?>">
+                <div class="flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-4">
+                    <span class="text-[11px] font-bold uppercase tracking-widest text-gray-500">Filtrar por tipo</span>
+                    <details class="group relative">
+                        <summary class="flex min-w-[260px] cursor-pointer list-none items-center justify-between rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-scantec-blue">
+                            <span class="truncate pr-4"><?php echo htmlspecialchars($resumenTiposDashboard); ?></span>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-open:rotate-180"></i>
+                        </summary>
+                        <div class="absolute left-0 z-20 mt-2 w-[320px] max-w-[90vw] rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
+                            <div class="max-h-64 overflow-y-auto space-y-2">
+                                <?php foreach ($tiposLegajoDashboard as $tipoDashboard): ?>
+                                <?php $idTipoDashboard = intval($tipoDashboard['id_tipo_legajo'] ?? 0); ?>
+                                <label class="flex items-center gap-3 rounded-lg px-2 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                    <input type="checkbox" name="tipos_legajo[]" value="<?php echo $idTipoDashboard; ?>"
+                                        class="h-4 w-4 rounded border-gray-300 text-scantec-blue focus:ring-scantec-blue"
+                                        <?php echo in_array($idTipoDashboard, $tiposLegajoSeleccionadosDashboard, true) ? 'checked' : ''; ?>>
+                                    <span class="truncate"><?php echo htmlspecialchars($tipoDashboard['nombre'] ?? 'Sin tipo'); ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="submit" class="px-4 py-2.5 rounded-xl bg-scantec-blue text-white text-sm font-bold hover:bg-blue-800 transition-all">
+                        Aplicar
+                    </button>
+                    <a href="<?php echo base_url(); ?>dashboard/dashboard?periodo_productividad=<?php echo urlencode($periodoProductividad); ?>"
+                        class="px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
+                        Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN LEGAJOS — Tablas por tipo / usuario        -->
+        <!-- ================================================== -->
+        <?php if ($mostrarLegajosPorTipo || $mostrarLegajosPorUsuario): ?>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+            <?php if ($mostrarLegajosPorTipo): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-50 bg-gray-50/50">
+                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos completados por tipo</h5>
+                </div>
+                <div class="p-4">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="table_leg_tipo">
+                            <thead>
+                                <tr class="bg-scantec-blue text-white">
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tl-lg">Tipo de legajo</th>
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tr-lg text-center">Cant. Completados</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <?php foreach (($data['legajos_por_tipo'] ?? []) as $row): ?>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="p-3 text-xs font-medium text-scantec-black"><?php echo htmlspecialchars($row['nombre_tipo_legajo'] ?? 'Sin tipo'); ?></td>
+                                    <td class="p-3 text-xs font-bold text-scantec-blue text-center"><?php echo number_format($row['cantidad_legajos'] ?? 0, 0, ',', '.'); ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($mostrarLegajosPorUsuario): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-50 bg-gray-50/50">
+                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Legajos verificados por usuario</h5>
+                </div>
+                <div class="p-4">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="table_leg_usuario">
+                            <thead>
+                                <tr class="bg-scantec-blue text-white">
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tl-lg">Usuario</th>
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tr-lg text-center">Cant. Verificados</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <?php foreach (($data['legajos_por_usuario'] ?? []) as $row): ?>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="p-3 text-xs font-medium text-scantec-black"><?php echo htmlspecialchars($row['nombre_usuario'] ?? 'Sin usuario'); ?></td>
+                                    <td class="p-3 text-xs font-bold text-scantec-blue text-center"><?php echo number_format($row['cantidad_legajos'] ?? 0, 0, ',', '.'); ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN LEGAJOS — Gráfico de productividad (SVG)   -->
+        <!-- ================================================== -->
+        <?php if ($mostrarGraficoProductividad): ?>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <div class="p-5 border-b border-gray-50 bg-gray-50/50 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Productividad de solicitudes completadas por usuario</h5>
+                    <p class="text-xs text-gray-500 mt-1">Solo incluye legajos cuyo tipo requiere número de solicitud.</p>
+                </div>
+                <form action="<?php echo base_url(); ?>dashboard/dashboard" method="get" class="flex items-end gap-3">
+                    <?php foreach ($tiposLegajoSeleccionadosDashboard as $tipoDashboardSeleccionado): ?>
+                    <input type="hidden" name="tipos_legajo[]" value="<?php echo intval($tipoDashboardSeleccionado); ?>">
+                    <?php endforeach; ?>
+                    <div>
+                        <label for="periodo_productividad" class="block text-xs font-bold text-gray-500 uppercase mb-1">Período</label>
+                        <select id="periodo_productividad" name="periodo_productividad"
+                            class="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-scantec-blue">
+                            <option value="1d" <?php echo $periodoProductividad === '1d' ? 'selected' : ''; ?>>Último día</option>
+                            <option value="1w" <?php echo $periodoProductividad === '1w' ? 'selected' : ''; ?>>Última semana</option>
+                            <option value="4w" <?php echo $periodoProductividad === '4w' ? 'selected' : ''; ?>>Últimas 4 semanas</option>
+                            <option value="8w" <?php echo $periodoProductividad === '8w' ? 'selected' : ''; ?>>Últimas 8 semanas</option>
+                            <option value="12w" <?php echo $periodoProductividad === '12w' ? 'selected' : ''; ?>>Últimas 12 semanas</option>
+                            <option value="24w" <?php echo $periodoProductividad === '24w' ? 'selected' : ''; ?>>Últimas 24 semanas</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-scantec-blue text-white text-sm font-bold hover:bg-blue-800 transition-all">
+                        Aplicar
+                    </button>
+                </form>
+            </div>
+            <div class="p-5">
+                <?php
+                $legajosArmados = $data['legajos_armados'] ?? [];
+                $periodoDias = 1;
+                switch ($periodoProductividad) {
+                    case '1d': $periodoDias = 1; break;
+                    case '1w': $periodoDias = 7; break;
+                    case '4w': $periodoDias = 28; break;
+                    case '8w': $periodoDias = 56; break;
+                    case '12w': $periodoDias = 84; break;
+                    case '24w': $periodoDias = 168; break;
+                    default: $periodoDias = 7; break;
+                }
+
+                $hoy = new DateTimeImmutable('today');
+                $fechaInicio = $hoy->sub(new DateInterval('P' . ($periodoDias - 1) . 'D'));
+                $fechas = [];
+                for ($i = 0; $i < $periodoDias; $i++) {
+                    $fechas[] = $fechaInicio->add(new DateInterval('P' . $i . 'D'))->format('Y-m-d');
+                }
+
+                $usuarios = [];
+                $serie = [];
+                foreach ($legajosArmados as $row) {
+                    $fecha = $row['fecha_indexado'] ?? null;
+                    $usuario = trim($row['nombre_usuario'] ?? 'Sin usuario');
+                    $cantidad = intval($row['cantidad_legajos'] ?? 0);
+                    if ($fecha === null || $fecha === '') continue;
+                    if (!in_array($usuario, $usuarios, true)) {
+                        $usuarios[] = $usuario;
+                    }
+                    if (!isset($serie[$usuario])) {
+                        $serie[$usuario] = array_fill(0, count($fechas), 0);
+                    }
+                    $index = array_search($fecha, $fechas, true);
+                    if ($index !== false) {
+                        $serie[$usuario][$index] = $cantidad;
+                    }
+                }
+
+                $maxCantidad = 0;
+                foreach ($serie as $dataUsuario) {
+                    $maxCantidad = max($maxCantidad, max($dataUsuario));
+                }
+                $maxCantidad = max($maxCantidad, 1);
+
+                $colores = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'];
+
+                if (!empty($serie)):
+                    $chartWidth = 910;
+                    $chartHeight = 360;
+                    $paddingLeft = 60;
+                    $paddingBottom = 45;
+                    $paddingTop = 20;
+                    $paddingRight = 20;
+                    $plotWidth = $chartWidth - $paddingLeft - $paddingRight;
+                    $plotHeight = $chartHeight - $paddingTop - $paddingBottom;
+                    $xStep = $periodoDias > 1 ? $plotWidth / ($periodoDias - 1) : 0;
+                ?>
+
+                <div class="mb-3 font-semibold text-sm text-gray-600">Periodo: <?php echo htmlspecialchars($periodoProductividad); ?> (<?php echo count($fechas); ?> días)</div>
+                <div class="overflow-auto">
+                    <svg width="100%" viewBox="0 0 <?php echo $chartWidth; ?> <?php echo $chartHeight; ?>" role="img" aria-label="Gráfico de legajos armados">
+                        <rect x="0" y="0" width="<?php echo $chartWidth; ?>" height="<?php echo $chartHeight; ?>" fill="#ffffff" />
+                        <g>
+                            <?php for ($i = 0; $i < $periodoDias; $i++):
+                                $x = $paddingLeft + ($xStep * $i);
+                            ?>
+                            <line x1="<?php echo $x; ?>" y1="<?php echo $paddingTop; ?>" x2="<?php echo $x; ?>" y2="<?php echo $chartHeight - $paddingBottom; ?>" stroke="#e2e8f0" stroke-width="1" />
+                            <text x="<?php echo $x; ?>" y="<?php echo $chartHeight - 18; ?>" font-size="10" fill="#475569" text-anchor="middle"><?php echo date('d/m', strtotime($fechas[$i])); ?></text>
+                            <?php endfor; ?>
+
+                            <?php for ($i = 0; $i <= 5; $i++):
+                                $yValue = round($maxCantidad * (5 - $i) / 5);
+                                $y = $paddingTop + $plotHeight * (5 - $i) / 5;
+                            ?>
+                            <line x1="<?php echo $paddingLeft; ?>" y1="<?php echo $y; ?>" x2="<?php echo $chartWidth - $paddingRight; ?>" y2="<?php echo $y; ?>" stroke="#e2e8f0" stroke-dasharray="2,2" stroke-width="1" />
+                            <text x="<?php echo $paddingLeft - 8; ?>" y="<?php echo $y + 4; ?>" font-size="10" fill="#475569" text-anchor="end"><?php echo $yValue; ?></text>
+                            <?php endfor; ?>
+
+                            <?php $colorIndex = 0; foreach ($serie as $usuario => $valores):
+                                $path = '';
+                                foreach ($valores as $index => $valor) {
+                                    $x = $paddingLeft + ($xStep * $index);
+                                    $y = $paddingTop + $plotHeight * (1 - ($maxCantidad ? $valor / $maxCantidad : 0));
+                                    $path .= ($index === 0 ? 'M' : 'L') . $x . ' ' . $y . ' ';
+                                }
+                                $color = $colores[$colorIndex % count($colores)];
+                                $colorIndex++;
+                            ?>
+                                <path d="<?php echo $path; ?>" fill="none" stroke="<?php echo $color; ?>" stroke-width="2" />
+                                <?php foreach ($valores as $index => $valor):
+                                    $x = $paddingLeft + ($xStep * $index);
+                                    $y = $paddingTop + $plotHeight * (1 - ($maxCantidad ? $valor / $maxCantidad : 0));
+                                ?>
+                                <circle cx="<?php echo $x; ?>" cy="<?php echo $y; ?>" r="3" fill="<?php echo $color; ?>" />
+                                <?php if ($valor > 0): ?>
+                                <text x="<?php echo $x; ?>" y="<?php echo $y - 10; ?>" font-size="10" fill="<?php echo $color; ?>" text-anchor="middle"><?php echo $valor; ?></text>
+                                <?php endif; ?>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+
+                        </g>
+                    </svg>
+                </div>
+
+                <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <?php $colorIndex = 0; foreach ($serie as $usuario => $valores): $color = $colores[$colorIndex % count($colores)]; $colorIndex++; ?>
+                    <span class="inline-flex items-center gap-2 text-xs font-medium text-gray-700">
+                        <span class="w-3 h-3 rounded-full" style="background-color: <?php echo $color; ?>"></span>
+                        <?php echo htmlspecialchars($usuario); ?>
+                    </span>
+                    <?php endforeach; ?>
+                </div>
+
+                <?php else: ?>
+                <div class="px-4 py-10 text-center text-sm text-gray-500">
+                    No hay datos de legajos armados para mostrar en el período seleccionado.
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN EXPEDIENTES — Tablas por tipo de documento -->
+        <!-- ================================================== -->
+        <?php if ($mostrarExpArchivosPorTipo || $mostrarExpPaginasPorTipo): ?>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+            <?php if ($mostrarExpArchivosPorTipo): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-50 bg-gray-50/50">
+                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Archivos por tipo de documento</h5>
+                </div>
+                <div class="p-4">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="table_exp_archivos">
+                            <thead>
+                                <tr class="bg-scantec-blue text-white">
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tl-lg">Tipo Documento</th>
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tr-lg text-center">Cant. Archivos</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <?php foreach (($data['archiv_tipoDoc'] ?? []) as $row): ?>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="p-3 text-xs font-medium text-scantec-black"><?php echo htmlspecialchars($row['nombre_tipoDoc'] ?? ''); ?></td>
+                                    <td class="p-3 text-xs font-bold text-scantec-blue text-center"><?php echo number_format($row['cantidad_archivos'] ?? 0, 0, ',', '.'); ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($mostrarExpPaginasPorTipo): ?>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="p-5 border-b border-gray-50 bg-gray-50/50">
+                    <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Páginas por tipo de documento</h5>
+                </div>
+                <div class="p-4">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse" id="table_exp_paginas">
+                            <thead>
+                                <tr class="bg-scantec-blue text-white">
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tl-lg">Tipo Documento</th>
+                                    <th class="p-3 text-[10px] uppercase tracking-widest font-bold rounded-tr-lg text-center">Cant. Páginas</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <?php foreach (($data['archiv_tipoDoc'] ?? []) as $row): ?>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="p-3 text-xs font-medium text-scantec-black"><?php echo htmlspecialchars($row['nombre_tipoDoc'] ?? ''); ?></td>
+                                    <td class="p-3 text-xs font-bold text-scantec-blue text-center"><?php echo number_format($row['total_paginas'] ?? 0, 0, ',', '.'); ?></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN EXPEDIENTES — Productividad 15 días (Google Charts) -->
+        <!-- ================================================== -->
+        <?php if ($mostrarExpProductividad15): ?>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+            <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide mb-6">Productividad: Últimos 15 días</h5>
+            <div class="w-full" style="height: 400px; position: relative;"><canvas id="columnchart"></canvas></div>
+        </div>
+        <?php endif; ?>
+
+        <!-- ================================================== -->
+        <!--  SECCIÓN EXPEDIENTES — Logs Umango                  -->
+        <!-- ================================================== -->
+        <?php if ($mostrarExpLogsUmango): ?>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+            <div class="p-5 border-b border-gray-50 bg-gray-50/50 flex justify-between items-center">
+                <h5 class="text-sm font-montserrat font-bold text-scantec-blue uppercase tracking-wide">Logs del encaminador (Umango)</h5>
+                <span class="px-3 py-1 bg-scantec-red text-white text-[10px] font-bold rounded-full uppercase">Auditoría Real-Time</span>
+            </div>
+            <div class="p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered w-full text-xs" id="table_umango">
+                        <thead class="bg-scantec-blue text-white">
+                            <tr>
+                                <th class="p-2 text-center">NRO LOTE</th>
+                                <th class="p-2 text-center">PAGINAS</th>
+                                <th class="p-2">ARCHIVO DE ORIGEN</th>
+                                <th class="p-2 text-center">FECHA INICIO</th>
+                                <th class="p-2">USUARIO</th>
+                                <th class="p-2 text-center">ESTADO</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach (($data['logs_uman'] ?? []) as $row): ?>
+                            <tr>
+                                <td class="p-2 text-center font-bold"><?php echo htmlspecialchars($row['id_lote'] ?? ''); ?></td>
+                                <td class="p-2 text-center"><?php echo htmlspecialchars($row['paginas_exportadas'] ?? ''); ?></td>
+                                <td class="p-2 truncate max-w-[200px]"><?php echo htmlspecialchars($row['archivo_origen'] ?? ''); ?></td>
+                                <td class="p-2 text-center"><?php echo htmlspecialchars($row['fecha_inicio'] ?? ''); ?></td>
+                                <td class="p-2 uppercase font-medium"><?php echo htmlspecialchars($row['usuario'] ?? ''); ?></td>
+                                <td class="p-2 text-center">
+                                    <span class="px-2 py-1 rounded bg-green-100 text-green-700 font-bold text-[9px]">
+                                        <?php echo htmlspecialchars($row['estado'] ?? ''); ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <div id="dashboard-avisos-inferiores" class="space-y-4 mt-8"></div>
+
+    </main>
+
+    <?php pie(); ?>
+
+    <!-- Google Charts: solo se carga si la card de productividad de expedientes está activa -->
+        <!-- Grafico de productividad: solo se carga si la card de productividad de expedientes esta activa -->
+    <?php if ($mostrarExpProductividad15): ?>
+    <?php
+        $filasGrafico = [];
+        foreach ((is_array($data['archiv_tipoDoc2'] ?? null) ? $data['archiv_tipoDoc2'] : []) as $row) {
+            $filasGrafico[] = ['fecha' => (string) $row['fecha_indexado'], 'total' => (int) $row['total_archivos']];
+        }
+    ?>
+    <script src="<?php echo base_url(); ?>Assets/vendor/chartjs/chart.umd.min.js"></script>
+    <script src="<?php echo base_url(); ?>Assets/js/grafico_productividad.js"></script>
+    <script>
+        scantecGraficoProductividad('columnchart', <?php echo json_encode($filasGrafico, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>);
+    </script>
+    <?php endif; ?>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const contenedorAvisos = document.getElementById('dashboard-avisos-inferiores');
+        if (!contenedorAvisos) {
+            return;
+        }
+
+        ['dashboard-aviso-solo-propios', 'dashboard-aviso-sin-legajos'].forEach(function (idAviso) {
+            const avisoOriginal = document.getElementById(idAviso);
+            if (!avisoOriginal) {
+                return;
+            }
+
+            avisoOriginal.classList.remove('hidden');
+            avisoOriginal.classList.add('relative', 'pr-12');
+
+            const botonCerrar = document.createElement('button');
+            botonCerrar.type = 'button';
+            botonCerrar.className = 'absolute right-4 top-4 transition-colors';
+            botonCerrar.setAttribute('aria-label', 'Cerrar aviso');
+            botonCerrar.innerHTML = '<i class="fas fa-times"></i>';
+
+            if (idAviso === 'dashboard-aviso-solo-propios') {
+                botonCerrar.classList.add('text-yellow-700', 'hover:text-yellow-900');
+            } else {
+                botonCerrar.classList.add('text-blue-700', 'hover:text-blue-900');
+            }
+
+            botonCerrar.addEventListener('click', function () {
+                avisoOriginal.remove();
+            });
+
+            avisoOriginal.appendChild(botonCerrar);
+            contenedorAvisos.appendChild(avisoOriginal);
+        });
+    });
+    </script>
+
+</div>

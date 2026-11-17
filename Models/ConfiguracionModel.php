@@ -13,25 +13,58 @@ class ConfiguracionModel extends Mysql
         $this->ensureWatermarkColumns();
         $this->ensureCatalogoDocumentoCampos();
         $this->ensureLegajoDocumentoValorCampo();
+        $this->ensureSecuenciaOperacionColumns();
+        $this->ensureLdapFormatoUsuarioColumn();
     }
+
+    public $unicidad_usa_secuencia;
+    public $unicidad_usa_operacion;
 
     public function selectConfiguracion()
     {
         $sql = "SELECT 
-                c.id, c.nombre, c.telefono, c.direccion, c.correo, c.total_pag,
-                c.legajo_marca_agua_texto, c.legajo_marca_agua_activa, c.legajo_marca_agua_posicion,
-                c.legajo_sello_texto, c.legajo_sello_activo, c.legajo_sello_posicion,
-                (SELECT COUNT(*) FROM usuarios WHERE estado_usuario != 'Activo') as total_usuarios
-            FROM configuracion c 
-            LIMIT 1;";
+                    c.id, c.nombre, c.telefono, c.direccion, c.correo, c.total_pag,
+                    c.legajo_marca_agua_texto, c.legajo_marca_agua_activa, c.legajo_marca_agua_posicion,
+                    c.legajo_sello_texto, c.legajo_sello_activo, c.legajo_sello_posicion,
+                    (SELECT COUNT(*) FROM usuarios WHERE estado_usuario = 'ACTIVO' AND id_rol != 1) as total_usuarios
+                FROM configuracion c 
+                LIMIT 1;";
         return $this->select_all($sql);
+    }
+
+    private function ensureLdapFormatoUsuarioColumn(): void
+    {
+        try {
+            if ($this->existeTabla('ldap_datos') && !$this->existeColumna('ldap_datos', 'ldapFormatoUsuario')) {
+                $this->update("ALTER TABLE ldap_datos ADD COLUMN ldapFormatoUsuario VARCHAR(255) NULL DEFAULT NULL AFTER ldapBaseDn", []);
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aún no está alineada.
+        }
     }
 
     public function selectLDAP_datos()
     {
-        $sql = "SELECT id, ldapHost, ldapPort, ldapUser, ldapPass, ldapBaseDn, fecha_registro, fecha_sincronizacion, estado 
-            FROM ldap_datos where estado='activo';";
+        // ldapFormatoUsuario es opcional: si la columna todavía no existe se devuelve vacío y el login usa el formato por defecto.
+        $campoFormato = $this->existeColumna('ldap_datos', 'ldapFormatoUsuario') ? 'ldapFormatoUsuario' : "'' AS ldapFormatoUsuario";
+        $sql = "SELECT id, ldapHost, ldapPort, ldapUser, ldapPass, ldapBaseDn, $campoFormato, fecha_registro, fecha_sincronizacion, estado
+            FROM ldap_datos WHERE estado='activo' ORDER BY id ASC;";
         return $this->select_all($sql);
+    }
+
+    public function actualizarFormatoUsuarioLDAP(int $id, string $formato): bool
+    {
+        if ($id <= 0 || !$this->existeColumna('ldap_datos', 'ldapFormatoUsuario')) {
+            return false;
+        }
+        $valor = trim($formato) !== '' ? trim($formato) : null;
+        try {
+            $this->update("UPDATE ldap_datos SET ldapFormatoUsuario = ? WHERE id = ? AND estado = 'activo'", [$valor, $id]);
+            return true;
+        } catch (Throwable $e) {
+            error_log('No se pudo guardar el formato de usuario LDAP: ' . $e->getMessage());
+            return false;
+        }
     }
 
     public function selectSMTP_datos()
@@ -54,8 +87,7 @@ class ConfiguracionModel extends Mysql
         string $legajoSelloTexto,
         int $legajoSelloActivo,
         string $legajoSelloPosicion
-    )
-    {
+    ) {
         $this->nombre = $nombre;
         $this->telefono = $telefono;
         $this->direccion = $direccion;
@@ -111,7 +143,7 @@ class ConfiguracionModel extends Mysql
     }
 
     // Insertar nueva configuración y desactivar las anteriores
-    public function insertarServSMTP(string $host, string $username, string $password, string $smtpsecure, string $port, string $remitente, string $nombre_remitente) 
+    public function insertarServSMTP(string $host, string $username, string $password, string $smtpsecure, string $port, string $remitente, string $nombre_remitente)
     {
         // 1. Primero ponemos TODO en 'inactivo' para evitar duplicidad
         $sql_update = "UPDATE smtp_datos SET estado = 'inactivo'";
@@ -120,7 +152,7 @@ class ConfiguracionModel extends Mysql
         // 2. Insertamos el nuevo como 'activo'
         $query = "INSERT INTO smtp_datos (host, username, password, smtpsecure, port, remitente, nombre_remitente, estado) 
                   VALUES (?, ?, ?, ?, ?, ?, ?, 'activo')";
-        
+
         $arrData = array($host, $username, $password, $smtpsecure, $port, $remitente, $nombre_remitente);
         $request = $this->insert($query, $arrData);
         return $request;
@@ -140,17 +172,17 @@ class ConfiguracionModel extends Mysql
         return $this->update($sql, array());
     }
 
-    public function insertarServLDAP(string $ldapHost, string $ldapPort, string $ldapBaseDn, string $ldapUser, string $ldapPass, string $fecha_registro) 
+    public function insertarServLDAP(string $ldapHost, string $ldapPort, string $ldapBaseDn, string $ldapUser, string $ldapPass, string $fecha_registro)
     {
         $this->ldapHost = $ldapHost;
         $this->ldapPort = $ldapPort;
         $this->ldapBaseDn = $ldapBaseDn;
         $this->ldapUser = $ldapUser;
-    
-        $this->ldapPass = stringEncryption($ldapPass); 
-        
+
+        $this->ldapPass = stringEncryption($ldapPass);
+
         $this->fecha_registro = $fecha_registro;
-        
+
         $query = "INSERT INTO ldap_datos (ldapHost, ldapPort, ldapUser, ldapPass, ldapBaseDn, fecha_registro, estado) 
             VALUES (?, ?, ?, ?, ?, ?, 'activo');";
         $data = array($this->ldapHost, $this->ldapPort, $this->ldapUser, $this->ldapPass, $this->ldapBaseDn, $this->fecha_registro);
@@ -162,6 +194,20 @@ class ConfiguracionModel extends Mysql
     {
         $sql = "SELECT * FROM ldap_datos where estado='activo';";
         return $this->select($sql);
+    }
+
+    public function contarTiposLegajoActivos(): int
+    {
+        $sql = "SELECT COUNT(*) as total FROM cfg_tipo_legajo WHERE activo = 1;";
+        $res = $this->select($sql);
+
+        if (isset($res['total'])) {
+            return intval($res['total']);
+        }
+        if (isset($res[0]['total'])) {
+            return intval($res[0]['total']);
+        }
+        return 0;
     }
 
     private function existeTabla(string $tabla): bool
@@ -306,6 +352,46 @@ class ConfiguracionModel extends Mysql
         }
     }
 
+    private function ensureSecuenciaOperacionColumns()
+    {
+        try {
+            // --- Flags de configuración en cfg_tipo_legajo ---
+            // Definen, por tipo de legajo, si se piden estos campos y cómo se comportan.model
+            if ($this->existeTabla('cfg_tipo_legajo')) {
+                if (!$this->existeColumna('cfg_tipo_legajo', 'requiere_secuencia')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN requiere_secuencia TINYINT(1) NOT NULL DEFAULT 0 AFTER requiere_nro_solicitud", []);
+                }
+                if (!$this->existeColumna('cfg_tipo_legajo', 'secuencia_obligatoria')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN secuencia_obligatoria TINYINT(1) NOT NULL DEFAULT 0 AFTER requiere_secuencia", []);
+                }
+                if (!$this->existeColumna('cfg_tipo_legajo', 'requiere_nro_operacion')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN requiere_nro_operacion TINYINT(1) NOT NULL DEFAULT 0 AFTER secuencia_obligatoria", []);
+                }
+                // operacion_modo: 'auto' = socio+secuencia (deshabilitado) | 'manual' = lo escribe el usuario
+                if (!$this->existeColumna('cfg_tipo_legajo', 'operacion_modo')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN operacion_modo VARCHAR(10) NOT NULL DEFAULT 'auto' AFTER requiere_nro_operacion", []);
+                }
+                if (!$this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_secuencia')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN unicidad_usa_secuencia TINYINT(1) NOT NULL DEFAULT 0 AFTER operacion_modo", []);
+                }
+                if (!$this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_operacion')) {
+                    $this->update("ALTER TABLE cfg_tipo_legajo ADD COLUMN unicidad_usa_operacion TINYINT(1) NOT NULL DEFAULT 0 AFTER unicidad_usa_secuencia", []);
+                }
+
+            }
+
+            // --- Valor capturado por legajo en cfg_legajo ---
+            // nro_socio y nro_operacion ya existen en tu tabla; solo agregamos secuencia si falta.
+            if ($this->existeTabla('cfg_legajo')) {
+                if (!$this->existeColumna('cfg_legajo', 'secuencia')) {
+                    $this->update("ALTER TABLE cfg_legajo ADD COLUMN secuencia VARCHAR(50) NULL DEFAULT NULL AFTER nro_solicitud", []);
+                }
+            }
+        } catch (Throwable $e) {
+            // No interrumpimos la carga si la base aún no está alineada.
+        }
+    }
+
     private function getCampoRelacionTipoLegajo(): string
     {
         return $this->existeColumna('cfg_matriz_requisitos', 'id_tipo_legajo') ? 'id_tipo_legajo' : 'id_tipoDoc';
@@ -392,44 +478,92 @@ class ConfiguracionModel extends Mysql
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
-    public function insertarTipoLegajo(string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0, ?int $idDepartamento = null)
+
+
+    public function insertarTipoLegajo(string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0, ?int $idDepartamento = null, int $requiereSecuencia = 0, int $requiereNroOperacion = 0)
     {
         if (!$this->existeTabla('cfg_tipo_legajo')) {
             return false;
         }
+        // Columnas base que sabemos que siempre existen
+        $campos = ['nombre', 'descripcion', 'activo'];
+        $marcadores = ['?', '?', '?'];
+        $valores = [$nombre, $descripcion, $activo];
 
-        $idDepartamento = intval($idDepartamento ?? 0);
-
-        $tieneDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento');
-        $selloCaratulaTexto = trim((string)($this->sello_caratula_texto ?? ''));
-        $selloCaratulaPosicion = trim((string)($this->sello_caratula_posicion ?? 'cruzado'));
-        $selloAnexosTexto = trim((string)($this->sello_anexos_texto ?? ''));
-        $selloAnexosPosicion = trim((string)($this->sello_anexos_posicion ?? 'derecha'));
+        // Verificaciones dinámicas
+        if ($this->existeColumna('cfg_tipo_legajo', 'id_departamento')) {
+            $campos[] = 'id_departamento';
+            $marcadores[] = '?';
+            $valores[] = intval($idDepartamento ?? 0);
+        }
 
         if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')) {
-            if ($tieneDepartamento) {
-                if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
-                    $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, id_departamento, activo, requiere_nro_solicitud, sello_caratula_texto, sello_caratula_posicion, sello_anexos_texto, sello_anexos_posicion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                    return $this->insert($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion]);
-                }
-                $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, id_departamento, activo, requiere_nro_solicitud) VALUES (?, ?, ?, ?, ?)";
-                return $this->insert($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud]);
-            }
-            if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
-                $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, activo, requiere_nro_solicitud, sello_caratula_texto, sello_caratula_posicion, sello_anexos_texto, sello_anexos_posicion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-                return $this->insert($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion]);
-            }
-            $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, activo, requiere_nro_solicitud) VALUES (?, ?, ?, ?)";
-            return $this->insert($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud]);
+            $campos[] = 'requiere_nro_solicitud';
+            $marcadores[] = '?';
+            $valores[] = $requiereNroSolicitud;
         }
 
-        if ($tieneDepartamento) {
-            $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, id_departamento, activo) VALUES (?, ?, ?, ?)";
-            return $this->insert($query, [$nombre, $descripcion, $idDepartamento, $activo]);
+        // --- NUEVAS COLUMNAS ---
+        if ($this->existeColumna('cfg_tipo_legajo', 'requiere_secuencia')) {
+            $campos[] = 'requiere_secuencia';
+            $marcadores[] = '?';
+            $valores[] = $requiereSecuencia;
         }
 
-        $query = "INSERT INTO cfg_tipo_legajo (nombre, descripcion, activo) VALUES (?, ?, ?)";
-        return $this->insert($query, [$nombre, $descripcion, $activo]);
+        if ($this->existeColumna('cfg_tipo_legajo', 'secuencia_obligatoria')) {
+            $campos[] = 'secuencia_obligatoria';
+            $marcadores[] = '?';
+            $valores[] = isset($this->secuencia_obligatoria) ? intval($this->secuencia_obligatoria) : 0;
+        }
+
+        if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_operacion')) {
+            $campos[] = 'requiere_nro_operacion';
+            $marcadores[] = '?';
+            $valores[] = $requiereNroOperacion;
+        }
+
+        if ($this->existeColumna('cfg_tipo_legajo', 'operacion_modo')) {
+            $campos[] = 'operacion_modo';
+            $marcadores[] = '?';
+            $valores[] = isset($this->operacion_modo) ? trim((string) $this->operacion_modo) : 'auto';
+        }
+
+        if ($this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_secuencia')) {
+            $campos[] = 'unicidad_usa_secuencia';
+            $marcadores[] = '?';
+            $valores[] = isset($this->unicidad_usa_secuencia) ? intval($this->unicidad_usa_secuencia) : 0;
+        }
+        if ($this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_operacion')) {
+            $campos[] = 'unicidad_usa_operacion';
+            $marcadores[] = '?';
+            $valores[] = isset($this->unicidad_usa_operacion) ? intval($this->unicidad_usa_operacion) : 0;
+        }
+        // -----------------------
+
+        if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+            $selloCaratulaTexto = trim((string) ($this->sello_caratula_texto ?? ''));
+            $campos[] = 'sello_caratula_texto';
+            $marcadores[] = '?';
+            $valores[] = $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null;
+
+            $campos[] = 'sello_caratula_posicion';
+            $marcadores[] = '?';
+            $valores[] = trim((string) ($this->sello_caratula_posicion ?? 'cruzado'));
+
+            $selloAnexosTexto = trim((string) ($this->sello_anexos_texto ?? ''));
+            $campos[] = 'sello_anexos_texto';
+            $marcadores[] = '?';
+            $valores[] = $selloAnexosTexto !== '' ? $selloAnexosTexto : null;
+
+            $campos[] = 'sello_anexos_posicion';
+            $marcadores[] = '?';
+            $valores[] = trim((string) ($this->sello_anexos_posicion ?? 'derecha'));
+        }
+
+        // Construir la consulta dinámicamente
+        $sql = "INSERT INTO cfg_tipo_legajo (" . implode(', ', $campos) . ") VALUES (" . implode(', ', $marcadores) . ")";
+
+        return $this->insert($sql, $valores);
     }
 
     public function getTipoLegajoById(int $idTipoLegajo)
@@ -438,85 +572,105 @@ class ConfiguracionModel extends Mysql
             return null;
         }
 
-        $campoDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento')
-            ? 'id_departamento'
-            : '0 AS id_departamento';
-        $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
-            ? 'requiere_nro_solicitud'
-            : '0 AS requiere_nro_solicitud';
-        $campoSelloCaratulaTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')
-            ? 'sello_caratula_texto'
-            : 'NULL AS sello_caratula_texto';
-        $campoSelloCaratulaPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion')
-            ? 'sello_caratula_posicion'
-            : "'cruzado' AS sello_caratula_posicion";
-        $campoSelloAnexosTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto')
-            ? 'sello_anexos_texto'
-            : 'NULL AS sello_anexos_texto';
-        $campoSelloAnexosPosicion = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion')
-            ? 'sello_anexos_posicion'
-            : "'derecha' AS sello_anexos_posicion";
-        $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud,
-                $campoSelloCaratulaTexto, $campoSelloCaratulaPosicion, $campoSelloAnexosTexto, $campoSelloAnexosPosicion
-                FROM cfg_tipo_legajo
-                WHERE id_tipo_legajo = ?";
+        $selects = ['id_tipo_legajo', 'nombre', 'descripcion', 'activo'];
+
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'id_departamento') ? 'id_departamento' : '0 AS id_departamento';
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud') ? 'requiere_nro_solicitud' : '0 AS requiere_nro_solicitud';
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'requiere_secuencia') ? 'requiere_secuencia' : '0 AS requiere_secuencia';
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_operacion') ? 'requiere_nro_operacion' : '0 AS requiere_nro_operacion';
+
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'operacion_modo') ? 'operacion_modo' : "'auto' AS operacion_modo";
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'secuencia_obligatoria') ? 'secuencia_obligatoria' : '0 AS secuencia_obligatoria';
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_secuencia') ? 'unicidad_usa_secuencia' : '0 AS unicidad_usa_secuencia';
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_operacion') ? 'unicidad_usa_operacion' : '0 AS unicidad_usa_operacion';
+        // -----------------------------------------------------------------------
+
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto') ? 'sello_caratula_texto' : 'NULL AS sello_caratula_texto';
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_posicion') ? 'sello_caratula_posicion' : "'cruzado' AS sello_caratula_posicion";
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_texto') ? 'sello_anexos_texto' : 'NULL AS sello_anexos_texto';
+        $selects[] = $this->existeColumna('cfg_tipo_legajo', 'sello_anexos_posicion') ? 'sello_anexos_posicion' : "'derecha' AS sello_anexos_posicion";
+
+        $sql = "SELECT " . implode(', ', $selects) . " FROM cfg_tipo_legajo WHERE id_tipo_legajo = ?";
+
         $result = $this->select($sql, [$idTipoLegajo]);
-        if (!empty($result) && isset($result[0])) {
-            return $result[0];
-        }
-        return $result;
+
+        return (!empty($result) && isset($result[0])) ? $result[0] : null;
     }
 
-    public function actualizarTipoLegajo(int $idTipoLegajo, string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0, ?int $idDepartamento = null)
+    public function actualizarTipoLegajo(int $idTipoLegajo, string $nombre, ?string $descripcion = null, int $activo = 1, int $requiereNroSolicitud = 0, ?int $idDepartamento = null, int $requiereSecuencia = 0, int $requiereNroOperacion = 0)
     {
         if (!$this->existeTabla('cfg_tipo_legajo')) {
             return false;
         }
 
-        $idDepartamento = intval($idDepartamento ?? 0);
+        // Campos base para el UPDATE
+        $setClauses = ['nombre = ?', 'descripcion = ?', 'activo = ?'];
+        $valores = [$nombre, $descripcion, $activo];
 
-        $tieneDepartamento = $this->existeColumna('cfg_tipo_legajo', 'id_departamento');
-        $selloCaratulaTexto = trim((string)($this->sello_caratula_texto ?? ''));
-        $selloCaratulaPosicion = trim((string)($this->sello_caratula_posicion ?? 'cruzado'));
-        $selloAnexosTexto = trim((string)($this->sello_anexos_texto ?? ''));
-        $selloAnexosPosicion = trim((string)($this->sello_anexos_posicion ?? 'derecha'));
+        // Verificaciones dinámicas
+        if ($this->existeColumna('cfg_tipo_legajo', 'id_departamento')) {
+            $setClauses[] = 'id_departamento = ?';
+            $valores[] = intval($idDepartamento ?? 0);
+        }
 
         if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')) {
-            if ($tieneDepartamento) {
-                if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
-                    $query = "UPDATE cfg_tipo_legajo
-                            SET nombre = ?, descripcion = ?, id_departamento = ?, activo = ?, requiere_nro_solicitud = ?, sello_caratula_texto = ?, sello_caratula_posicion = ?, sello_anexos_texto = ?, sello_anexos_posicion = ?
-                            WHERE id_tipo_legajo = ?";
-                    return $this->update($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion, $idTipoLegajo]);
-                }
-                $query = "UPDATE cfg_tipo_legajo
-                        SET nombre = ?, descripcion = ?, id_departamento = ?, activo = ?, requiere_nro_solicitud = ?
-                        WHERE id_tipo_legajo = ?";
-                return $this->update($query, [$nombre, $descripcion, $idDepartamento, $activo, $requiereNroSolicitud, $idTipoLegajo]);
-            }
-            if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
-                $query = "UPDATE cfg_tipo_legajo
-                        SET nombre = ?, descripcion = ?, activo = ?, requiere_nro_solicitud = ?, sello_caratula_texto = ?, sello_caratula_posicion = ?, sello_anexos_texto = ?, sello_anexos_posicion = ?
-                        WHERE id_tipo_legajo = ?";
-                return $this->update($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud, $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null, $selloCaratulaPosicion, $selloAnexosTexto !== '' ? $selloAnexosTexto : null, $selloAnexosPosicion, $idTipoLegajo]);
-            }
-            $query = "UPDATE cfg_tipo_legajo
-                    SET nombre = ?, descripcion = ?, activo = ?, requiere_nro_solicitud = ?
-                    WHERE id_tipo_legajo = ?";
-            return $this->update($query, [$nombre, $descripcion, $activo, $requiereNroSolicitud, $idTipoLegajo]);
+            $setClauses[] = 'requiere_nro_solicitud = ?';
+            $valores[] = $requiereNroSolicitud;
         }
 
-        if ($tieneDepartamento) {
-            $query = "UPDATE cfg_tipo_legajo
-                    SET nombre = ?, descripcion = ?, id_departamento = ?, activo = ?
-                    WHERE id_tipo_legajo = ?";
-            return $this->update($query, [$nombre, $descripcion, $idDepartamento, $activo, $idTipoLegajo]);
+        // --- NUEVAS COLUMNAS ---
+        if ($this->existeColumna('cfg_tipo_legajo', 'requiere_secuencia')) {
+            $setClauses[] = 'requiere_secuencia = ?';
+            $valores[] = $requiereSecuencia;
         }
 
-        $query = "UPDATE cfg_tipo_legajo
-                SET nombre = ?, descripcion = ?, activo = ?
-                WHERE id_tipo_legajo = ?";
-        return $this->update($query, [$nombre, $descripcion, $activo, $idTipoLegajo]);
+        if ($this->existeColumna('cfg_tipo_legajo', 'secuencia_obligatoria')) {
+            $setClauses[] = 'secuencia_obligatoria = ?';
+            $valores[] = isset($this->secuencia_obligatoria) ? intval($this->secuencia_obligatoria) : 0;
+        }
+
+        if ($this->existeColumna('cfg_tipo_legajo', 'requiere_nro_operacion')) {
+            $setClauses[] = 'requiere_nro_operacion = ?';
+            $valores[] = $requiereNroOperacion;
+        }
+
+        if ($this->existeColumna('cfg_tipo_legajo', 'operacion_modo')) {
+            $setClauses[] = 'operacion_modo = ?';
+            $valores[] = isset($this->operacion_modo) ? trim((string) $this->operacion_modo) : 'auto';
+        }
+        if ($this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_secuencia')) {
+            $setClauses[] = 'unicidad_usa_secuencia = ?';
+            $valores[] = isset($this->unicidad_usa_secuencia) ? intval($this->unicidad_usa_secuencia) : 0;
+        }
+        if ($this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_operacion')) {
+            $setClauses[] = 'unicidad_usa_operacion = ?';
+            $valores[] = isset($this->unicidad_usa_operacion) ? intval($this->unicidad_usa_operacion) : 0;
+        }
+        // -----------------------
+
+        if ($this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')) {
+            $selloCaratulaTexto = trim((string) ($this->sello_caratula_texto ?? ''));
+            $setClauses[] = 'sello_caratula_texto = ?';
+            $valores[] = $selloCaratulaTexto !== '' ? $selloCaratulaTexto : null;
+
+            $setClauses[] = 'sello_caratula_posicion = ?';
+            $valores[] = trim((string) ($this->sello_caratula_posicion ?? 'cruzado'));
+
+            $selloAnexosTexto = trim((string) ($this->sello_anexos_texto ?? ''));
+            $setClauses[] = 'sello_anexos_texto = ?';
+            $valores[] = $selloAnexosTexto !== '' ? $selloAnexosTexto : null;
+
+            $setClauses[] = 'sello_anexos_posicion = ?';
+            $valores[] = trim((string) ($this->sello_anexos_posicion ?? 'derecha'));
+        }
+
+        // El ID siempre va al final para el WHERE
+        $valores[] = $idTipoLegajo;
+
+        // Construir la consulta dinámicamente
+        $sql = "UPDATE cfg_tipo_legajo SET " . implode(', ', $setClauses) . " WHERE id_tipo_legajo = ?";
+
+        return $this->update($sql, $valores);
     }
 
     public function actualizarEstadoTipoLegajo(int $idTipoLegajo, int $activo)
@@ -529,7 +683,7 @@ class ConfiguracionModel extends Mysql
         return $this->update($query, [$activo, $idTipoLegajo]);
     }
 
-    public function contarUsoTipoLegajo(int $idTipoLegajo): int
+    /* public function contarUsoTipoLegajo(int $idTipoLegajo): int
     {
         if ($idTipoLegajo <= 0 || !$this->existeTabla('cfg_tipo_legajo')) {
             return 0;
@@ -559,6 +713,46 @@ class ConfiguracionModel extends Mysql
             if ($this->existeTabla('permisos_legajos_tipos')) {
                 $result = $this->select("SELECT COUNT(*) AS total FROM permisos_legajos_tipos WHERE id_tipo_legajo = ?", [$idTipoLegajo]);
                 $total += intval($result['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            // Continuamos.
+        }
+
+        return $total;
+    } */
+    public function contarUsoTipoLegajo(int $idTipoLegajo): int
+    {
+        if ($idTipoLegajo <= 0 || !$this->existeTabla('cfg_tipo_legajo')) {
+            return 0;
+        }
+
+        $total = 0;
+
+        try {
+            $campoRelacion = $this->getCampoRelacionTipoLegajo();
+            $sql = "SELECT COUNT(*) AS total FROM cfg_matriz_requisitos WHERE $campoRelacion = ?";
+            $result = $this->select($sql, [$idTipoLegajo]);
+            $fila = (!empty($result) && isset($result[0]) && is_array($result[0])) ? $result[0] : [];
+            $total += intval($fila['total'] ?? 0);
+        } catch (Throwable $e) {
+            // Continuamos con las demás validaciones.
+        }
+
+        try {
+            if ($this->existeTabla('cfg_legajo')) {
+                $result = $this->select("SELECT COUNT(*) AS total FROM cfg_legajo WHERE id_tipo_legajo = ?", [$idTipoLegajo]);
+                $fila = (!empty($result) && isset($result[0]) && is_array($result[0])) ? $result[0] : [];
+                $total += intval($fila['total'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            // Continuamos.
+        }
+
+        try {
+            if ($this->existeTabla('permisos_legajos_tipos')) {
+                $result = $this->select("SELECT COUNT(*) AS total FROM permisos_legajos_tipos WHERE id_tipo_legajo = ?", [$idTipoLegajo]);
+                $fila = (!empty($result) && isset($result[0]) && is_array($result[0])) ? $result[0] : [];
+                $total += intval($fila['total'] ?? 0);
             }
         } catch (Throwable $e) {
             // Continuamos.
@@ -677,7 +871,7 @@ class ConfiguracionModel extends Mysql
         return !empty($resultado[0]) ? $resultado[0] : null;
     }
 
-            public function insertarCatalogoDocumentoLegajo(
+    public function insertarCatalogoDocumentoLegajo(
         string $nombre,
         string $codigoInterno,
         string $tipoCampo,
@@ -694,7 +888,7 @@ class ConfiguracionModel extends Mysql
             $nombre,
             $codigoInterno !== '' ? $codigoInterno : null,
             $tipoCampo,
-            trim((string)$opcionesCampo) !== '' ? trim((string)$opcionesCampo) : null,
+            trim((string) $opcionesCampo) !== '' ? trim((string) $opcionesCampo) : null,
             $tieneVencimiento,
             $diasVigenciaBase,
             $diasAlertaPrevia,
@@ -718,7 +912,7 @@ class ConfiguracionModel extends Mysql
 
     public function eliminarCatalogoDocumentoLegajo(int $idDocumentoMaestro): bool
     {
-        return (bool)$this->actualizarEstadoCatalogoDocumentoLegajo($idDocumentoMaestro, 0);
+        return (bool) $this->actualizarEstadoCatalogoDocumentoLegajo($idDocumentoMaestro, 0);
     }
 
     public function getCatalogoDocumentoLegajoById(int $idDocumentoMaestro)
@@ -740,7 +934,7 @@ class ConfiguracionModel extends Mysql
         return $result;
     }
 
-            public function actualizarCatalogoDocumentoLegajo(
+    public function actualizarCatalogoDocumentoLegajo(
         int $idDocumentoMaestro,
         string $nombre,
         string $codigoInterno,
@@ -759,7 +953,7 @@ class ConfiguracionModel extends Mysql
             $nombre,
             $codigoInterno !== '' ? $codigoInterno : null,
             $tipoCampo,
-            trim((string)$opcionesCampo) !== '' ? trim((string)$opcionesCampo) : null,
+            trim((string) $opcionesCampo) !== '' ? trim((string) $opcionesCampo) : null,
             $tieneVencimiento,
             $diasVigenciaBase,
             $diasAlertaPrevia,
@@ -1048,7 +1242,7 @@ class ConfiguracionModel extends Mysql
 
         // Validar que el archivo existe antes de intentar
         if (!file_exists($backup_file_path)) {
-             return ['status' => false, 'msg' => "El archivo temporal no se encuentra."];
+            return ['status' => false, 'msg' => "El archivo temporal no se encuentra."];
         }
 
         $command = $mysqlPath
@@ -1087,7 +1281,7 @@ class ConfiguracionModel extends Mysql
             // Si RUTA_BASE es "C:/xampp/scantec_storage/"
             $ruta_base_limpia = rtrim(RUTA_BASE, '/\\');
             $directorio_padre = dirname($ruta_base_limpia); // Queda: "C:/xampp"
-            $nombre_carpeta   = basename($ruta_base_limpia); // Queda: "scantec_storage"
+            $nombre_carpeta = basename($ruta_base_limpia); // Queda: "scantec_storage"
 
             if (!is_dir($ruta_base_limpia)) {
                 return ['status' => false, 'msg' => 'La carpeta origen no existe: ' . $ruta_base_limpia];
@@ -1102,7 +1296,7 @@ class ConfiguracionModel extends Mysql
 
             // 4. Ejecutar en segundo plano
             exec('start "" /B ' . $comando);
-            
+
             return ['status' => true, 'msg' => 'El respaldo fisico se inicio. Archivo: backup_documentos_' . $fecha . '.zip'];
 
         } catch (Throwable $e) {
@@ -1416,7 +1610,7 @@ class ConfiguracionModel extends Mysql
 
             if (in_array('usuarios', $modulos)) {
                 if ($this->existeTabla('usuarios')) {
-                    $this->update("DELETE FROM usuarios WHERE id != 1 AND usuario != 'root'", []);
+                   $this->update("DELETE FROM usuarios WHERE id_rol <> 1", []);
                 }
                 if ($this->existeTabla('roles')) {
                     $this->update("DELETE FROM roles WHERE id != 1", []);
@@ -1433,10 +1627,3 @@ class ConfiguracionModel extends Mysql
 
 }
 ?>
-
-
-
-
-
-
-

@@ -14,29 +14,29 @@
     <link rel="apple-touch-icon" href="<?php echo base_url(); ?>Assets/img/icoScantec2.png">
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
+            window.addEventListener('load', function () {
                 navigator.serviceWorker.register('<?php echo base_url(); ?>sw.js')
-                    .then(function(registration) {
+                    .then(function (registration) {
                         console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    }, function(err) {
+                    }, function (err) {
                         console.log('ServiceWorker registration failed: ', err);
                     });
             });
         }
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="<?php echo base_url(); ?>Assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
 </head>
 
 <body class="bg-login-custom font-sans min-h-screen flex items-center justify-center p-4">
 
     <?php if (isset($_SESSION['alert'])): ?>
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('DOMContentLoaded', function () {
                 Swal.fire({
-                    icon: '<?php echo $_SESSION['alert']['type']; ?>',
+                    icon: <?php echo json_encode($_SESSION['alert']['type']); ?>,
                     title: 'Atención',
-                    text: '<?php echo $_SESSION['alert']['message']; ?>',
+                    text: <?php echo json_encode($_SESSION['alert']['message']); ?>,
                     confirmButtonColor: '#182541',
                     confirmButtonText: 'ENTENDIDO'
                 });
@@ -45,50 +45,36 @@
         <?php unset($_SESSION['alert']); ?>
     <?php endif; ?>
 
-    <div class="max-w-md w-full bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-white/20">
+    <div
+        class="max-w-md w-full bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-white/20">
         <div class="p-8">
             <div class="flex justify-center mb-6">
-                <img src="<?php echo base_url(); ?>Assets/img/icoScantec2.png" alt="Logo" class="h-16 w-auto object-contain">
+                <img src="<?php echo base_url(); ?>Assets/img/icoScantec2.png" alt="Logo"
+                    class="h-16 w-auto object-contain">
             </div>
 
-            <h2 class="text-xl font-montserrat font-bold text-scantec-blue text-center mb-1 uppercase tracking-tight">Restablecer Contraseña</h2>
-            <p class="text-scantec-gray text-center text-xs mb-8 font-medium">Valide su identidad para generar una nueva clave</p>
+            <h2 class="text-xl font-montserrat font-bold text-scantec-blue text-center mb-1 uppercase tracking-tight">
+                Restablecer Contraseña</h2>
+            <p class="text-scantec-gray text-center text-xs mb-8 font-medium">Valide su identidad para generar una nueva
+                clave</p>
 
             <form action="<?php echo base_url(); ?>home/restaurarPass" method="POST" class="space-y-4">
-                <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token']; ?>">
-
-                <div>
-                    <label class="block text-[10px] font-bold text-scantec-blue uppercase tracking-widest mb-1 px-1">Nombre Completo</label>
-                    <input type="text" name="nombre" required
-                        class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50 focus:bg-white"
-                        placeholder="Ej: Juan Pérez">
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-scantec-blue uppercase tracking-widest mb-1 px-1">Nombre de Usuario</label>
-                    <input type="text" name="usuario" required
-                        class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50 focus:bg-white"
-                        placeholder="Usuario del sistema">
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-scantec-blue uppercase tracking-widest mb-1 px-1">Nueva Contraseña</label>
-                    <input type="password" name="nueva" required
-                        pattern="[a-zA-Z0-9$@.-]{7,50}"
-                        class="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-blue focus:border-transparent outline-none transition-all bg-gray-50/50 focus:bg-white"
-                        placeholder="Mínimo 7 caracteres">
-                </div>
-
-                <div class="pt-2 space-y-4">
-                    <button type="submit" class="w-full bg-scantec-blue hover:bg-scantec-red text-white font-montserrat font-bold py-4 rounded-xl transition-all shadow-lg tracking-widest uppercase text-xs active:scale-95">
-                        Actualizar Contraseña
-                    </button>
-                    
-                    <div class="text-center">
-                        <a href="<?php echo base_url(); ?>" class="text-scantec-gray hover:text-scantec-blue text-[10px] font-bold uppercase tracking-widest transition-colors inline-flex items-center gap-2">
-                            <span>←</span> Volver al inicio de sesión
-                        </a>
-                    </div>
+                <h2
+                    class="text-xl font-montserrat font-bold text-scantec-blue text-center mb-1 uppercase tracking-tight">
+                    Restablecer Contraseña</h2>
+                <p class="text-scantec-gray text-center text-sm mb-8 font-medium">
+                    Por seguridad, el restablecimiento de contraseña lo realiza el administrador del sistema.
+                    Comuníquese con el administrador del sistema.
+                </p>
+                <p class="text-scantec-gray text-center text-xs mb-6">
+                    Si su usuario es de dominio (Active Directory), la contraseña se cambia desde Windows o con mesa
+                    de ayuda.
+                </p>
+                <div class="text-center">
+                    <a href="<?php echo base_url(); ?>"
+                        class="text-scantec-gray hover:text-scantec-blue text-[10px] font-bold uppercase tracking-widest transition-colors inline-flex items-center gap-2">
+                        <span>←</span> Volver al inicio de sesión
+                    </a>
                 </div>
             </form>
         </div>
@@ -100,4 +86,5 @@
         </div>
     </div>
 </body>
+
 </html>

@@ -19,6 +19,7 @@ class Funcionalidades extends Controllers
 
         $mapaAccesoModulo = [
             'buscador_archivos' => 'archivos',
+            'consulta_indice1' => 'archivos',
             'reporte_expedientes' => 'archivos',
             'subir_archivos' => 'archivos',
             'log_documentos' => 'archivos',
@@ -68,8 +69,7 @@ class Funcionalidades extends Controllers
 
     private function esAdministradorScantec(): bool
     {
-        return intval($_SESSION['id_rol'] ?? 0) === 1
-            || strtolower(trim((string)($_SESSION['usuario'] ?? ''))) === 'root';
+        return esSuperadmin();
     }
 
     private function esAdministradorSistemaOGlobal(): bool
@@ -247,9 +247,13 @@ class Funcionalidades extends Controllers
 
         $items = array_intersect_key($items, array_flip($accesosPermitidos));
 
-        $guardado = $this->model->guardarAccesosRolDepartamento($idRol, $idDepartamento, $items, $idUsuario);
+        $guardado = $this->model->guardarAccesosRolDepartamento($idRol, $idDepartamento, $items, $idUsuario, $accesosPermitidos);
 
         if ($guardado) {
+            $inicio = trim((string) ($_POST['inicio'] ?? ''));
+            if ($inicio === '' || in_array($inicio, $accesosPermitidos, true)) {   // '' = automática; si no, solo un ítem que quien guarda puede gestionar
+                $this->model->guardarInicioRol($idRol, $inicio, $idUsuario);
+            }
             setAlert('success', 'Los accesos por rol y departamento se actualizaron correctamente.');
         } else {
             setAlert('error', 'No se pudieron guardar los accesos por rol y departamento.');

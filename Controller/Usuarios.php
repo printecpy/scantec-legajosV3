@@ -5,12 +5,18 @@ class Usuarios extends Controllers
 
     private function esAdministradorGlobal(): bool
     {
-        return in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2, 5], true);
+        return in_array(intval($_SESSION['id_rol'] ?? 0), [1, 2], true);
+    }
+
+    private function ejecutarMigracionesPendientesUsuarios()
+    {
+        $this->model->ensureFechaRegistroUsuarios();
+        // futuras migraciones de usuarios
     }
 
     private function esAdministradorScantec(): bool
     {
-        return intval($_SESSION['id_rol'] ?? 0) === 1;
+        return esSuperadmin();
     }
 
     private function obtenerRolSesion(): array
@@ -43,14 +49,19 @@ class Usuarios extends Controllers
 
     private function filtrarRolesGestionables(array $roles): array
     {
-        if ($this->esAdministradorScantec()) {
-            return $roles;
+        // El rol 1 nunca se ofrece desde la web: el superadmin se crea solo por consola.
+        $roles = array_values(array_filter($roles, static function ($rol) {
+            return intval($rol['id_rol'] ?? 0) !== 1;
+        }));
+        // El rol 2 solo lo ofrecen el superadmin y los administradores (rol 2)
+        if (!$this->esAdministradorScantec() && intval($_SESSION['id_rol'] ?? 0) !== 2) {
+            $roles = array_values(array_filter($roles, static function ($rol) {
+                return intval($rol['id_rol'] ?? 0) !== 2;
+            }));
         }
 
-        if ($this->esAdministradorGlobal()) {
-            return array_values(array_filter($roles, static function ($rol) {
-                return intval($rol['id_rol'] ?? 0) !== 1;
-            }));
+        if ($this->esAdministradorScantec() || $this->esAdministradorGlobal() || $this->puedeGestionarRolesYGrupos()) {
+            return $roles;
         }
 
         $idDepartamentoGestionable = $this->obtenerIdDepartamentoGestionable();
@@ -73,7 +84,7 @@ class Usuarios extends Controllers
 
     private function filtrarDepartamentosGestionables(array $departamentos): array
     {
-        if ($this->esAdministradorGlobal() || !$this->esAdministradorDepartamento()) {
+        if ($this->esAdministradorGlobal() || $this->puedeGestionarRolesYGrupos() || !$this->esAdministradorDepartamento()) {
             return $departamentos;
         }
 
@@ -94,24 +105,41 @@ class Usuarios extends Controllers
         return [];
     }
 
+    /**
+     * Jerarquía: cada quien gestiona solo usuarios con MENOS privilegios.
+     *  - Rol 1 (superadmin Scantec): a todos.
+     *  - Rol 2 (administrador del cliente): a todos menos al rol 1.
+     *  - Cualquier otro rol (ej. seguridad): a todos menos a los roles 1 y 2.
+     */
     private function puedeVerUsuarioObjetivo(array $usuario): bool
     {
+        $rolObjetivo = intval($usuario['id_rol'] ?? 0);
+
         if ($this->esAdministradorScantec()) {
             return true;
         }
-
-        return intval($usuario['id_rol'] ?? 0) !== 1;
+        if (intval($_SESSION['id_rol'] ?? 0) === 2) {
+            return $rolObjetivo !== 1;
+        }
+        return !in_array($rolObjetivo, [1, 2], true);
     }
 
     private function puedeAsignarRolYDepartamento(int $idRolObjetivo, int $idDepartamentoObjetivo): bool
     {
         $rolObjetivo = $this->obtenerRolGestionablePorId($idRolObjetivo);
-        if (empty($rolObjetivo)) {
-            return false;
+        if ($idRolObjetivo === 1) {
+            return false;   // nadie asigna el rol 1 desde la web
         }
 
         if ($this->esAdministradorScantec()) {
             return true;
+        }
+
+        // Quien gestiona roles y grupos puede asignar cualquier rol/departamento,
+        // sin restricción de pertenencia. El id_rol 1 (superadmin) queda siempre
+        // fuera del alcance de cualquiera que no sea esAdministradorScantec().
+        if ($this->puedeGestionarRolesYGrupos()) {
+            return intval($rolObjetivo['id_rol'] ?? 0) !== 1;
         }
 
         if ($this->esAdministradorGlobal()) {
@@ -161,6 +189,25 @@ class Usuarios extends Controllers
         exit();
     }
 
+    private function puedeGestionarRolesYGrupos(): bool
+    {
+        if (Validador::puedeVer($_SESSION, [1, 2])) {
+            return true;
+        }
+
+        try {
+            require_once 'Models/FuncionalidadesModel.php';
+            $funcionalidadesModel = new FuncionalidadesModel();
+            return $funcionalidadesModel->puedeAccederItemPorContexto(
+                'roles',
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
     private function puedeAccederGestionUsuarios(): bool
     {
         if (Validador::puedeVer($_SESSION, [1, 2])) {
@@ -187,8 +234,8 @@ class Usuarios extends Controllers
         }
 
         setAlert('warning', 'No tienes permiso para acceder a la gestión de usuarios.');
-        if (isset($this->model) && method_exists($this->model, 'bloquarPC_IP')) {
-            $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado a gestion de usuarios');
+        if (isset($this->model) && method_exists($this->model, 'bloquearPC_IP')) {
+            $this->model->bloquearPC_IP($_SESSION['nombre'], 'Acceso no autorizado a gestion de usuarios');
         }
         header('Location: ' . base_url() . 'expedientes/indice_busqueda');
         exit();
@@ -201,7 +248,7 @@ class Usuarios extends Controllers
         }
 
         $urlActual = strtolower(trim((string) ($_GET['url'] ?? ''), '/'));
-        
+
         // Si el usuario YA ESTÁ logueado y trata de acceder a la raíz o a /usuarios/login
         if (!empty($_SESSION['ACTIVO']) && $_SESSION['ACTIVO'] === true) {
             if ($urlActual === '' || $urlActual === 'usuarios/login' || $urlActual === 'usuarios' || $urlActual === 'home') {
@@ -253,15 +300,8 @@ class Usuarios extends Controllers
 
     public function grupo()
     {
-        if (!Validador::puedeVer($_SESSION, [1, 2])) {
-            // Registrar alerta y bloqueo
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
-            $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
-            // Redirigir solo una vez
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit();
-        }
-        // Usuario autorizado: obtener datos y mostrar vista
+        $this->asegurarAccesoFuncionalidad('grupos', 'No tienes permiso para acceder a esta sección', 'usuarios/grupo');
+
         $grupos = $this->model->selectGrupos();
         $tipos_documentos = $this->model->selectTipoDoc();
         $permisos = $this->model->selectPerDoc();
@@ -273,6 +313,25 @@ class Usuarios extends Controllers
         $this->views->getView($this, "grupo", $data);
     }
 
+    private function puedeAccederGrupos(): bool
+    {
+        if (Validador::puedeVer($_SESSION, [1, 2])) {
+            return true;
+        }
+
+        try {
+            require_once 'Models/FuncionalidadesModel.php';
+            $funcionalidadesModel = new FuncionalidadesModel();
+            return $funcionalidadesModel->puedeAccederItemPorContexto(
+                'grupos',
+                intval($_SESSION['id_rol'] ?? 0),
+                intval($_SESSION['id_departamento'] ?? 0)
+            );
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
     public function asignar_permisos()
     {
         // Verificación del token CSRF
@@ -282,27 +341,20 @@ class Usuarios extends Controllers
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
-        if (!Validador::puedeVer($_SESSION, [1, 2])) {
-            // Registrar alerta y bloqueo
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
-            $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
-            // Redirigir solo una vez
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit();
-        }
+
+        $this->asegurarAccesoFuncionalidad('grupos', 'No tienes permiso para acceder a esta sección', 'usuarios/asignar_permisos');
+
         // Obtener datos del formulario
         $id_grupo = intval($_POST['id_grupo']);
         $id_tipoDoc = intval($_POST['id_tipoDoc']);
         // Verificar si el permiso ya existe
         $permisoExistente = $this->model->verificarPermisoExistente($id_grupo, $id_tipoDoc);
         if ($permisoExistente['total'] > 0) {
-            // Mostrar mensaje de error en caso de duplicado
             setAlert('error', "Permiso existente para este grupo y tipo de documento!");
             session_write_close();
             header('location: ' . base_url() . "usuarios/grupo");
             exit();
         } else {
-            // Asignar el nuevo permiso
             $this->model->asignarPermiso($id_grupo, $id_tipoDoc);
             setAlert('success', "El permiso ha sido registrado!");
             session_write_close();
@@ -319,17 +371,11 @@ class Usuarios extends Controllers
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
-        if (!Validador::puedeVer($_SESSION, [1, 2])) {
-            // Registrar alerta y bloqueo
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
-            $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
-            // Redirigir solo una vez
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit();
-        }
+
+        $this->asegurarAccesoFuncionalidad('grupos', 'No tienes permiso para acceder a esta sección', 'usuarios/eliminar_permiso');
+
         $id_permiso = $_POST['id_permiso'];
         $this->model->eliminarPermiso($id_permiso);
-        // Redirigir de nuevo a la gestión de grupos
         header("Location: " . base_url() . "usuarios/grupo");
     }
 
@@ -344,19 +390,12 @@ class Usuarios extends Controllers
             exit();
         }
 
-        // 2. Validar Permisos de Usuario (Admin)
-        if (!Validador::puedeVer($_SESSION, [1, 2])) {
-            setAlert('warning', "No tienes permiso para acceder a esta sección");
-            $this->model->bloquarPC_IP($_SESSION['nombre'], 'Acceso no autorizado');
-            header('Location: ' . base_url() . 'expedientes/indice_busqueda');
-            exit();
-        }
+        // 2. Validar acceso a la gestión de grupos
+        $this->asegurarAccesoFuncionalidad('grupos', 'No tienes permiso para acceder a esta sección', 'usuarios/reactivar_permiso');
 
         // 3. Procesar la reactivación
         if (isset($_POST['id_permiso'])) {
             $id_permiso = intval($_POST['id_permiso']);
-
-            // Llamamos al modelo para actualizar estado a 1 (ACTIVO)
             $request = $this->model->reactivarPermiso($id_permiso);
 
             if ($request) {
@@ -385,43 +424,67 @@ class Usuarios extends Controllers
     {
         $this->checkCsrfSafety();
         $this->asegurarAccesoGestionUsuarios();
-        // Verificar límite de usuarios antes de insertar
+        $this->ejecutarMigracionesPendientesUsuarios();
+
+        // 1. Límite de la licencia
         $usuariosActuales = intval($this->model->contarUsuariosActivos()['total'] ?? 0);
         $limiteUsuarios = defined('LICENCIA_MAX_USUARIOS') ? intval(LICENCIA_MAX_USUARIOS) : (defined('LIMITE_USUARIOS') ? intval(LIMITE_USUARIOS) : 0);
         if ($limiteUsuarios > 0 && $usuariosActuales >= $limiteUsuarios) {
-            // Podés redirigir con mensaje de error o mostrar alerta
-            setAlert('warning', 'No se puede agregar más usuarios. Se alcanzó el límite de la licencia.');
-            header('Location: ' . base_url() . 'usuarios/listar');
-            exit;
+            $this->rechazarOperacionUsuario('No se puede agregar más usuarios. Se alcanzó el límite de la licencia.');
         }
-        $nombre = htmlspecialchars($_POST['nombre']);
-        $usuario = htmlspecialchars($_POST['usuario']);
-        $clave = $_POST['clave'];
+
+        // 2. Datos del formulario
+        $nombre = htmlspecialchars(trim((string) ($_POST['nombre'] ?? '')));
+        $usuario = htmlspecialchars(trim((string) ($_POST['usuario'] ?? '')));
+        $email = trim((string) ($_POST['email'] ?? ''));
+        $clave = (string) ($_POST['clave'] ?? '');
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
         $rol = intval($_POST['id_rol'] ?? 0);
-        $grupo = intval($this->model->obtenerGrupoRegistroPorDefecto());
-        $email = htmlspecialchars($_POST['email']);
-        $fuente_registro = 'scantec';
+        $grupo = intval($_POST['id_grupo'] ?? 0);
 
+        // 3. Formato
+        if ($nombre === '' || $usuario === '' || $clave === '') {
+            $this->rechazarOperacionUsuario('Debe completar nombre, usuario y contraseña.');
+        }
+        if (mb_strlen($clave) < 10) {
+            $this->rechazarOperacionUsuario('La contraseña debe tener al menos 10 caracteres.');
+        }
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->rechazarOperacionUsuario('El correo electrónico no es válido.');
+        }
+        if (esUsuarioReservado($usuario)) {
+            $this->rechazarOperacionUsuario('Ese nombre de usuario no está disponible.');
+        }
+
+        // 4. Reglas de rol (el rol 1 nunca: lo rechaza puedeAsignarRolYDepartamento)
+        if ($rol === 2 && !$this->esAdministradorScantec() && intval($_SESSION['id_rol'] ?? 0) !== 2) {
+            $this->rechazarOperacionUsuario('Solo un administrador puede crear usuarios con rol de Administrador.');
+        }
         if (!$this->puedeAsignarRolYDepartamento($rol, $idDepartamento)) {
-            setAlert('error', 'No tienes permiso para crear usuarios con ese rol o departamento.');
-            header('Location: ' . base_url() . 'usuarios/listar');
-            exit;
+            $this->rechazarOperacionUsuario('No tienes permiso para crear usuarios con ese rol o departamento.');
         }
 
-        // Verificar usuarios existente antes de insertar
-        $usuariosExiste = $this->model->verificarUsuarioExistente($usuario)['total'];
-        if ($usuariosExiste > 0) {
-            // Podés redirigir con mensaje de error o mostrar alerta
-            setAlert('warning', 'Este usuario ya existe.');
-            header('Location: ' . base_url() . 'usuarios/listar');
-            exit;
+        // 5. Grupo (módulo Expedientes)
+        if (!$this->model->existeGrupoActivo($grupo)) {
+            $this->rechazarOperacionUsuario('Seleccione un grupo válido y activo.');
         }
-        // Encriptar la contraseña con bcrypt y cost de 12
+
+        // 6. Que no exista
+        if (intval($this->model->verificarUsuarioExistente($usuario)['total'] ?? 0) > 0) {
+            $this->rechazarOperacionUsuario('Este usuario ya existe.');
+        }
+
+        // 7. Guardar
         $hash = password_hash($clave, PASSWORD_BCRYPT, ['cost' => 12]);
-        $this->model->insertarUsuarios($nombre, $idDepartamento, $usuario, $hash, $rol, $grupo, $fuente_registro, $email);
-        header("location: " . base_url() . "usuarios/listar");
-        die();
+        $insert = $this->model->insertarUsuarios($nombre, $idDepartamento, $usuario, $hash, (string) $rol, (string) $grupo, 'scantec', $email);
+
+        if (!$insert) {
+            $this->rechazarOperacionUsuario('No se pudo registrar el usuario. Verifique los datos ingresados.');
+        }
+
+        setAlert('success', 'Usuario registrado correctamente.');
+        header('Location: ' . base_url() . 'usuarios/listar');
+        exit();
     }
 
     public function registrar_grupo()
@@ -448,8 +511,7 @@ class Usuarios extends Controllers
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
-        // El token CSRF es válido y no ha caducado, proceder con la inserción de datos
-        // Realizar cualquier sanitización adicional de los datos si es necesario
+
         $nombre_tipoDoc = htmlspecialchars($_POST['nombre_tipoDoc']);
         $indice_1 = htmlspecialchars($_POST['indice_1']);
         $indice_2 = htmlspecialchars($_POST['indice_2']);
@@ -457,6 +519,22 @@ class Usuarios extends Controllers
         $indice_4 = htmlspecialchars($_POST['indice_4']);
         $indice_5 = htmlspecialchars($_POST['indice_5']);
         $indice_6 = htmlspecialchars($_POST['indice_6']);
+
+        $activos = intval($this->model->contarTiposDocumentoActivos());
+        $limite = defined('LICENCIA_MAX_TIPODOC') ? intval(LICENCIA_MAX_TIPODOC) : 0;
+
+        if ($limite < 0) {
+            setAlert('warning', "Su licencia no incluye la creación de tipos de documento.");
+            header("location: " . base_url() . "usuarios/grupo");
+            exit();
+        }
+
+        if ($limite > 0 && $activos >= $limite) {
+            setAlert('warning', "Se alcanzó el límite de {$limite} tipos de documento permitidos por su licencia.");
+            header("location: " . base_url() . "usuarios/grupo");
+            exit();
+        }
+
         $insert = $this->model->insertarTipoDoc($nombre_tipoDoc, $indice_1, $indice_2, $indice_3, $indice_4, $indice_5, $indice_6);
         if ($insert) {
             header("location: " . base_url() . "usuarios/grupo");
@@ -498,10 +576,72 @@ class Usuarios extends Controllers
             'usuario' => $usuario,
             'rol' => $this->filtrarRolesGestionables($rol),
             'grupos' => $grupos,
-            'departamentos' => $departamentos
+            'departamentos' => $departamentos,
+            'puedeGestionarRolesYGrupos' => $this->puedeGestionarRolesYGrupos(),
         ];
 
         $this->views->getView($this, "editar", $data);
+    }
+
+
+    public function editar_grupo()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            session_write_close();
+            header("Location: " . base_url() . "?error=csrf");
+            exit();
+        }
+
+        $id_grupo = intval($_POST['id_grupo']);
+        $descripcion = htmlspecialchars($_POST['descripcion']);
+
+        $update = $this->model->actualizarGrupo($id_grupo, $descripcion);
+        if ($update) {
+            setAlert('success', 'Grupo actualizado correctamente.');
+            header("location: " . base_url() . "usuarios/grupo");
+            die();
+        }
+    }
+
+    public function editar_tipoDoc()
+    {
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token CSRF inválido o expirado.");
+            session_write_close();
+            header("Location: " . base_url() . "?error=csrf");
+            exit();
+        }
+
+        $id_tipoDoc = intval($_POST['id_tipoDoc']);
+        $nombre_tipoDoc = htmlspecialchars($_POST['nombre_tipoDoc']);
+        $indice_1 = htmlspecialchars($_POST['indice_1']);
+        $indice_2 = htmlspecialchars($_POST['indice_2']);
+        $indice_3 = htmlspecialchars($_POST['indice_3']);
+        $indice_4 = htmlspecialchars($_POST['indice_4']);
+        $indice_5 = htmlspecialchars($_POST['indice_5']);
+        $indice_6 = htmlspecialchars($_POST['indice_6']);
+
+        $update = $this->model->actualizarTipoDoc($id_tipoDoc, $nombre_tipoDoc, $indice_1, $indice_2, $indice_3, $indice_4, $indice_5, $indice_6);
+        if ($update) {
+            setAlert('success', 'Documento actualizado correctamente.');
+            header("location: " . base_url() . "usuarios/grupo");
+            die();
+        }
+    }
+
+    public function get_grupo(int $id_grupo)
+    {
+        $data = $this->model->obtenerGrupo($id_grupo);
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        die();
+    }
+
+    public function get_tipoDoc(int $id_tipoDoc)
+    {
+        $data = $this->model->obtenerTipoDoc($id_tipoDoc);
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        die();
     }
 
     public function detalle()
@@ -536,7 +676,7 @@ class Usuarios extends Controllers
         $roles = $this->model->selectRoles();
         foreach ($roles as $rol) {
             if (intval($rol['id_rol'] ?? 0) === intval($usuario['id_rol'] ?? 0)) {
-                $nombreRol = (string)($rol['descripcion'] ?? $nombreRol);
+                $nombreRol = (string) ($rol['descripcion'] ?? $nombreRol);
                 break;
             }
         }
@@ -557,51 +697,108 @@ class Usuarios extends Controllers
             header("Location: " . base_url() . "?error=csrf");
             exit();
         }
-        // El token CSRF es válido y no ha caducado, proceder con la actualización de usuario
-        // Realizar cualquier sanitización adicional de los datos si es necesario
         $this->asegurarAccesoGestionUsuarios();
+
+        // 1. El usuario a modificar tiene que existir y estar dentro de mi alcance
         $id = intval($_POST['id'] ?? 0);
         $usuarioActualRaw = $id > 0 ? $this->model->editarUsuarios($id) : [];
-        $usuarioActual = [];
-        if (!empty($usuarioActualRaw)) {
-            $usuarioActual = isset($usuarioActualRaw[0]) ? $usuarioActualRaw[0] : $usuarioActualRaw;
+        $usuarioActual = isset($usuarioActualRaw[0]) ? $usuarioActualRaw[0] : $usuarioActualRaw;
+
+        if (empty($usuarioActual) || !$this->puedeVerUsuarioObjetivo($usuarioActual)) {
+            $this->rechazarOperacionUsuario('Usuario no encontrado o sin permisos para modificarlo.');
         }
-        if (!empty($usuarioActual) && !$this->puedeVerUsuarioObjetivo($usuarioActual)) {
-            setAlert('error', 'No tienes permiso para modificar ese usuario.');
-            header('Location: ' . base_url() . 'usuarios/listar');
-            exit();
-        }
-        $nombre = htmlspecialchars(trim((string)($_POST['nombre'] ?? '')));
+
+        // 2. Datos del formulario
+        $nombre = htmlspecialchars(trim((string) ($_POST['nombre'] ?? '')));
+        $usuario = htmlspecialchars(trim((string) ($_POST['usuario'] ?? '')));
+        $email = trim((string) ($_POST['email'] ?? ''));
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
-        $usuario = htmlspecialchars(trim((string)($_POST['usuario'] ?? '')));
         $rol = intval($_POST['id_rol'] ?? 0);
-        if ($rol <= 0) {
-            $rol = intval($usuarioActual['id_rol'] ?? 0);
-        }
         $grupo = intval($_POST['id_grupo'] ?? 0);
-        $email = htmlspecialchars(trim((string)($_POST['email'] ?? '')));
-        $claveNueva = trim((string)($_POST['clave'] ?? ''));
-        $estadoUsuario = htmlspecialchars(trim((string)($_POST['estado_usuario'] ?? 'ACTIVO')));
-        $hashNuevaClave = '';
-        if ($claveNueva !== '') {
-            $hashNuevaClave = password_hash($claveNueva, PASSWORD_BCRYPT, ['cost' => 12]);
+        $estadoUsuario = strtoupper(trim((string) ($_POST['estado_usuario'] ?? 'ACTIVO')));
+        $claveNueva = (string) ($_POST['clave'] ?? '');
+
+        $rolActual = intval($usuarioActual['id_rol'] ?? 0);
+        $grupoActual = intval($usuarioActual['id_grupo'] ?? 0);
+        if ($rol <= 0) {
+            $rol = $rolActual;
+        }
+        if ($grupo <= 0) {
+            $grupo = $grupoActual;
         }
 
-        if (!$this->puedeAsignarRolYDepartamento($rol, $idDepartamento)) {
-            setAlert('error', 'No tienes permiso para asignar ese rol o departamento.');
-            header('Location: ' . base_url() . 'usuarios/listar');
-            exit();
+        // 3. Formato
+        if ($nombre === '' || $usuario === '') {
+            $this->rechazarOperacionUsuario('El nombre y el usuario son obligatorios.', $id);
+        }
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->rechazarOperacionUsuario('El correo electrónico no es válido.', $id);
+        }
+        if (!in_array($estadoUsuario, ['ACTIVO', 'INACTIVO', 'BLOQUEADO', 'PENDIENTE'], true)) {
+            $this->rechazarOperacionUsuario('Estado de usuario no válido.', $id);
+        }
+        if ($claveNueva !== '' && mb_strlen($claveNueva) < 10) {
+            $this->rechazarOperacionUsuario('La contraseña debe tener al menos 10 caracteres.', $id);
         }
 
-        // Actualizar el usuario en la base de datos
-        $actualizar = $this->model->actualizarUsuarios($nombre, $idDepartamento, $usuario, $rol, $grupo, $email, $estadoUsuario, $id, $hashNuevaClave);
-        // Verificar si la actualización fue exitosa
-        if ($actualizar == 1) {
-            $alert = 'modificado';
+        // 4. Nombres reservados (si ya se llamaba así, se respeta)
+        $usuarioCambia = strcasecmp($usuario, (string) ($usuarioActual['usuario'] ?? '')) !== 0;
+        if ($usuarioCambia && esUsuarioReservado($usuario)) {
+            $this->rechazarOperacionUsuario('Ese nombre de usuario no está disponible.', $id);
+        }
+
+        // 5. Reglas de rol
+        if ($rolActual === 1) {
+            if (!$this->esAdministradorScantec()) {
+                $this->rechazarOperacionUsuario('No tienes permiso para modificar ese usuario.');
+            }
+            $rol = 1;   // el rol del superadmin no se cambia desde la web
         } else {
-            $alert = 'error';
+            if ($id === intval($_SESSION['id'] ?? 0) && $rol !== $rolActual) {
+                $this->rechazarOperacionUsuario('No puedes cambiar tu propio rol.', $id);
+            }
+            if ($rol === 2 && !$this->esAdministradorScantec() && intval($_SESSION['id_rol'] ?? 0) !== 2) {
+                $this->rechazarOperacionUsuario('Solo un administrador puede otorgar el rol de Administrador.', $id);
+            }
+            if (!$this->puedeAsignarRolYDepartamento($rol, $idDepartamento)) {
+                $this->rechazarOperacionUsuario('No tienes permiso para asignar ese rol o departamento.', $id);
+            }
+        }
+
+        // 6. Grupo (módulo Expedientes)
+        if ($grupo !== $grupoActual && !$this->model->existeGrupoActivo($grupo)) {
+            $this->rechazarOperacionUsuario('El grupo seleccionado no existe o está inactivo.', $id);
+        }
+
+        // 7. Guardar
+        $hashNuevaClave = $claveNueva !== '' ? password_hash($claveNueva, PASSWORD_BCRYPT, ['cost' => 12]) : '';
+        $actualizar = $this->model->actualizarUsuarios(
+            $nombre,
+            $idDepartamento,
+            $usuario,
+            $rol,
+            $grupo,
+            $email,
+            $estadoUsuario,
+            $id,
+            $hashNuevaClave
+        );
+
+        if ($actualizar !== false) {
+            setAlert('success', 'Usuario modificado correctamente.');
+        } else {
+            setAlert('error', 'No se pudo modificar el usuario.');
         }
         header('Location: ' . base_url() . 'usuarios/listar');
+        exit();
+    }
+
+    // Corta la operación con un aviso. Con id vuelve al formulario de edición; sin id, a la lista.
+    private function rechazarOperacionUsuario(string $mensaje, int $id = 0): void
+    {
+        setAlert('error', $mensaje);
+        $destino = $id > 0 ? 'usuarios/editar?id=' . $id : 'usuarios/listar';
+        header('Location: ' . base_url() . $destino);
         exit();
     }
 
@@ -651,128 +848,40 @@ class Usuarios extends Controllers
         die();
     }
 
-    // public function login()
-    // {
-    //     // Aseguramos que la sesión esté activa para manejar los intentos y las alertas
-    //     if (session_status() === PHP_SESSION_NONE) {
-    //         session_start();
-    //     }
-
-    //     if (!isset($_SESSION['login_attempts'])) {
-    //         $_SESSION['login_attempts'] = 0;
-    //     }
-
-    //     if (!empty($_POST['usuario']) && !empty($_POST['clave'])) {
-    //         $usuario = htmlspecialchars($_POST['usuario'], ENT_QUOTES, 'UTF-8');
-    //         $claveIngresada = $_POST['clave'];
-
-    //         // Consulta al modelo
-    //         $data = $this->model->selectUsuario($usuario);
-
-    //         /**
-    //          * VALIDACIÓN UNIFICADA
-    //          * Se comprueba en un solo bloque si el usuario existe, está activo y la clave es correcta.
-    //          * Si cualquiera de estas falla, el flujo va al 'else' genérico.
-    //          */
-    //         if (!empty($data) && $data['estado_usuario'] == 'ACTIVO' && password_verify($claveIngresada, $data['clave'])) {
-
-    //             // --- CASO 1: LOGIN EXITOSO ---
-    //             $_SESSION['id'] = $data['id'];
-    //             $_SESSION['nombre'] = $data['nombre'];
-    //             $_SESSION['usuario'] = $data['usuario'];
-    //             $_SESSION['id_rol'] = $data['id_rol'];
-    //             $_SESSION['ACTIVO'] = true;
-
-    //             // Tokens de seguridad
-    //             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-    //             $_SESSION['csrf_expiration'] = time() + (30 * 60);
-
-    //             $_SESSION['id_grupo'] = $data['id_grupo'];
-    //             $_SESSION['grupo'] = $data['grupo'];
-    //             $_SESSION['PERMISOS'] = $this->model->getPermisosByRol($data['id_rol']);
-
-    //             // Reiniciamos intentos al entrar con éxito
-    //             $_SESSION['login_attempts'] = 0;
-
-    //             // Auditoría
-    //             $this->model->registrarVisita($_SESSION['id']);
-    //             $this->model->conteoInicioSesion($_SESSION['id']);
-
-    //             // Redirección según rol
-    //             if ($data['id_rol'] == 3 || $data['id_rol'] == 4) {
-    //                 header('location: ' . base_url() . 'expedientes/indice_busqueda');
-    //             } else {
-    //                 header('location: ' . base_url() . 'dashboard/listar');
-    //             }
-    //             exit();
-
-    //         } else {
-    //             // --- CASO 2: LOGIN FALLIDO (Genérico por seguridad) ---
-    //             $_SESSION['login_attempts']++;
-
-    //             if ($_SESSION['login_attempts'] >= 3) {
-    //                 // Bloqueo de seguridad
-    //                 $motivo = 'Excedió el número de intentos de inicio de sesión (Credenciales inválidas)';
-
-    //                 // Solo intentamos bloquear en la DB si el usuario realmente existe
-    //                 if (!empty($data)) {
-    //                     $this->model->bloquearUsuarios($usuario);
-    //                 }
-
-    //                 // Bloqueo por IP (Siempre se ejecuta para frenar ataques de fuerza bruta)
-    //                 $this->model->bloquarPC_IP($usuario, $motivo);
-
-    //                 setAlert('error', "ACCESO RESTRINGIDO: Demasiados intentos fallidos. Su acceso ha sido bloqueado por seguridad.");
-    //                 header('location: ' . base_url());
-    //                 exit();
-
-    //             } else {
-    //                 // Mensaje genérico para no revelar si el usuario existe o no
-    //                 $restantes = 3 - $_SESSION['login_attempts'];
-    //                 setAlert('error', "Usuario o contraseña incorrecta. Le quedan $restantes intentos.");
-
-    //                 header('location: ' . base_url());
-    //                 exit();
-    //             }
-    //         }
-    //     } else {
-    //         // CASO 3: CAMPOS VACÍOS
-    //         setAlert('warning', "Debe completar todos los campos del formulario.");
-    //         header('location: ' . base_url());
-    //         exit();
-    //     }
-    // }
     public function login()
     {
-          if (session_status() === PHP_SESSION_NONE) session_start();
-          if (class_exists('LicenseLoader')) {
-              $licenciaEstado = LicenseLoader::verificarEstado();
-              if (empty($licenciaEstado['status'])) {
-                  setAlert('error', (string) ($licenciaEstado['msg'] ?? 'La licencia no es valida o no esta disponible.'));
-                  header('location: ' . base_url());
-                  exit();
-              }
-          }
-          if (!isset($_SESSION['login_attempts'])) $_SESSION['login_attempts'] = 0;
+        (new UsuariosModel())->asegurarJerarquiaRolesScantec();   // migración única; si ya se aplicó, sale enseguida
+        if (session_status() === PHP_SESSION_NONE)
+            session_start();
+        if (class_exists('LicenseLoader')) {
+            $licenciaEstado = LicenseLoader::verificarEstado();
+            if (empty($licenciaEstado['status'])) {
+                setAlert('error', (string) ($licenciaEstado['msg'] ?? 'La licencia no es valida o no esta disponible.'));
+                header('location: ' . base_url());
+                exit();
+            }
+        }
+        if (!isset($_SESSION['login_attempts']))
+            $_SESSION['login_attempts'] = 0;
 
         // --- 1. LIMPIEZA INTELIGENTE DE USUARIO ---
         $usuario_raw = trim($_POST['usuario'] ?? '');
-        
+
         // Si el usuario escribe por costumbre "DOMINIO\usuario", le quitamos el dominio
         if (strpos($usuario_raw, '\\') !== false) {
-            $usuario_raw = explode('\\', $usuario_raw)[1]; 
-        }        
+            $usuario_raw = explode('\\', $usuario_raw)[1];
+        }
         if (strpos($usuario_raw, '@') !== false) {
-            $usuario_raw = explode('@', $usuario_raw)[0]; 
+            $usuario_raw = explode('@', $usuario_raw)[0];
         }
 
         $usuario = htmlspecialchars($usuario_raw, ENT_QUOTES, 'UTF-8');
         $claveIngresada = $_POST['clave'] ?? '';
-        $fuente_registro = $_POST['fuente_registro'] ?? 'scantec';
+        //$fuente_registro = $_POST['fuente_registro'] ?? 'scantec';
 
         if (empty($usuario) || empty($claveIngresada)) {
-            setAlert('warning', "Debe completar todos los campos."); 
-            header('location: ' . base_url()); 
+            setAlert('warning', "Debe completar todos los campos.");
+            header('location: ' . base_url());
             exit();
         }
 
@@ -785,22 +894,32 @@ class Usuarios extends Controllers
         }
         if (empty($data)) {
             setAlert('error', "El usuario no existe en la base de datos.");
-            header('location: ' . base_url()); 
+            header('location: ' . base_url());
             exit();
         }
 
         if ($data['estado_usuario'] !== 'ACTIVO') {
             setAlert('error', "Tu usuario está inactivo o bloqueado.");
-            header('location: ' . base_url()); 
+            header('location: ' . base_url());
             exit();
         }
 
+        if (strtoupper(trim((string) ($data['fuente_registro'] ?? ''))) === 'API') {
+            $this->model->bloquearPC_IP($usuario, 'Intento de login web con cuenta de API');
+            setAlert('error', "Esta cuenta es de uso exclusivo para integraciones y no puede iniciar sesión en el sistema.");
+            header('location: ' . base_url());
+            exit();
+        }
+        $fuente_registro = strtoupper(trim((string) ($data['fuente_registro'] ?? ''))) === 'LDAP' ? 'LDAP' : 'scantec';
         $auth_success = false;
 
-        // =========================================================
+        /// =========================================================
         // 1. MODO DIRECTORIO ACTIVO (Si seleccionó LDAP)
         // =========================================================
         if ($fuente_registro === 'LDAP') {
+            if (!function_exists('ldap_connect')) {
+                error_log('LDAP login: la extension ldap de PHP no esta cargada');
+            }
             require_once 'Models/ConfiguracionModel.php';
             $configModel = new ConfiguracionModel();
             $configLdapArray = $configModel->selectLDAP_datos();
@@ -812,33 +931,56 @@ class Usuarios extends Controllers
                 $ldap_host = str_replace(['ldap://', 'ldaps://'], '', $ldap_host);
 
                 $ldap_conn = @ldap_connect($ldap_host, $ldap_port);
-                
+
                 if ($ldap_conn) {
                     ldap_set_option($ldap_conn, LDAP_OPT_PROTOCOL_VERSION, 3);
                     ldap_set_option($ldap_conn, LDAP_OPT_REFERRALS, 0);
 
-                    // --- GENERADOR DINÁMICO DE DOMINIO NETBIOS ---
-                    // Extrae la empresa desde "OU=printec,DC=printec,DC=local" -> "PRINTEC"
-                    $dominio_netbios = 'DOMINIO'; // Valor por defecto
-                    if (preg_match('/DC=([^,]+)/i', $configLdap['ldapBaseDn'], $matches)) {
-                        $dominio_netbios = strtoupper($matches[1]);
+                    // --- NOMBRE DE USUARIO PARA EL AD ---
+                    // Si la configuracion LDAP tiene un "formato de usuario" (ldapFormatoUsuario) se usa; si esta vacio (o no es valido),
+                    // se mantiene el comportamiento de siempre: primer DC= del Base DN como dominio.
+                    $usuario_ad = '';
+                    $formato_ad = trim((string) ($configLdap['ldapFormatoUsuario'] ?? ''));
+                    if ($formato_ad !== '') {
+                        $usuario_ad = (string) ldapNombreBind($formato_ad, $usuario_raw);
+                        if ($usuario_ad === '') {
+                            error_log('LDAP login: el formato de usuario configurado no es valido; se usa el formato por defecto');
+                        }
                     }
-
-                    // Arma el formato correcto automáticamente (Ej: PRINTEC\aldo.silva)
-                    $usuario_ad = $dominio_netbios . "\\" . $usuario; 
+                    if ($usuario_ad === '') {
+                        $dominio_netbios = 'DOMINIO'; // Valor por defecto
+                        if (preg_match('/DC=([^,]+)/i', $configLdap['ldapBaseDn'], $matches)) {
+                            $dominio_netbios = strtoupper($matches[1]);
+                        }
+                        $usuario_ad = $dominio_netbios . "\\" . $usuario;
+                    }
 
                     if (@ldap_bind($ldap_conn, $usuario_ad, $claveIngresada)) {
                         $auth_success = true; // ¡El AD aceptó la clave!
+                    } else {
+                        // DIAGNOSTICO: motivo real del rechazo. NUNCA se registra la clave.
+                        $diag = '';
+                        @ldap_get_option($ldap_conn, LDAP_OPT_DIAGNOSTIC_MESSAGE, $diag);
+                        error_log('LDAP login: bind fallido usuario=' . $usuario_ad . ' servidor=' . $ldap_host . ':' . $ldap_port
+                            . ' -> ' . ldap_error($ldap_conn) . ' (' . ldap_errno($ldap_conn) . ')' . (!empty($diag) ? ' | ' . $diag : ''));
                     }
+                } else {
+                    error_log('LDAP login: ldap_connect devolvio false (servidor=' . $ldap_host . ':' . $ldap_port . ')');
                 }
+            } else {
+                error_log('LDAP login: no hay configuracion LDAP (ldapHost vacio)');
             }
-        } 
+        }
         // =========================================================
         // 2. MODO USUARIO LOCAL
         // =========================================================
         else {
             if (password_verify($claveIngresada, $data['clave'])) {
                 $auth_success = true;
+            } else {
+                // DIAGNOSTICO: si el usuario debia entrar con el AD, el formulario no envio fuente_registro=LDAP
+                error_log('Login local fallido: usuario=' . $usuario . ' fuente_registro(usada)=' . $fuente_registro
+                    . ' fuente_registro(base)=' . ($data['fuente_registro'] ?? ''));
             }
         }
 
@@ -850,15 +992,16 @@ class Usuarios extends Controllers
             // --- DETECCIÓN DE SESIÓN DUPLICADA ---
             if ($this->model->verificarSesionActivaDeUsuario($data['id'])) {
                 $_SESSION['pending_login'] = [
-                    'id'       => $data['id'],
-                    'nombre'   => $data['nombre'],
-                    'usuario'  => $data['usuario'],
-                    'id_rol'   => $data['id_rol'],
+                    'id' => $data['id'],
+                    'nombre' => $data['nombre'],
+                    'usuario' => $data['usuario'],
+                    'id_rol' => $data['id_rol'],
+                    'id_departamento' => $data['id_departamento'] ?? 0,
                     'id_grupo' => $data['id_grupo'] ?? 0,
-                    'grupo'    => $data['grupo'] ?? '',
+                    'grupo' => $data['grupo'] ?? '',
                 ];
                 // Generar token CSRF para el formulario de confirmación
-                $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                 $_SESSION['csrf_expiration'] = time() + (5 * 60); // 5 minutos para decidir
                 header('location: ' . base_url() . 'usuarios/sesion_duplicada');
                 exit();
@@ -887,21 +1030,29 @@ class Usuarios extends Controllers
     // =========================================================
     private function completarLogin(array $data): void
     {
-        $_SESSION['id']              = $data['id'];
-        $_SESSION['nombre']          = $data['nombre'];
-        $_SESSION['usuario']         = $data['usuario'];
-        $_SESSION['id_rol']          = $data['id_rol'];
+        session_regenerate_id(true);
+        $_SESSION['id'] = $data['id'];
+        $_SESSION['nombre'] = $data['nombre'];
+        $_SESSION['usuario'] = $data['usuario'];
+        $_SESSION['id_rol'] = $data['id_rol'];
         $_SESSION['id_departamento'] = $data['id_departamento'] ?? 0;
-        $_SESSION['ACTIVO']          = true;
-        $_SESSION['csrf_token']      = bin2hex(random_bytes(32));
-        $_SESSION['csrf_expiration'] = time() + (30 * 60);
-        $_SESSION['id_grupo']        = $data['id_grupo'] ?? 0;
-        $_SESSION['grupo']           = $data['grupo'] ?? '';
-        $_SESSION['PERMISOS']        = $this->model->getPermisosByRol($data['id_rol']);
-        $_SESSION['login_attempts']  = 0;
+        $_SESSION['ACTIVO'] = true;
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_expiration'] = time() + SESION_TIEMPO_SEGUNDOS;
+        $_SESSION['id_grupo'] = $data['id_grupo'] ?? 0;
+        $_SESSION['grupo'] = $data['grupo'] ?? '';
+        $_SESSION['PERMISOS'] = $this->model->getPermisosByRol($data['id_rol']);
+        $_SESSION['login_attempts'] = 0;
 
         $this->model->registrarVisita($_SESSION['id']);
         $this->model->conteoInicioSesion($_SESSION['id']);
+
+        $retorno = rutaRetornoSegura((string) ($_SESSION['retorno_login'] ?? ''), base_url());   // NUEVO
+        unset($_SESSION['retorno_login']);
+        if ($retorno !== null) {
+            header('Location: ' . $retorno, true, 303);
+            exit();
+        }
 
         require_once 'Models/FuncionalidadesModel.php';
         $rutaDestino = FuncionalidadesModel::obtenerRutaRedireccionSegura(
@@ -917,7 +1068,8 @@ class Usuarios extends Controllers
     // =========================================================
     public function sesion_duplicada()
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (session_status() === PHP_SESSION_NONE)
+            session_start();
 
         // Si no hay un login pendiente, volver al inicio (acceso directo no permitido)
         if (empty($_SESSION['pending_login'])) {
@@ -936,7 +1088,8 @@ class Usuarios extends Controllers
     // =========================================================
     public function confirmar_sesion()
     {
-        if (session_status() === PHP_SESSION_NONE) session_start();
+        if (session_status() === PHP_SESSION_NONE)
+            session_start();
 
         // Validar CSRF
         if (!Validador::csrfValido()) {
@@ -1088,7 +1241,7 @@ class Usuarios extends Controllers
     public function Ayuda()
     {
         $manuales = $this->obtenerManualesAyudaDisponibles();
-        $manualSeleccionado = trim((string)($_GET['manual'] ?? ''));
+        $manualSeleccionado = trim((string) ($_GET['manual'] ?? ''));
 
         if ($manualSeleccionado === '' || !isset($manuales[$manualSeleccionado])) {
             $manualSeleccionado = array_key_first($manuales);
@@ -1105,7 +1258,7 @@ class Usuarios extends Controllers
     public function ver_manual_ayuda()
     {
         $manuales = $this->obtenerManualesAyudaDisponibles();
-        $manualSeleccionado = trim((string)($_GET['manual'] ?? ''));
+        $manualSeleccionado = trim((string) ($_GET['manual'] ?? ''));
 
         if ($manualSeleccionado === '' || !isset($manuales[$manualSeleccionado])) {
             header('HTTP/1.1 404 Not Found');
@@ -1152,91 +1305,6 @@ class Usuarios extends Controllers
         ];
     }
 
-    /*  public function importar(){
-        if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            // Redirigir y mostrar un mensaje de error en caso de token CSRF inválido o caducado
-          header("Location: " . base_url() . "?error=csrf");
-          die();
-          }
-         require_once 'Config/Config.php';
-
-        // Conexión a la base de datos
-        try {
-            $pdo = new PDO(
-            "mysql:host=".HOST.";dbname=".BD.";charset=utf8",
-            DB_USER, PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-            );
-        } catch (Exception $ex) { exit($ex->getMessage()); }
-
-        if(isset($_FILES["file"]))
-        {
-            $file_type=$_FILES["file"]["type"];
-            $file_name=$_FILES["file"]["name"];
-            $file_size=$_FILES["file"]["size"];
-            $file_tmp=$_FILES["file"]["tmp_name"];
-            $file_ext=pathinfo($file_name,PATHINFO_EXTENSION);
-
-            if($file_ext=='csv')
-            {
-                $fh = fopen($file_tmp, "r");
-                if ($fh === false) {
-                    exit("No se pudo abrir el archivo CSV cargado");
-                }
-
-                // (C) IMPORT ROW BY ROW
-                while (($row = fgetcsv($fh)) !== false) {
-                    try {
-                        //print_r($row);
-                        $nombre = htmlspecialchars($row[0]);
-                        $usuario = htmlspecialchars($row[1]);
-                        $clave = $row[2];
-                        // Encriptar la contraseña con SHA-512
-                        $passwordHash = hash('SHA512', $clave);
-                        $id_rol = 3;
-                        $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol);
-                    }catch (Exception $ex) { echo $ex->getmessage(); }
-                }
-                fclose($fh);                
-                header("location: " . base_url() . "usuarios/listar");
-                die();
-            }
-            else if($file_ext=='xls' || $file_ext=='xlsx')
-            {
-                require_once 'Libraries/vendor/autoload.php';
-
-                $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-
-                if($file_ext == 'xls')
-                {
-                    $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xls();
-                }
-
-                $spreadsheet = $reader->load($file_tmp);
-
-                $sheetData = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
-                foreach ($sheetData as $key=>$value) {
-                    //if($key == 1) continue; //si quieres omitir la primer fila
-                    try {
-                        //print_r($value);
-                        $nombre = htmlspecialchars($value['A']);
-                        $usuario = htmlspecialchars($value['B']);
-                        $clave = $value['C'];
-                        // Encriptar la contraseña con SHA-512
-                        $passwordHash = hash('SHA512', $clave);
-                        $id_rol = 3;
-                        $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol);
-                    }catch (Exception $ex){  // Encriptar la contraseña con SHA-512
-                    $passwordHash = hash('SHA512', $clave);
-                    $id_rol = 3;
-                    $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol);
-                }catch (Exception $ex) { 
-                    echo $ex->getmessage(); }
-                }
-                header("location: " . base_url() . "usuarios/listar");
-                die();
-                }
-            }
-        } */
 
     /**
      * Función para validar que el archivo tenga la estructura correcta.
@@ -1259,21 +1327,27 @@ class Usuarios extends Controllers
 
     public function importar()
     {
-        // 1. Validación de Seguridad (CSRF)
-        if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-            $_SESSION['alert'] = ['type' => 'error', 'message' => 'Error de seguridad CSRF.'];
+        if (!Validador::csrfValido()) {
+            setAlert('error', "Token inválido.");
             header("Location: " . base_url() . "usuarios/listar");
-            die();
+            exit();
         }
+
+        $this->asegurarAccesoGestionUsuarios();
+        $this->ejecutarMigracionesPendientesUsuarios();
+        $idDepartamentoDefecto = $this->esAdministradorGlobal() ? 0 : $this->obtenerIdDepartamentoGestionable();
+        $idGrupoDefecto = defined('LDAP_ID_GRUPO_DEFECTO') ? intval(LDAP_ID_GRUPO_DEFECTO) : 1;
 
         // 2. Verificar que se subió un archivo sin errores
         if (isset($_FILES["file"]) && $_FILES["file"]["error"] === UPLOAD_ERR_OK) {
-            if (!scantecValidarUpload(
-                $_FILES["file"],
-                ['csv', 'xls', 'xlsx'],
-                ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'],
-                10 * 1024 * 1024
-            )) {
+            if (
+                !scantecValidarUpload(
+                    $_FILES["file"],
+                    ['csv', 'xls', 'xlsx'],
+                    ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'],
+                    10 * 1024 * 1024
+                )
+            ) {
                 $_SESSION['alert'] = ['type' => 'error', 'message' => 'El archivo debe ser CSV, XLS o XLSX valido y no superar 10 MB.'];
                 header("Location: " . base_url() . "usuarios/listar");
                 die();
@@ -1284,7 +1358,8 @@ class Usuarios extends Controllers
             $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
             $usuarios = [];
-            $errores = []; // Acumulador de errores para no dejar el proceso a medias
+            $errores = [];
+            $usuariosVistosEnArchivo = []; // detecta duplicados DENTRO del mismo archivo
             $fila_actual = 0;
 
             // 3. PROCESAR CSV
@@ -1298,11 +1373,9 @@ class Usuarios extends Controllers
 
                 while (($row = fgetcsv($fh)) !== false) {
                     $fila_actual++;
-                    // Saltar la primera fila si contiene cabeceras (títulos)
                     if ($fila_actual === 1)
                         continue;
 
-                    // Evitar filas vacías
                     if (empty(array_filter($row)))
                         continue;
 
@@ -1310,8 +1383,7 @@ class Usuarios extends Controllers
                     $usuario = htmlspecialchars(trim($row[1] ?? ''));
                     $clave = trim($row[2] ?? '');
                     $id_rol = (int) ($row[3] ?? 0);
-                    $id_grupo = (int) ($row[4] ?? 0);
-                    $email = filter_var(trim($row[5] ?? ''), FILTER_SANITIZE_EMAIL);
+                    $email = filter_var(trim($row[4] ?? ''), FILTER_SANITIZE_EMAIL);
                     $fuente_registro = 'scantec';
 
                     if (empty($usuario) || empty($email)) {
@@ -1324,7 +1396,23 @@ class Usuarios extends Controllers
                         continue;
                     }
 
-                    $usuarios[] = [$nombre, $usuario, $clave, $id_rol, $id_grupo, $fuente_registro, $email];
+                    if (!$this->puedeAsignarRolYDepartamento($id_rol, $idDepartamentoDefecto)) {
+                        $errores[] = "Fila {$fila_actual}: No tiene permiso para asignar el rol indicado al usuario '{$usuario}'.";
+                        continue;
+                    }
+
+                    $usuarioLower = strtolower($usuario);
+                    if (isset($usuariosVistosEnArchivo[$usuarioLower])) {
+                        $errores[] = "Fila {$fila_actual}: El usuario '{$usuario}' está duplicado dentro del mismo archivo.";
+                        continue;
+                    }
+                    if (intval($this->model->verificarUsuarioExistente($usuario)['total'] ?? 0) > 0) {
+                        $errores[] = "Fila {$fila_actual}: El usuario '{$usuario}' ya existe en el sistema.";
+                        continue;
+                    }
+                    $usuariosVistosEnArchivo[$usuarioLower] = true;
+
+                    $usuarios[] = [$nombre, $usuario, $clave, $id_rol, $fuente_registro, $email];
                 }
                 fclose($fh);
 
@@ -1333,17 +1421,15 @@ class Usuarios extends Controllers
                 require_once 'Libraries/vendor/autoload.php';
 
                 $reader = ($file_ext === 'xlsx') ? new \PhpOffice\PhpSpreadsheet\Reader\Xlsx() : new \PhpOffice\PhpSpreadsheet\Reader\Xls();
-                $reader->setReadDataOnly(true); // Optimiza la lectura de memoria
+                $reader->setReadDataOnly(true);
                 $spreadsheet = $reader->load($file_tmp);
                 $sheetData = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
 
                 foreach ($sheetData as $index => $row) {
                     $fila_actual = $index;
-                    // Saltar la cabecera (Fila 1 de Excel)
                     if ($fila_actual === 1)
                         continue;
 
-                    // Evitar filas vacías
                     if (empty(array_filter($row)))
                         continue;
 
@@ -1351,8 +1437,7 @@ class Usuarios extends Controllers
                     $usuario = htmlspecialchars(trim($row['B'] ?? ''));
                     $clave = trim($row['C'] ?? '');
                     $id_rol = (int) ($row['D'] ?? 0);
-                    $id_grupo = (int) ($row['E'] ?? 0);
-                    $email = filter_var(trim($row['F'] ?? ''), FILTER_SANITIZE_EMAIL);
+                    $email = filter_var(trim($row['E'] ?? ''), FILTER_SANITIZE_EMAIL);
                     $fuente_registro = 'scantec';
 
                     if (empty($usuario) || empty($email)) {
@@ -1365,7 +1450,23 @@ class Usuarios extends Controllers
                         continue;
                     }
 
-                    $usuarios[] = [$nombre, $usuario, $clave, $id_rol, $id_grupo, $fuente_registro, $email];
+                    if (!$this->puedeAsignarRolYDepartamento($id_rol, $idDepartamentoDefecto)) {
+                        $errores[] = "Fila {$fila_actual}: No tiene permiso para asignar el rol indicado al usuario '{$usuario}'.";
+                        continue;
+                    }
+
+                    $usuarioLower = strtolower($usuario);
+                    if (isset($usuariosVistosEnArchivo[$usuarioLower])) {
+                        $errores[] = "Fila {$fila_actual}: El usuario '{$usuario}' está duplicado dentro del mismo archivo.";
+                        continue;
+                    }
+                    if (intval($this->model->verificarUsuarioExistente($usuario)['total'] ?? 0) > 0) {
+                        $errores[] = "Fila {$fila_actual}: El usuario '{$usuario}' ya existe en el sistema.";
+                        continue;
+                    }
+                    $usuariosVistosEnArchivo[$usuarioLower] = true;
+
+                    $usuarios[] = [$nombre, $usuario, $clave, $id_rol, $fuente_registro, $email];
                 }
             } else {
                 $_SESSION['alert'] = ['type' => 'warning', 'message' => 'Formato no soportado. Use CSV, XLS o XLSX.'];
@@ -1375,7 +1476,6 @@ class Usuarios extends Controllers
 
             // 5. VALIDACIÓN FINAL: Si hay un solo error, frenar todo para proteger la BD
             if (count($errores) > 0) {
-                // Limitamos a mostrar solo los primeros 5 errores para no desbordar la alerta
                 $errores_mostrar = array_slice($errores, 0, 5);
                 $mensaje_error = "<b>La importación fue cancelada por errores de formato:</b><br><br>" . implode("<br>", $errores_mostrar);
                 if (count($errores) > 5)
@@ -1385,13 +1485,31 @@ class Usuarios extends Controllers
                 header("Location: " . base_url() . "usuarios/listar");
                 die();
             }
+
             // 6. INSERCIÓN SEGURA (Solo llega aquí si el 100% de los usuarios pasaron las validaciones)
             $importados = 0;
             foreach ($usuarios as $user) {
-                [$nombre, $usuario, $clave, $id_rol, $id_grupo, $fuente_registro, $email] = $user;
+                $activos = intval($this->model->contarUsuariosActivos()['total'] ?? 0);
+                $limite = defined('LICENCIA_MAX_USUARIOS') ? intval(LICENCIA_MAX_USUARIOS) : 0;
+
+                if ($limite > 0 && $activos >= $limite) {
+                    $_SESSION['alert'] = ['type' => 'warning', 'message' => "Se alcanzó el límite de licencia. Se importaron $importados usuarios correctamente."];
+                    break;
+                }
+
+                [$nombre, $usuario, $clave, $id_rol, $fuente_registro, $email] = $user;
                 $passwordHash = password_hash($clave, PASSWORD_BCRYPT, ['cost' => 12]);
 
-                $insert = $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, (string) $id_rol, (string) $id_grupo, $fuente_registro, $email);
+                $insert = $this->model->insertarUsuarios(
+                    $nombre,
+                    $idDepartamentoDefecto,
+                    $usuario,
+                    $passwordHash,
+                    (string) $id_rol,
+                    (string) $idGrupoDefecto,
+                    $fuente_registro,
+                    $email
+                );
                 if ($insert) {
                     $importados++;
                 }
@@ -1413,8 +1531,6 @@ class Usuarios extends Controllers
 
     public function sincronizarAD()
     {
-        error_reporting(E_ALL);
-        ini_set('display_errors', 1);
         ini_set('max_execution_time', 300);
 
         // 1. Verificar Token CSRF
@@ -1424,11 +1540,11 @@ class Usuarios extends Controllers
             die();
         }
 
+        $this->ejecutarMigracionesPendientesUsuarios();
         // 2. Obtener configuración
         $id_config = intval($_POST['id']);
         $ldapConfig = $this->model->getLdapConfigById($id_config);
 
-        // Parche de robustez: Si el modelo devuelve un array de arrays, tomamos el primero
         if (isset($ldapConfig[0]['ldapHost'])) {
             $ldapConfig = $ldapConfig[0];
         }
@@ -1440,7 +1556,6 @@ class Usuarios extends Controllers
         }
 
         // 3. DESENCRIPTAR CONTRASEÑA
-        // Usamos la función si existe, sino texto plano (para evitar errores fatales)
         if (function_exists('stringDecryption')) {
             $password_real = stringDecryption($ldapConfig['ldapPass']);
         } else {
@@ -1481,9 +1596,25 @@ class Usuarios extends Controllers
             for ($i = 0; $i < $entries['count']; $i++) {
 
                 $username = isset($entries[$i]['samaccountname'][0]) ? trim($entries[$i]['samaccountname'][0]) : '';
+
+                if (empty($username))
+                    continue;
+
+                $existe = $this->model->verificarUsuarioExistente($username)['total'];
+
+                if ($existe == 0) {
+                    $activos = intval($this->model->contarUsuariosActivos()['total'] ?? 0);
+                    $limite = defined('LICENCIA_MAX_USUARIOS') ? intval(LICENCIA_MAX_USUARIOS) : 0;
+
+                    if ($limite > 0 && $activos >= $limite) {
+                        $msg = "Sincronización detenida: Límite de licencia alcanzado. Registrados: $contador_nuevos.";
+                        $_SESSION['alert'] = ['type' => 'warning', 'message' => $msg];
+                        break;
+                    }
+                }
+                $username = isset($entries[$i]['samaccountname'][0]) ? trim($entries[$i]['samaccountname'][0]) : '';
                 $email = isset($entries[$i]['mail'][0]) ? trim($entries[$i]['mail'][0]) : '';
 
-                // Construir nombre
                 $nombre = '';
                 if (isset($entries[$i]['displayname'][0])) {
                     $nombre = $entries[$i]['displayname'][0];
@@ -1495,7 +1626,6 @@ class Usuarios extends Controllers
 
                 if (!empty($username) && !empty($email)) {
 
-                    // Contraseña dummy segura
                     try {
                         $bytes = random_bytes(10);
                     } catch (Exception $e) {
@@ -1514,7 +1644,6 @@ class Usuarios extends Controllers
                 }
             }
         } else {
-            // MENSAJE MEJORADO: Caso sin resultados
             $_SESSION['alert'] = ['type' => 'info', 'message' => 'Conexión exitosa, pero no se encontraron usuarios activos con correo en la ruta especificada.'];
             header("Location: " . base_url() . "configuracion/servidor_AD");
             die();
@@ -1522,12 +1651,10 @@ class Usuarios extends Controllers
 
         ldap_unbind($ldapConn);
 
-        // MENSAJE FINAL MEJORADO (Sin HTML)
         if ($contador_nuevos == 0 && $contador_actualizados == 0) {
             $msg = "Sincronización completada. No se encontraron usuarios nuevos ni cambios en los existentes.";
             $tipo = "info";
         } else {
-            // Ejemplo: "Proceso finalizado. Registrados: 5 | Actualizados: 2"
             $msg = "Proceso finalizado correctamente. Registrados: $contador_nuevos | Actualizados: $contador_actualizados.";
             $tipo = "success";
         }
@@ -1537,84 +1664,6 @@ class Usuarios extends Controllers
         header("Location: " . base_url() . "configuracion/servidor_AD");
         die();
     }
-
-    // public function importar(){
-    //     if ($_SESSION['csrf_token'] !== $_POST['token'] || $_SESSION['csrf_expiration'] < time()) {
-    //         header("Location: " . base_url() . "?error=csrf");
-    //         die();
-    //     }
-    //     require_once 'Config/Config.php';
-
-    //     try {
-    //         $pdo = new PDO(
-    //             "mysql:host=".HOST.";dbname=".BD.";charset=utf8",
-    //             DB_USER, PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    //         );
-    //     } catch (Exception $ex) { exit($ex->getMessage()); }
-
-    //     if (isset($_FILES["file"])) {
-    //         $file_type = $_FILES["file"]["type"];
-    //         $file_name = $_FILES["file"]["name"];
-    //         $file_size = $_FILES["file"]["size"];
-    //         $file_tmp = $_FILES["file"]["tmp_name"];
-    //         $file_ext = pathinfo($file_name, PATHINFO_EXTENSION);
-
-    //         if ($file_ext == 'csv') {
-    //             $fh = fopen($file_tmp, "r");
-    //             if ($fh === false) {
-    //                 exit("No se pudo abrir el archivo CSV cargado");
-    //             }
-
-    //             while (($row = fgetcsv($fh)) !== false) {
-    //                 try {
-    //                     $nombre = htmlspecialchars($row[0]);
-    //                     $usuario = htmlspecialchars($row[1]);
-    //                     $clave = $row[2];
-    //                     $passwordHash = password_hash($clave, PASSWORD_BCRYPT, ['cost' => 12]);
-    //                     $id_rol = htmlspecialchars($row[3]);
-    //                     $id_grupo = htmlspecialchars($row[4]);
-    //                     $fuenteRegistro = "scantec-import";
-    //                     $id_grupo = htmlspecialchars($row[5]);
-    //                     $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol, $id_grupo, $fuenteRegistro, $email);
-    //                 } catch (Exception $ex) { 
-    //                     echo $ex->getMessage(); 
-    //                 }
-    //             }
-    //             fclose($fh);                
-    //             header("location: " . base_url() . "usuarios/listar");
-    //             die();
-    //         }
-    //         else if ($file_ext == 'xls' || $file_ext == 'xlsx') {
-    //             require_once 'Libraries/vendor/autoload.php';
-
-    //             $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
-    //             if ($file_ext == 'xls') {
-    //                 $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xls();
-    //             }
-
-    //             $spreadsheet = $reader->load($file_tmp);
-    //             $sheetData = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
-
-    //             foreach ($sheetData as $key => $value) {
-    //                 try {
-    //                     $nombre = htmlspecialchars($value['A']);
-    //                     $usuario = htmlspecialchars($value['B']);
-    //                     $clave = $value['C'];
-    //                     $passwordHash = password_hash($clave, PASSWORD_BCRYPT, ['cost' => 12]);
-    //                     $id_rol = htmlspecialchars($value['D']);
-    //                     $id_grupo = htmlspecialchars($value['E']);
-    //                     $fuenteRegistro = "scantec-import";
-    //                     $email = htmlspecialchars($value['F']);
-    //                     $this->model->insertarUsuarios($nombre, $usuario, $passwordHash, $id_rol, $id_grupo, $fuenteRegistro, $email);
-    //                 } catch (Exception $ex) { 
-    //                     echo $ex->getMessage(); 
-    //                 }
-    //             }
-    //             header("location: " . base_url() . "usuarios/listar");
-    //             die();
-    //         }
-    //     }
-    // }
 
 
     public function pdf()

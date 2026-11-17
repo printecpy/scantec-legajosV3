@@ -12,12 +12,12 @@ $resultados_busqueda_legajo = $data['resultados_busqueda_legajo'] ?? [];
 $duplicado_desde = intval($data['duplicar_desde'] ?? 0);
 $personas_modulo_activo = !empty($data['personas_modulo_activo']);
 $personas_activas = $data['personas_activas'] ?? [];
-$personas_fuente = (string)($data['personas_fuente'] ?? 'ninguna');
-$selector_persona_valor_actual = (string)($data['selector_persona_valor_actual'] ?? '');
+$personas_fuente = (string) ($data['personas_fuente'] ?? 'ninguna');
+$selector_persona_valor_actual = (string) ($data['selector_persona_valor_actual'] ?? '');
 $id_legajo_actual = intval($legajo['id_legajo'] ?? ($pdf_final_listo['id_legajo'] ?? 0));
 $id_persona_actual = intval($legajo['id_persona'] ?? 0);
 $estado_legajo_actual = strtolower(trim($legajo['estado'] ?? ''));
-$observacion_rechazo_legajo = trim((string)($legajo['observacion'] ?? ''));
+$observacion_rechazo_legajo = trim((string) ($legajo['observacion'] ?? ''));
 $legajo_bloqueado = in_array($estado_legajo_actual, ['aprobado', 'cerrado'], true);
 $pdf_final_disponible = !empty($pdf_final_listo['nombre_archivo']);
 $matriz_por_tipo = [];
@@ -28,9 +28,12 @@ $formatearCi = static function ($valor) {
     return $digitos === '' ? '' : preg_replace('/\B(?=(\d{3})+(?!\d))/', '.', $digitos);
 };
 
+// Capturamos los campos de configuración de la BD
 foreach ($tipos_legajo as $tipo_legajo) {
     $tipos_legajo_por_id[intval($tipo_legajo['id_tipo_legajo'] ?? 0)] = [
-        'requiere_nro_solicitud' => !empty($tipo_legajo['requiere_nro_solicitud'])
+        'requiere_nro_solicitud' => !empty($tipo_legajo['requiere_nro_solicitud']),
+        'requiere_secuencia' => !empty($tipo_legajo['requiere_secuencia']),
+        'requiere_nro_operacion' => !empty($tipo_legajo['requiere_nro_operacion'])
     ];
 }
 
@@ -59,9 +62,9 @@ foreach ($matriz_legajo as $regla) {
         'rol_vinculado' => $regla['rol_vinculado'] ?? 'TITULAR',
         'es_obligatorio' => !empty($regla['es_obligatorio']),
         'permite_reemplazo' => !empty($regla['permite_reemplazo']),
-        'politica_actualizacion' => strtoupper(trim((string)($regla['politica_actualizacion'] ?? ''))),
-        'tipo_campo' => strtolower(trim((string)($regla['tipo_campo'] ?? 'documento'))),
-        'opciones_campo' => (string)($regla['opciones_campo'] ?? ''),
+        'politica_actualizacion' => strtoupper(trim((string) ($regla['politica_actualizacion'] ?? ''))),
+        'tipo_campo' => strtolower(trim((string) ($regla['tipo_campo'] ?? 'documento'))),
+        'opciones_campo' => (string) ($regla['opciones_campo'] ?? ''),
         'tiene_vencimiento' => !empty($regla['tiene_vencimiento']),
         'dias_vigencia_base' => intval($regla['dias_vigencia_base'] ?? 0),
         'orden_visual' => intval($regla['orden_visual'] ?? 0),
@@ -107,7 +110,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             </div>
             <a href="#" onclick="window.history.back(); return false;"
                 class="group px-4 h-10 rounded-xl bg-gray-600 text-white hover:bg-gray-800 shadow-md flex items-center justify-center transition-all font-bold text-sm"
-                    title="Volver atrás">
+                title="Volver atrás">
                 <i class="fas fa-arrow-left mr-2"></i> Volver
             </a>
         </div>
@@ -118,7 +121,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                     <div class="flex-1">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Buscar legajo</label>
                         <input type="text" name="buscar_legajo" value="<?php echo htmlspecialchars($buscar_legajo); ?>"
-                            placeholder="CI del socio o Nro. Solicitud"
+                            placeholder="CI del socio, Nro. secuencia u operación"
                             class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all">
                     </div>
                     <div class="flex gap-3">
@@ -127,81 +130,105 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             <i class="fas fa-search mr-2"></i> Buscar
                         </button>
                         <?php if ($buscar_legajo !== ''): ?>
-                        <a href="<?php echo base_url(); ?>legajos/armar_legajo"
-                            class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center">
-                            Limpiar
-                        </a>
+                            <a href="<?php echo base_url(); ?>legajos/armar_legajo"
+                                class="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center">
+                                Limpiar
+                            </a>
                         <?php endif; ?>
                     </div>
                 </div>
             </form>
 
             <?php if ($buscar_legajo !== ''): ?>
-            <div class="mt-4">
-                <?php if (!empty($resultados_busqueda_legajo)): ?>
-                <div class="overflow-x-auto border border-gray-100 rounded-xl">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">CI</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
-                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nro. secuencia</th>
-                                <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
-                                <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white">
-                            <?php foreach ($resultados_busqueda_legajo as $resultado_legajo): ?>
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm font-semibold text-gray-800"><?php echo htmlspecialchars($formatearCi($resultado_legajo['ci_socio'] ?? '')); ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-700"><?php echo htmlspecialchars($resultado_legajo['nombre_completo'] ?? ''); ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-700"><?php echo htmlspecialchars($resultado_legajo['nombre_tipo_legajo'] ?? ''); ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-700"><?php echo htmlspecialchars($resultado_legajo['nro_solicitud'] ?? ''); ?></td>
-                                <td class="px-4 py-3 text-center">
-                                    <?php
-                                    $estadoTexto = $resultado_legajo['estado_legajo_texto'] ?? ucfirst($resultado_legajo['estado'] ?? '');
-                                    $claseEstado = 'bg-gray-100 text-gray-700';
-                                    if ($estadoTexto === 'Cerrado') {
-                                        $claseEstado = 'bg-slate-200 text-slate-800';
-                                    } elseif ($estadoTexto === 'Completado') {
-                                        $claseEstado = 'bg-green-100 text-green-800';
-                                    } elseif ($estadoTexto === 'Verificado') {
-                                        $claseEstado = 'bg-cyan-100 text-cyan-800';
-                                    } elseif ($estadoTexto === 'Vencido') {
-                                        $claseEstado = 'bg-red-100 text-red-800';
-                                    } elseif ($estadoTexto === 'Incompleto') {
-                                        $claseEstado = 'bg-red-100 text-red-800';
-                                    }
-                                    ?>
-                                    <span class="px-2 py-1 inline-flex text-xs font-bold rounded-full <?php echo $claseEstado; ?>">
-                                        <?php echo htmlspecialchars($estadoTexto); ?>
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    <a href="<?php echo base_url(); ?>legajos/armar_legajo?id_legajo=<?php echo intval($resultado_legajo['id_legajo'] ?? 0); ?>"
-                                        class="px-4 py-2 bg-scantec-blue text-white rounded-lg font-bold text-xs hover:bg-blue-800 transition-all inline-flex items-center">
-                                        <i class="fas fa-folder-open mr-2"></i> Abrir
-                                    </a>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                <div class="mt-4">
+                    <?php if (!empty($resultados_busqueda_legajo)): ?>
+                        <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">CI</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Tipo</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Solicitud</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Secuencia</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Operación</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
+                                        <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white">
+                                    <?php foreach ($resultados_busqueda_legajo as $resultado_legajo): ?>
+                                        <?php
+                                        $secuenciaResultado = trim((string) ($resultado_legajo['secuencia'] ?? ''));
+                                        $operacionResultado = trim((string) ($resultado_legajo['nro_operacion'] ?? ''));
+                                        $solicitudResultado = trim((string) ($resultado_legajo['nro_solicitud'] ?? ''));
+                                        ?>
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 text-sm font-semibold text-gray-800">
+                                                <?php echo htmlspecialchars($formatearCi($resultado_legajo['ci_socio'] ?? '')); ?>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                <?php echo htmlspecialchars($resultado_legajo['nombre_completo'] ?? ''); ?>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                <?php echo htmlspecialchars($resultado_legajo['nombre_tipo_legajo'] ?? ''); ?>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                <?php echo $solicitudResultado !== '' ? htmlspecialchars($solicitudResultado) : '<span class="text-gray-300">—</span>'; ?>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                <?php echo $secuenciaResultado !== '' ? htmlspecialchars($secuenciaResultado) : '<span class="text-gray-300">—</span>'; ?>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700 font-mono">
+                                                <?php echo $operacionResultado !== '' ? htmlspecialchars($operacionResultado) : '<span class="text-gray-300">—</span>'; ?>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                <?php
+                                                $estadoTexto = $resultado_legajo['estado_legajo_texto'] ?? ucfirst($resultado_legajo['estado'] ?? '');
+                                                $claseEstado = 'bg-gray-100 text-gray-700';
+                                                if ($estadoTexto === 'Cerrado') {
+                                                    $claseEstado = 'bg-slate-200 text-slate-800';
+                                                } elseif ($estadoTexto === 'Completado') {
+                                                    $claseEstado = 'bg-green-100 text-green-800';
+                                                } elseif ($estadoTexto === 'Verificado') {
+                                                    $claseEstado = 'bg-cyan-100 text-cyan-800';
+                                                } elseif ($estadoTexto === 'Vencido') {
+                                                    $claseEstado = 'bg-red-100 text-red-800';
+                                                } elseif ($estadoTexto === 'Incompleto') {
+                                                    $claseEstado = 'bg-red-100 text-red-800';
+                                                }
+                                                ?>
+                                                <span
+                                                    class="px-2 py-1 inline-flex text-xs font-bold rounded-full <?php echo $claseEstado; ?>">
+                                                    <?php echo htmlspecialchars($estadoTexto); ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-right">
+                                                <a href="<?php echo base_url(); ?>legajos/armar_legajo?id_legajo=<?php echo intval($resultado_legajo['id_legajo'] ?? 0); ?>"
+                                                    class="px-4 py-2 bg-scantec-blue text-white rounded-lg font-bold text-xs hover:bg-blue-800 transition-all inline-flex items-center">
+                                                    <i class="fas fa-folder-open mr-2"></i> Abrir
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <div
+                            class="mt-3 px-4 py-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl text-sm font-semibold">
+                            No se encontraron legajos para la búsqueda realizada.
+                        </div>
+                    <?php endif; ?>
                 </div>
-                <?php else: ?>
-                <div class="mt-3 px-4 py-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-xl text-sm font-semibold">
-                    No se encontraron legajos para la búsqueda realizada.
-                </div>
-                <?php endif; ?>
-            </div>
             <?php endif; ?>
         </div>
 
         <form action="<?php echo base_url(); ?>legajos/procesar_legajo" method="POST" enctype="multipart/form-data"
             id="formArmadoLegajo" autocomplete="off">
             <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-            <input type="hidden" name="id_legajo" value="<?php echo intval($legajo['id_legajo'] ?? 0); ?>">
+            <input type="hidden" id="id_legajo" name="id_legajo"
+                value="<?php echo intval($legajo['id_legajo'] ?? 0); ?>">
             <input type="hidden" name="duplicado_desde" value="<?php echo $duplicado_desde; ?>">
             <input type="hidden" name="submit_action" id="submit_action" value="">
 
@@ -216,14 +243,17 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                     <div class="p-6">
                         <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 items-end">
                             <div class="xl:col-span-2">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Legajo *</label>
-                                <select name="tipo_legajo" id="tipo_legajo" data-original-value="<?php echo htmlspecialchars((string)($legajo['id_tipo_legajo'] ?? '')); ?>" required <?php echo $legajo_bloqueado ? 'disabled' : ''; ?>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo de Legajo
+                                    *</label>
+                                <select name="tipo_legajo" id="tipo_legajo"
+                                    data-original-value="<?php echo htmlspecialchars((string) ($legajo['id_tipo_legajo'] ?? '')); ?>"
+                                    required <?php echo $legajo_bloqueado ? 'disabled' : ''; ?>
                                     class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white font-bold text-gray-700 cursor-pointer shadow-sm transition-all">
                                     <option value="">Seleccione...</option>
                                     <?php foreach ($tipos_legajo as $index => $tipo_legajo): ?>
-                                    <option value="<?php echo intval($tipo_legajo['id_tipo_legajo']); ?>" <?php echo intval($tipo_legajo['id_tipo_legajo']) === $tipo_legajo_seleccionado || ($tipo_legajo_seleccionado === 0 && $index === 0) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($tipo_legajo['nombre']); ?>
-                                    </option>
+                                        <option value="<?php echo intval($tipo_legajo['id_tipo_legajo']); ?>" <?php echo intval($tipo_legajo['id_tipo_legajo']) === $tipo_legajo_seleccionado || ($tipo_legajo_seleccionado === 0 && $index === 0) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($tipo_legajo['nombre']); ?>
+                                        </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -231,70 +261,114 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                                 <div class="flex justify-between items-center mb-1">
                                     <span class="text-xs font-bold text-scantec-blue">Progreso Obligatorios</span>
-                                    <span id="progreso-obligatorios-texto" class="text-xs font-bold text-scantec-blue">0/<?php echo $total_obligatorios; ?></span>
+                                    <span id="progreso-obligatorios-texto"
+                                        class="text-xs font-bold text-scantec-blue">0/<?php echo $total_obligatorios; ?></span>
                                 </div>
                                 <div class="w-full bg-blue-200 rounded-full h-2">
-                                    <div id="progreso-obligatorios-barra" class="bg-scantec-blue h-2 rounded-full" style="width: 0%"></div>
+                                    <div id="progreso-obligatorios-barra" class="bg-scantec-blue h-2 rounded-full"
+                                        style="width: 0%"></div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-5 mt-5">
                             <?php if ($personas_modulo_activo): ?>
-                            <div class="md:col-span-12">
-                                <div class="flex justify-between items-end mb-1">
-                                    <label class="block text-xs font-bold text-gray-500 uppercase">Persona *</label>
-                                    <?php if ($personas_fuente === 'interna'): ?>
-                                    <a href="<?php echo base_url(); ?>personas/listar" class="text-xs font-bold text-scantec-blue hover:text-blue-800 flex items-center transition-all bg-blue-50 px-2 py-1 rounded-md border border-blue-100 hover:bg-blue-100">
-                                        <i class="fas fa-plus mr-1"></i> Agregar nueva persona
-                                    </a>
-                                    <?php else: ?>
-                                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
-                                        Base externa habilitada
-                                    </span>
-                                    <?php endif; ?>
+                                <div class="md:col-span-12">
+                                    <div class="flex justify-between items-end mb-1">
+                                        <label class="block text-xs font-bold text-gray-500 uppercase">Socio *</label>
+                                        <?php if ($personas_fuente === 'interna'): ?>
+                                            <a href="<?php echo base_url(); ?>personas/listar"
+                                                class="text-xs font-bold text-scantec-blue hover:text-blue-800 flex items-center transition-all bg-blue-50 px-2 py-1 rounded-md border border-blue-100 hover:bg-blue-100">
+                                                <i class="fas fa-plus mr-1"></i> Agregar nueva registro
+                                            </a>
+                                        <?php else: ?>
+                                            <span
+                                                class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                                                Base externa habilitada
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <select id="id_persona" name="id_persona"
+                                        data-original-value="<?php echo htmlspecialchars($selector_persona_valor_actual); ?>"
+                                        required <?php echo $legajo_bloqueado ? 'disabled' : ''; ?>
+                                        class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white font-bold text-gray-700">
+                                        <?php
+                                        $personaPrecargada = $personas_activas[0] ?? null;
+                                        if ($personaPrecargada && $selector_persona_valor_actual !== ''):
+                                            $nombrePrecargado = trim((string) ($personaPrecargada['nombre_completo'] ?? ''));
+                                            ?>
+                                            <option value="<?php echo htmlspecialchars($selector_persona_valor_actual); ?>"
+                                                data-ci="<?php echo htmlspecialchars((string) ($personaPrecargada['ci'] ?? '')); ?>"
+                                                data-nombre="<?php echo htmlspecialchars($nombrePrecargado); ?>"
+                                                data-nro-socio="<?php echo htmlspecialchars((string) ($personaPrecargada['nro_socio'] ?? '')); ?>"
+                                                selected>
+                                                <?php echo htmlspecialchars($nombrePrecargado . ' - CI ' . ($personaPrecargada['ci'] ?? '')); ?>
+                                            </option>
+                                        <?php endif; ?>
+                                    </select>
                                 </div>
-                                <select id="id_persona" name="id_persona" data-original-value="<?php echo htmlspecialchars($selector_persona_valor_actual); ?>" required <?php echo $legajo_bloqueado ? 'disabled' : ''; ?>
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white font-bold text-gray-700">
-                                    <option value=""><?php echo $personas_fuente === 'externa' ? 'Seleccione una persona de la base externa...' : 'Seleccione una persona...'; ?></option>
-                                    <?php foreach ($personas_activas as $persona): ?>
-                                    <?php
-                                    $valorSelectorPersona = (string)($persona['selector_valor'] ?? ($persona['id_persona'] ?? 0));
-                                    $nombrePersona = trim((string)($persona['nombre_completo'] ?? ''));
-                                    ?>
-                                    <option value="<?php echo htmlspecialchars($valorSelectorPersona); ?>"
-                                        data-ci="<?php echo htmlspecialchars((string)($persona['ci'] ?? '')); ?>"
-                                        data-nombre="<?php echo htmlspecialchars($nombrePersona); ?>"
-                                        <?php echo $valorSelectorPersona === $selector_persona_valor_actual ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($nombrePersona . ' - CI ' . ($persona['ci'] ?? '')); ?>
-                                    </option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <?php if (empty($personas_activas)): ?>
-                                <p class="text-xs text-amber-700 mt-1 font-semibold"><?php echo $personas_fuente === 'externa' ? 'No hay registros disponibles en la base externa.' : 'No hay personas activas cargadas.'; ?></p>
-                                <?php endif; ?>
-                            </div>
                             <?php endif; ?>
+
                             <div class="md:col-span-3 xl:col-span-2">
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nro CI *</label>
-                                <input type="text" id="ci_socio" name="ci_socio" value="<?php echo htmlspecialchars($legajo['ci_socio'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['ci_socio'] ?? '')); ?>" required <?php echo ($legajo_bloqueado || $personas_modulo_activo) ? 'readonly' : ''; ?>
-                                    maxlength="15"
-                                    data-format-millares
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all focus:bg-blue-50">
+                                <input type="text" id="ci_socio" name="ci_socio"
+                                    value="<?php echo htmlspecialchars($legajo['ci_socio'] ?? ''); ?>"
+                                    data-original-value="<?php echo htmlspecialchars((string) ($legajo['ci_socio'] ?? '')); ?>"
+                                    required readonly tabindex="-1" maxlength="15" data-format-millares
+                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 font-bold text-gray-600 outline-none cursor-not-allowed">
                             </div>
 
-                            <div class="md:col-span-6 xl:col-span-7">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo *</label>
-                                <input type="text" id="nombre_socio" name="nombre_socio" value="<?php echo htmlspecialchars($legajo['nombre_completo'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['nombre_completo'] ?? '')); ?>" required <?php echo ($legajo_bloqueado || $personas_modulo_activo) ? 'readonly' : ''; ?>
-                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all focus:bg-blue-50">
+                            <div class="md:col-span-3 xl:col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nro Socio</label>
+                                <input type="text" id="nro_socio" name="nro_socio"
+                                    value="<?php echo htmlspecialchars($legajo['nro_socio'] ?? ''); ?>"
+                                    data-original-value="<?php echo htmlspecialchars((string) ($legajo['nro_socio'] ?? '')); ?>"
+                                    readonly tabindex="-1"
+                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 font-bold text-gray-600 outline-none cursor-not-allowed">
                             </div>
 
-                            <div id="grupo-nro-solicitud" class="md:col-span-3 xl:col-span-3">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nro. Solicitud</label>
-                                <input type="text" id="nro_solicitud" name="nro_solicitud" value="<?php echo htmlspecialchars($legajo['nro_solicitud'] ?? ''); ?>" data-original-value="<?php echo htmlspecialchars((string)($legajo['nro_solicitud'] ?? '')); ?>" <?php echo $legajo_bloqueado ? 'readonly' : ''; ?>
-                                    maxlength="50"
-                                    placeholder="Ej: ABC-12345"
+                            <div class="md:col-span-6 xl:col-span-8">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo
+                                    *</label>
+                                <input type="text" id="nombre_socio" name="nombre_socio"
+                                    value="<?php echo htmlspecialchars($legajo['nombre_completo'] ?? ''); ?>"
+                                    data-original-value="<?php echo htmlspecialchars((string) ($legajo['nombre_completo'] ?? '')); ?>"
+                                    required readonly tabindex="-1"
+                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 font-bold text-gray-600 outline-none cursor-not-allowed">
+                            </div>
+
+                            <div id="grupo-nro-solicitud" class="md:col-span-3 xl:col-span-3 hidden">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nro.
+                                    Solicitud</label>
+                                <input type="text" id="nro_solicitud" name="nro_solicitud"
+                                    value="<?php echo htmlspecialchars($legajo['nro_solicitud'] ?? ''); ?>"
+                                    data-original-value="<?php echo htmlspecialchars((string) ($legajo['nro_solicitud'] ?? '')); ?>"
+                                    <?php echo $legajo_bloqueado ? 'readonly' : ''; ?> maxlength="50"
+                                    placeholder="Ej: 12345"
                                     class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all">
+                            </div>
+
+                            <div id="grupo-secuencia" class="md:col-span-3 xl:col-span-3 hidden">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">
+                                    Secuencia <span id="ast-secuencia" class="text-red-500 hidden">*</span>
+                                </label>
+                                <input type="text" id="secuencia" name="secuencia" inputmode="numeric"
+                                    value="<?php echo htmlspecialchars($legajo['secuencia'] ?? ''); ?>"
+                                    data-original-value="<?php echo htmlspecialchars((string) ($legajo['secuencia'] ?? '')); ?>"
+                                    <?php echo $legajo_bloqueado ? 'readonly' : ''; ?> maxlength="50"
+                                    placeholder="Ej: 1450" oninput="this.value = this.value.replace(/\D+/g, '');"
+                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none transition-all focus:bg-blue-50">
+                            </div>
+
+                            <div id="grupo-nro-operacion" class="md:col-span-6 xl:col-span-4 hidden">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">
+                                    Nro Operación <span id="ast-nro-operacion" class="text-red-500 hidden">*</span>
+                                </label>
+                                <input type="text" id="nro_operacion" name="nro_operacion"
+                                    value="<?php echo htmlspecialchars($legajo['nro_operacion'] ?? ''); ?>"
+                                    data-original-value="<?php echo htmlspecialchars((string) ($legajo['nro_operacion'] ?? '')); ?>"
+                                    readonly tabindex="-1" placeholder="Se genera automatico"
+                                    class="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 font-bold text-gray-600 outline-none cursor-not-allowed">
                             </div>
                         </div>
                     </div>
@@ -302,22 +376,24 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
 
                 <div class="space-y-6">
                     <?php if ($estado_legajo_actual === 'verificacion_rechazada' && $observacion_rechazo_legajo !== ''): ?>
-                    <div id="aviso-legajo-rechazado" class="bg-yellow-50 border border-yellow-200 text-yellow-900 rounded-2xl shadow-sm px-5 py-4 flex items-start justify-between gap-4">
-                        <div>
-                            <div class="text-sm font-bold uppercase tracking-wide text-yellow-800 mb-1">Legajo rechazado</div>
-                            <div class="text-sm">
-                                <span class="font-semibold">Motivo del rechazo:</span>
-                                <?php echo nl2br(htmlspecialchars($observacion_rechazo_legajo)); ?>
+                        <div id="aviso-legajo-rechazado"
+                            class="bg-yellow-50 border border-yellow-200 text-yellow-900 rounded-2xl shadow-sm px-5 py-4 flex items-start justify-between gap-4">
+                            <div>
+                                <div class="text-sm font-bold uppercase tracking-wide text-yellow-800 mb-1">Legajo rechazado
+                                </div>
+                                <div class="text-sm">
+                                    <span class="font-semibold">Motivo del rechazo:</span>
+                                    <?php echo nl2br(htmlspecialchars($observacion_rechazo_legajo)); ?>
+                                </div>
                             </div>
+                            <button type="submit" id="cerrar-aviso-legajo-rechazado"
+                                formaction="<?php echo base_url(); ?>legajos/cerrar_aviso_rechazo_legajo/<?php echo $id_legajo_actual; ?>"
+                                formmethod="POST"
+                                class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full border border-yellow-300 text-yellow-700 hover:bg-yellow-100 transition-all"
+                                title="Cerrar aviso" aria-label="Cerrar aviso">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
-                        <button type="submit" id="cerrar-aviso-legajo-rechazado"
-                            formaction="<?php echo base_url(); ?>legajos/cerrar_aviso_rechazo_legajo/<?php echo $id_legajo_actual; ?>"
-                            formmethod="POST"
-                            class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full border border-yellow-300 text-yellow-700 hover:bg-yellow-100 transition-all"
-                            title="Cerrar aviso" aria-label="Cerrar aviso">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
                     <?php endif; ?>
 
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -325,7 +401,8 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
                                 <i class="fas fa-tasks mr-2 text-yellow-500"></i> 2. Listado de Documentos Requeridos
                             </h5>
-                            <span id="estado-checklist-badge" class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">
+                            <span id="estado-checklist-badge"
+                                class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">
                                 Faltan Obligatorios
                             </span>
                         </div>
@@ -334,17 +411,24 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Documento</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Rol</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Fecha Exped.</th>
-                                        <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Archivo</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Estado</th>
-                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Obs.</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">
+                                            Documento</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Rol
+                                        </th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">
+                                            Fecha Exped.</th>
+                                        <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">
+                                            Archivo</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">
+                                            Estado</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Obs.
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody id="checklist-legajo-body" class="divide-y divide-gray-200">
                                     <tr class="hover:bg-gray-50">
-                                        <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">Seleccione un tipo de legajo.</td>
+                                        <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">Seleccione
+                                            un tipo de legajo.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -352,7 +436,8 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div class="bg-scantec-blue px-6 py-4 border-b border-blue-800 flex justify-between items-center">
+                        <div
+                            class="bg-scantec-blue px-6 py-4 border-b border-blue-800 flex justify-between items-center">
                             <h5 class="font-bold text-white flex items-center text-sm uppercase tracking-wide">
                                 <i class="fas fa-user-check mr-2"></i> 3. Datos de Gestión
                             </h5>
@@ -381,33 +466,38 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-4 pt-4">
-                        <button type="button" id="btn-guardar-borrador" <?php echo $legajo_bloqueado ? 'disabled' : ''; ?> class="px-6 py-3.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition-all <?php echo $legajo_bloqueado ? 'opacity-50 cursor-not-allowed' : ''; ?>">
+                    <div
+                        class="flex justify-end gap-4 pt-4 sticky bottom-0 bg-gray-50 py-4 -mx-4 px-4 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+                        <button type="button" id="btn-guardar-borrador" <?php echo $legajo_bloqueado ? 'disabled' : ''; ?>
+                            class="px-6 py-3.5 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold shadow-sm hover:bg-gray-50 transition-all <?php echo $legajo_bloqueado ? 'opacity-50 cursor-not-allowed' : ''; ?>">
                             Guardar Borrador
                         </button>
-                        <button type="button" id="btn-finalizar-legajo" <?php echo $legajo_bloqueado ? 'disabled' : ''; ?> class="px-8 py-3.5 bg-scantec-blue text-white rounded-xl font-bold shadow-lg hover:bg-blue-800 transition-all flex items-center group <?php echo $legajo_bloqueado ? 'opacity-50 cursor-not-allowed' : ''; ?>">
-                            <i class="fas fa-layer-group mr-2 group-hover:scale-110 transition-transform"></i> Armar Legajo
+                        <button type="button" id="btn-finalizar-legajo" <?php echo $legajo_bloqueado ? 'disabled' : ''; ?>
+                            class="px-8 py-3.5 bg-scantec-blue text-white rounded-xl font-bold shadow-lg hover:bg-blue-800 transition-all flex items-center group <?php echo $legajo_bloqueado ? 'opacity-50 cursor-not-allowed' : ''; ?>">
+                            <i class="fas fa-layer-group mr-2 group-hover:scale-110 transition-transform"></i> Armar
+                            Legajo
                         </button>
                         <?php if ($id_legajo_actual > 0 && !empty($pdf_final_listo['nombre_archivo'])): ?>
-                        <a id="btn-ver-pdf-final" href="<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo $id_legajo_actual; ?>"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="px-6 py-3.5 bg-red-700 text-white rounded-xl font-bold shadow-sm hover:bg-red-900 transition-all flex items-center">
-                            <i class="fas fa-file-pdf mr-2"></i> Ver PDF
-                        </a>
-                        <a id="btn-descargar-pdf-final" href="<?php echo base_url(); ?>legajos/descargar_pdf_final/<?php echo $id_legajo_actual; ?>"
-                            class="px-6 py-3.5 bg-gray-800 text-white rounded-xl font-bold shadow-sm hover:bg-black transition-all flex items-center">
-                            <i class="fas fa-download mr-2"></i> Descargar
-                        </a>
+                            <button type="button" id="btn-ver-pdf-final"
+                                onclick="mostrarPDFModal('<?php echo base_url(); ?>legajos/ver_pdf_final/<?php echo $id_legajo_actual; ?>')"
+                                class="px-6 py-3.5 bg-red-700 text-white rounded-xl font-bold shadow-sm hover:bg-red-900 transition-all flex items-center">
+                                <i class="fas fa-file-pdf mr-2"></i> Ver PDF
+                            </button>
+
+                            <a id="btn-descargar-pdf-final"
+                                href="<?php echo base_url(); ?>legajos/descargar_pdf_final/<?php echo $id_legajo_actual; ?>"
+                                class="px-6 py-3.5 bg-gray-800 text-white rounded-xl font-bold shadow-sm hover:bg-black transition-all flex items-center">
+                                <i class="fas fa-download mr-2"></i> Descargar
+                            </a>
                         <?php else: ?>
-                        <button type="button" id="btn-ver-pdf-final" disabled
-                            class="px-6 py-3.5 bg-red-200 text-red-400 rounded-xl font-bold shadow-sm cursor-not-allowed flex items-center opacity-80">
-                            <i class="fas fa-file-pdf mr-2"></i> Ver PDF
-                        </button>
-                        <button type="button" id="btn-descargar-pdf-final" disabled
-                            class="px-6 py-3.5 bg-gray-300 text-gray-500 rounded-xl font-bold shadow-sm cursor-not-allowed flex items-center opacity-80">
-                            <i class="fas fa-download mr-2"></i> Descargar
-                        </button>
+                            <button type="button" id="btn-ver-pdf-final" disabled
+                                class="px-6 py-3.5 bg-red-200 text-red-400 rounded-xl font-bold shadow-sm cursor-not-allowed flex items-center opacity-80">
+                                <i class="fas fa-file-pdf mr-2"></i> Ver PDF
+                            </button>
+                            <button type="button" id="btn-descargar-pdf-final" disabled
+                                class="px-6 py-3.5 bg-gray-300 text-gray-500 rounded-xl font-bold shadow-sm cursor-not-allowed flex items-center opacity-80">
+                                <i class="fas fa-download mr-2"></i> Descargar
+                            </button>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -420,9 +510,74 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
     input[type=file]::file-selector-button {
         transition: all 0.2s ease-in-out;
     }
+
+    .toast-autoguardado-legajo {
+        width: 320px !important;
+        font-size: 0.85rem !important;
+    }
 </style>
+<div id="pdfModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-90 transition-opacity backdrop-blur-md" onclick="cerrarModalPDF()">
+    </div>
+
+    <div class="fixed inset-0 z-10 overflow-y-auto pointer-events-none">
+        <div class="flex min-h-full items-center justify-center p-2 text-center sm:p-0">
+            <div
+                class="pointer-events-auto relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full max-w-7xl h-[90vh] flex flex-col border border-gray-600">
+
+                <div class="bg-gray-900 px-4 py-3 flex justify-between items-center shrink-0">
+                    <h3 class="text-lg font-bold text-white flex items-center">
+                        <i class="fas fa-file-pdf text-red-500 mr-2"></i> Visor de Documento
+                    </h3>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="cerrarModalPDF()"
+                            class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-gray-200 relative w-full h-full">
+                    <iframe id="pdf_preview_modal" class="absolute inset-0 w-full h-full border-none" src=""></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
+    function mostrarPDFModal(url) {
+        const iframe = document.getElementById('pdf_preview_modal');
+        const modal = document.getElementById('pdfModal');
+
+        // Ajustes para que el PDF cargue ajustado a la pantalla y sin paneles molestos
+        const urlAjustada = url + "#view=FitH&toolbar=1&navpanes=0";
+
+        iframe.src = urlAjustada;
+
+        // Mostrar modal usando clases de Tailwind
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        // Evitar que el fondo de la página haga scroll
+        document.body.style.overflow = 'hidden';
+    }
+
+    function cerrarModalPDF() {
+        const modal = document.getElementById('pdfModal');
+        const iframe = document.getElementById('pdf_preview_modal');
+
+        // Ocultar modal
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+
+        // Limpiar iframe para no consumir memoria y detener la descarga si seguía cargando
+        iframe.src = "";
+
+        // Restaurar scroll de la página
+        document.body.style.overflow = 'auto';
+    }
+
     const matrizPorTipoLegajo = <?php echo json_encode($matriz_por_tipo, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const documentosLegajoPorRequisito = <?php echo json_encode($documentos_legajo_por_requisito, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const formDocumentosPorRequisito = <?php echo json_encode($form_documentos, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
@@ -433,6 +588,45 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
     const personasModuloActivo = <?php echo $personas_modulo_activo ? 'true' : 'false'; ?>;
     const personasFuente = <?php echo json_encode($personas_fuente, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
     const baseUrlLegajos = <?php echo json_encode(base_url(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    const REQUISITOS_POR_PAGINA = <?php echo intval(LEGAJOS_REQUISITOS_POR_PAGINA); ?>;
+    let paginaActualChecklist = 1;
+    const AUTOSAVE_INTERVALO_SEGUNDOS = <?php echo intval(LEGAJOS_AUTOSAVE_INTERVALO_SEGUNDOS); ?>;
+    const AUTOSAVE_MOSTRAR_TOAST = <?php echo LEGAJOS_AUTOSAVE_MOSTRAR_TOAST ? 'true' : 'false'; ?>;
+    let autosaveEnCurso = false;
+
+    // Extensiones de archivo permitidas (coherente con el backend: imagick + GD)
+    const EXTENSIONES_PERMITIDAS = ['pdf', 'jpg', 'jpeg', 'png', 'jfif', 'tiff', 'tif'];
+
+    function iniciarMonitorDeSesionLegajo() {
+        if (legajoBloqueado) {
+            return;
+        }
+
+        setInterval(() => {
+            if (pdfFinalDisponible) {
+                return;
+            }
+            autoguardarBorradorLegajo(true);
+        }, AUTOSAVE_INTERVALO_SEGUNDOS * 1000);
+    }
+
+    // Genera el Nro Operacion: Socio + Secuencia
+    function generarNroOperacion() {
+        const socioInput = document.getElementById('nro_socio');
+        const secInput = document.getElementById('secuencia');
+        const opInput = document.getElementById('nro_operacion');
+
+        if (!socioInput || !secInput || !opInput) return;
+
+        const nroSocio = String(socioInput.value || '').trim();
+        const sec = String(secInput.value || '').trim();
+
+        if (nroSocio !== '' && sec !== '') {
+            opInput.value = nroSocio + sec;
+        } else {
+            opInput.value = '';
+        }
+    }
 
     function sincronizarPersonaSeleccionada() {
         if (!personasModuloActivo) {
@@ -442,14 +636,66 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         const selectPersona = document.getElementById('id_persona');
         const inputCi = document.getElementById('ci_socio');
         const inputNombre = document.getElementById('nombre_socio');
+        const inputSocio = document.getElementById('nro_socio');
+        const inputIdLegajo = document.getElementById('id_legajo');
+
         if (!selectPersona || !inputCi || !inputNombre) {
+            return;
+        }
+
+        // si ya hay un legajo cargado (id_legajo > 0) y se elige una persona
+        const idLegajoActual = inputIdLegajo ? parseInt(inputIdLegajo.value || '0', 10) : 0;
+        const personaOriginal = String(selectPersona.dataset.originalValue || '');
+        const personaSeleccionada = String(selectPersona.value || '');
+
+        if (idLegajoActual > 0 && personaOriginal !== '' && personaSeleccionada !== personaOriginal) {
+            const volverAOriginal = () => {
+                selectPersona.value = personaOriginal;
+                if (typeof jQuery !== 'undefined' && $.fn.select2) {
+                    $(selectPersona).trigger('change.select2');
+                }
+            };
+
+            const irALegajoNuevo = () => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('id_legajo');
+                window.location.href = url.toString();
+            };
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Cambio de socio',
+                    text: 'Este legajo ya está asociado a otra persona. Para armar un legajo nuevo con el socio seleccionado, se recargará el formulario en blanco (deberá volver a adjuntar los documentos).',
+                    icon: 'warning',
+                    confirmButtonText: 'Continuar con legajo nuevo',
+                    showCancelButton: true,
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        irALegajoNuevo();
+                    } else {
+                        volverAOriginal();
+                    }
+                });
+            } else if (window.confirm('Este legajo ya está asociado a otra persona. ¿Desea continuar armando un legajo nuevo? Se recargará el formulario en blanco.')) {
+                irALegajoNuevo();
+            } else {
+                volverAOriginal();
+            }
             return;
         }
 
         const opcion = selectPersona.options[selectPersona.selectedIndex];
         inputCi.value = opcion ? (opcion.dataset.ci || '') : '';
         inputNombre.value = opcion ? (opcion.dataset.nombre || '') : '';
+
+        if (inputSocio) {
+            inputSocio.value = opcion ? (opcion.dataset.nroSocio || '') : '';
+        }
+
         aplicarFormatoMillares(inputCi);
+        generarNroOperacion();
+
         if (typeof actualizarResumenChecklist === 'function') {
             actualizarResumenChecklist();
         }
@@ -655,9 +901,10 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 return false;
             }
 
+            // AHORA INCLUYE nro_operacion EN LA VERIFICACIÓN DE CAMBIOS
             const camposCabecera = personasModuloActivo
-                ? ['tipo_legajo', 'id_persona', 'ci_socio', 'nombre_socio', 'nro_solicitud']
-                : ['tipo_legajo', 'ci_socio', 'nombre_socio', 'nro_solicitud'];
+                ? ['tipo_legajo', 'id_persona', 'ci_socio', 'nombre_socio', 'nro_solicitud', 'secuencia', 'nro_operacion']
+                : ['tipo_legajo', 'ci_socio', 'nombre_socio', 'nro_solicitud', 'secuencia', 'nro_operacion'];
             for (const idCampo of camposCabecera) {
                 const campo = document.getElementById(idCampo);
                 if (!campo) {
@@ -705,7 +952,11 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             progresoTexto.textContent = '0/0';
             progresoBarra.style.width = '0%';
             aplicarEstadoBotonFinalizar(false);
-            // Si el legajo ya está en estado terminal con PDF disponible, no deshabilitar los botones PDF
+            const contenedorPag = document.getElementById('paginacion-checklist');
+            if (contenedorPag) {
+                contenedorPag.innerHTML = '';
+                contenedorPag.classList.add('hidden');
+            }
             const estadosConPdf = ['generado', 'verificado', 'cerrado', 'aprobado'];
             if (!estadosConPdf.includes(estadoLegajoActual) || !pdfFinalDisponible) {
                 alternarBotonesPdfFinal(false);
@@ -738,7 +989,6 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             badge.textContent = 'Verificación rechazada';
             aplicarEstadoBotonFinalizar(false);
         } else if (estadoLegajoActual === 'generado') {
-            // Legajo generado: PDF ya fue creado. Siempre mostrar botones PDF.
             badge.className = 'px-3 py-1 bg-sky-100 text-sky-800 rounded-full text-xs font-bold';
             badge.textContent = hayCambiosPendientes ? 'Generado (con cambios)' : 'Generado';
             aplicarEstadoBotonFinalizar(hayCambiosPendientes);
@@ -757,7 +1007,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
             badge.className = 'px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold';
             badge.textContent = 'Completado';
             aplicarEstadoBotonFinalizar(true);
-            alternarBotonesPdfFinal(pdfFinalDisponible && !hayCambiosPendientes);
+            alternarBotonesPdfFinal(pdfFinalDisponible);
         }
     }
 
@@ -813,24 +1063,60 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         alert(titulo + '\n\n' + texto);
     }
 
-    function actualizarCampoSolicitud(idTipoLegajo) {
-        const grupo = document.getElementById('grupo-nro-solicitud');
-        const input = document.getElementById('nro_solicitud');
+    function actualizarCamposDinamicos(idTipoLegajo) {
         const config = tiposLegajoPorId[String(idTipoLegajo)] || tiposLegajoPorId[idTipoLegajo] || {};
-        const requiere = !!config.requiere_nro_solicitud;
 
-        if (!grupo || !input) {
-            return;
+        // 1. Solicitud
+        const grupoSol = document.getElementById('grupo-nro-solicitud');
+        const inputSol = document.getElementById('nro_solicitud');
+        if (grupoSol && inputSol) {
+            if (config.requiere_nro_solicitud) {
+                grupoSol.classList.remove('hidden');
+                inputSol.required = true;
+            } else {
+                grupoSol.classList.add('hidden');
+                inputSol.required = false;
+                inputSol.value = '';
+            }
         }
 
-        if (requiere) {
-            grupo.classList.remove('hidden');
-            input.required = true;
-        } else {
-            grupo.classList.add('hidden');
-            input.required = false;
-            input.value = '';
+        // 2. Secuencia
+        const grupoSec = document.getElementById('grupo-secuencia');
+        const inputSec = document.getElementById('secuencia');
+        const astSec = document.getElementById('ast-secuencia');
+        if (grupoSec && inputSec) {
+            if (config.requiere_secuencia) {
+                grupoSec.classList.remove('hidden');
+                inputSec.required = true;
+                if (astSec) astSec.classList.remove('hidden');
+            } else {
+                grupoSec.classList.add('hidden');
+                inputSec.required = false;
+                inputSec.value = '';
+                if (astSec) astSec.classList.add('hidden');
+            }
         }
+
+        // 3. Operacion (AHORA CON VALIDACIÓN REQUIRED)
+        const grupoOp = document.getElementById('grupo-nro-operacion');
+        const inputOp = document.getElementById('nro_operacion');
+        const astOp = document.getElementById('ast-nro-operacion');
+
+        if (grupoOp && inputOp) {
+            if (config.requiere_nro_operacion) {
+                grupoOp.classList.remove('hidden');
+                inputOp.required = true;
+                if (astOp) astOp.classList.remove('hidden'); // Muestra asterisco visual
+            } else {
+                grupoOp.classList.add('hidden');
+                inputOp.required = false;
+                inputOp.value = '';
+                if (astOp) astOp.classList.add('hidden');
+            }
+        }
+
+        // Al cambiar tipo de legajo, forzamos re-calcular
+        generarNroOperacion();
     }
 
     async function validarSolicitudDuplicadaAntesDeEnviar() {
@@ -876,6 +1162,77 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         }
 
         return true;
+    }
+
+    function aplicarPaginacionChecklist() {
+        const body = document.getElementById('checklist-legajo-body');
+        if (!body) return;
+
+        const filas = Array.from(body.querySelectorAll('[data-checklist-row]'));
+        const totalPaginas = Math.max(1, Math.ceil(filas.length / REQUISITOS_POR_PAGINA));
+
+        if (paginaActualChecklist > totalPaginas) {
+            paginaActualChecklist = totalPaginas;
+        }
+
+        const inicio = (paginaActualChecklist - 1) * REQUISITOS_POR_PAGINA;
+        const fin = inicio + REQUISITOS_POR_PAGINA;
+
+        filas.forEach((fila, indice) => {
+            fila.style.display = (indice >= inicio && indice < fin) ? '' : 'none';
+        });
+
+        renderControlesPaginacionChecklist(totalPaginas, filas.length);
+    }
+
+    function renderControlesPaginacionChecklist(totalPaginas, totalFilas) {
+        let contenedor = document.getElementById('paginacion-checklist');
+        const body = document.getElementById('checklist-legajo-body');
+        if (!body) return;
+
+        if (!contenedor) {
+            contenedor = document.createElement('div');
+            contenedor.id = 'paginacion-checklist';
+            contenedor.className = 'flex justify-between items-center px-6 py-3 bg-gray-50 border-t border-gray-100';
+            const tablaWrap = body.closest('.p-0');
+            if (tablaWrap) {
+                tablaWrap.after(contenedor);
+            }
+        }
+
+        if (totalPaginas <= 1) {
+            contenedor.innerHTML = '';
+            contenedor.classList.add('hidden');
+            return;
+        }
+
+        contenedor.classList.remove('hidden');
+        const desde = Math.min((paginaActualChecklist - 1) * REQUISITOS_POR_PAGINA + 1, totalFilas);
+        const hasta = Math.min(paginaActualChecklist * REQUISITOS_POR_PAGINA, totalFilas);
+
+        contenedor.innerHTML = `
+            <span class="text-xs text-gray-500 font-semibold">
+                Mostrando ${desde}-${hasta} de ${totalFilas} documentos
+            </span>
+            <div class="flex gap-2">
+                <button type="button" ${paginaActualChecklist === 1 ? 'disabled' : ''} 
+                    onclick="cambiarPaginaChecklist(-1)"
+                    class="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold ${paginaActualChecklist === 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'}">
+                    <i class="fas fa-chevron-left"></i> Anterior
+                </button>
+                <span class="px-3 py-1.5 text-xs font-bold text-gray-600">Página ${paginaActualChecklist} de ${totalPaginas}</span>
+                <button type="button" ${paginaActualChecklist === totalPaginas ? 'disabled' : ''} 
+                    onclick="cambiarPaginaChecklist(1)"
+                    class="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold ${paginaActualChecklist === totalPaginas ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'}">
+                    Siguiente <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    function cambiarPaginaChecklist(delta) {
+        paginaActualChecklist += delta;
+        aplicarPaginacionChecklist();
     }
 
     function renderChecklistLegajo(idTipoLegajo) {
@@ -951,14 +1308,13 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 : '<div class="mt-1 text-xs text-gray-400 truncate" data-file-name-label>Ningún archivo seleccionado</div>';
             const urlVerArchivo = `${baseUrlLegajos}legajos/ver_documento_checklist?id_legajo=<?php echo $id_legajo_actual; ?>&id_requisito=${regla.id_requisito}`;
             const botonVerArchivoHtml = documentoGuardado.ruta_archivo
-                ? `<a href="${urlVerArchivo}"
-                        target="_blank"
-                        rel="noopener noreferrer"
+                ? `<button type="button" 
+                        onclick="mostrarPDFModal('${urlVerArchivo}')"
                         class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all text-xs font-bold"
                         data-view-file-link
                         data-view-file-url="${urlVerArchivo}">
                         <i class="fas fa-eye mr-1"></i> Ver archivo
-                   </a>`
+                   </button>`
                 : `<span
                         class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-200 text-gray-400 bg-gray-50 transition-all text-xs font-bold cursor-not-allowed"
                         data-view-file-link
@@ -1019,7 +1375,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                         <input type="hidden" name="ruta_existente_${regla.id_requisito}" value="${String(documentoGuardado.ruta_archivo || '').replace(/"/g, '&quot;')}">
                         <input type="hidden" name="eliminar_archivo_${regla.id_requisito}" value="0" data-remove-file-flag>
                         <input type="hidden" name="accion_archivo_${regla.id_requisito}" value="${politicaInicial}" data-file-action>
-                        <input type="file" name="${inputName}[]" multiple accept=".pdf,.jpg,.jpeg,.png,.jfif,image/jpeg,image/png,application/pdf" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-scantec-blue hover:file:bg-scantec-blue hover:file:text-white transition-all cursor-pointer" data-file-input data-policy-default="${politicaInicial}" ${legajoBloqueado ? 'disabled' : ''}>
+                        <input type="file" name="${inputName}[]" multiple accept=".pdf,.jpg,.jpeg,.png,.jfif,.tiff,.tif,image/jpeg,image/png,image/tiff,application/pdf" class="block w-full text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:font-bold file:bg-blue-50 file:text-scantec-blue hover:file:bg-scantec-blue hover:file:text-white transition-all cursor-pointer" data-file-input data-policy-default="${politicaInicial}" ${legajoBloqueado ? 'disabled' : ''}>
                         ${nombreArchivoHtml}
                         ${botonVerArchivoHtml}
                         ${botonEliminarArchivoHtml}
@@ -1071,18 +1427,18 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             const partes = nombre.split('.');
                             return partes.length > 1 ? partes.pop().toLowerCase() : '';
                         })
-                        .filter((extension) => extension && !['pdf', 'jpg', 'jpeg', 'png', 'jfif'].includes(extension));
+                        .filter((extension) => extension && !EXTENSIONES_PERMITIDAS.includes(extension));
 
                     if (extensionesInvalidas.length > 0) {
                         if (typeof Swal !== 'undefined') {
                             await Swal.fire({
                                 title: 'Formato no permitido',
-                                text: 'Solo se permiten archivos PDF o imagenes JPG, JPEG, PNG o JFIF.',
+                                text: 'Solo se permiten archivos PDF o imagenes JPG, JPEG, PNG, JFIF o TIFF.',
                                 icon: 'warning',
                                 confirmButtonText: 'Aceptar'
                             });
                         } else {
-                            alert('Solo se permiten archivos PDF o imagenes JPG, JPEG, PNG o JFIF.');
+                            alert('Solo se permiten archivos PDF o imagenes JPG, JPEG, PNG, JFIF o TIFF.');
                         }
                         this.value = '';
                         label.textContent = 'Ningún archivo seleccionado';
@@ -1157,7 +1513,9 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                             }
                             if (this.files.length === 1) {
                                 const previewUrl = URL.createObjectURL(this.files[0]);
-                                enlaceActual.outerHTML = `<a href="${previewUrl}" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}" data-preview-url="${previewUrl}"><i class="fas fa-eye mr-1"></i> Ver archivo</a>`;
+                                enlaceActual.outerHTML = `<button type="button" onclick="mostrarPDFModal('${previewUrl}')" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}" data-preview-url="${previewUrl}">
+                                    <i class="fas fa-eye mr-1"></i> Ver archivo
+                                </button>`;
                             } else {
                                 enlaceActual.outerHTML = `<button type="button" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}" data-merge-files-btn><i class="fas fa-layer-group mr-1"></i> Unir archivos</button>`;
                             }
@@ -1175,7 +1533,9 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                                 URL.revokeObjectURL(previewAnterior);
                             }
                             if (hiddenRuta && hiddenRuta.value && hiddenRuta.value.trim() !== '') {
-                                enlaceActual.outerHTML = `<a href="${hrefOriginal}" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}"><i class="fas fa-eye mr-1"></i> Ver archivo</a>`;
+                                enlaceActual.outerHTML = `<button type="button" onclick="mostrarPDFModal('${hrefOriginal}')" class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all text-xs font-bold" data-view-file-link data-view-file-url="${hrefOriginal}">
+                                    <i class="fas fa-eye mr-1"></i> Ver archivo
+                                </button>`;
                             } else {
                                 enlaceActual.outerHTML = `<span class="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg border border-gray-200 text-gray-400 bg-gray-50 transition-all text-xs font-bold cursor-not-allowed" data-view-file-link data-view-file-url="${hrefOriginal}"><i class="fas fa-eye mr-1"></i> Ver archivo</span>`;
                             }
@@ -1317,6 +1677,112 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         });
 
         refrescarEstadosChecklist();
+        paginaActualChecklist = 1; // resetear a la página 1 cada vez que cambia el tipo de legajo
+        aplicarPaginacionChecklist();
+    }
+
+    async function autoguardarBorradorLegajo(silencioso = true) {
+        if (legajoBloqueado || autosaveEnCurso) {
+            return false;
+        }
+
+        const formLegajo = document.getElementById('formArmadoLegajo');
+        const submitActionInput = document.getElementById('submit_action');
+        if (!formLegajo || !submitActionInput) {
+            return false;
+        }
+
+        autosaveEnCurso = true;
+        const valorOriginalAccion = submitActionInput.value;
+        submitActionInput.value = 'borrador';
+
+        const formData = new FormData(formLegajo);
+
+        try {
+            const response = await fetch(formLegajo.action, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+
+            const urlFinal = response.url || '';
+
+            if (urlFinal.includes('error=csrf')) {
+                manejarSesionExpiradaLegajo();
+                return false;
+            }
+
+            // procesar_legajo() redirige a ...armar_legajo?id_legajo=X al terminar.
+            // Tomamos ese ID para que los próximos autoguardados actualicen el mismo
+            // legajo en vez de crear uno nuevo cada vez.
+            const match = urlFinal.match(/[?&]id_legajo=(\d+)/);
+            if (match) {
+                const idLegajoGuardado = match[1];
+                const inputIdLegajo = document.getElementById('id_legajo');
+                if (inputIdLegajo && inputIdLegajo.value !== idLegajoGuardado) {
+                    inputIdLegajo.value = idLegajoGuardado;
+                }
+            }
+
+            if (!silencioso) {
+                mostrarNotificacionAutoguardadoLegajo();
+            }
+
+            return true;
+        } catch (error) {
+            return false;
+        } finally {
+            autosaveEnCurso = false;
+            submitActionInput.value = valorOriginalAccion;
+        }
+    }
+
+    function mostrarNotificacionAutoguardadoLegajo() {
+        if (typeof Swal === 'undefined') {
+            return;
+        }
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Guardado automático',
+            text: 'Tu progreso se guardó como borrador.',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            customClass: {
+                popup: 'toast-autoguardado-legajo'
+            }
+        });
+    }
+
+    function manejarSesionExpiradaLegajo() {
+        const irAlInicio = () => {
+            window.location.href = baseUrlLegajos;
+        };
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Tu sesión ha expirado',
+                text: 'Debes iniciar sesión nuevamente. Si el autoguardado alcanzó a ejecutarse, tu progreso quedó guardado como borrador y lo vas a encontrar buscando este legajo al reingresar.',
+                icon: 'warning',
+                confirmButtonText: 'Ir al inicio de sesión',
+                allowOutsideClick: false
+            }).then(irAlInicio);
+        } else {
+            alert('Tu sesión ha expirado. Debes iniciar sesión nuevamente.');
+            irAlInicio();
+        }
+    }
+
+    function iniciarMonitorDeSesionLegajo() {
+        if (legajoBloqueado) {
+            return;
+        }
+
+        setInterval(() => {
+            autoguardarBorradorLegajo(!AUTOSAVE_MOSTRAR_TOAST);
+        }, AUTOSAVE_INTERVALO_SEGUNDOS * 1000);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -1335,9 +1801,39 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 $(selectPersona).select2({
                     width: '100%',
                     placeholder: personasFuente === 'externa'
-                        ? 'Seleccione o busque una persona de la base externa...'
-                        : 'Seleccione o busque una persona...'
-                }).on('change', sincronizarPersonaSeleccionada);
+                        ? 'Seleccione o busque un registro de la BD externa...'
+                        : 'Seleccione o busque un registro...',
+                    ajax: {
+                        url: baseUrlLegajos + 'legajos/buscar_personas',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                termino: params.term || '',
+                                pagina: params.page || 1
+                            };
+                        },
+                        processResults: function (data, params) {
+                            params.page = params.page || 1;
+                            return {
+                                results: data.resultados,
+                                pagination: {
+                                    more: data.hay_mas_paginas
+                                }
+                            };
+                        },
+                        cache: true
+                    }
+                }).on('select2:select', function (e) {
+                    const opcion = e.params.data;
+                    const optionEl = selectPersona.querySelector(`option[value="${CSS.escape(String(opcion.id))}"]`);
+                    if (optionEl) {
+                        optionEl.dataset.ci = opcion.ci || '';
+                        optionEl.dataset.nombre = opcion.nombre_completo || '';
+                        optionEl.dataset.nroSocio = opcion.nro_socio || '';
+                    }
+                    sincronizarPersonaSeleccionada();
+                });
             } else {
                 selectPersona.addEventListener('change', sincronizarPersonaSeleccionada);
             }
@@ -1345,11 +1841,21 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
         }
 
         renderChecklistLegajo(selectTipoLegajo.value);
-        actualizarCampoSolicitud(selectTipoLegajo.value);
+        actualizarCamposDinamicos(selectTipoLegajo.value);
+
         selectTipoLegajo.addEventListener('change', function () {
-            actualizarCampoSolicitud(this.value);
+            actualizarCamposDinamicos(this.value);
             renderChecklistLegajo(this.value);
         });
+
+        // Eventos para la concatenación automática
+        const secuenciaInput = document.getElementById('secuencia');
+        if (secuenciaInput) {
+            secuenciaInput.addEventListener('input', generarNroOperacion);
+        }
+
+        // Generar al cargar por si ya hay valores en edición
+        generarNroOperacion();
 
         if (formLegajo && submitActionInput && btnGuardarBorrador) {
             btnGuardarBorrador.addEventListener('click', async function () {
@@ -1394,8 +1900,7 @@ $total_obligatorios = count(array_filter($reglas_iniciales, function ($regla) {
                 aplicarFormatoMillares(this);
             });
         });
-
+        iniciarMonitorDeSesionLegajo();
     });
 </script>
-
 <?php pie() ?>

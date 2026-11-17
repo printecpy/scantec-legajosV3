@@ -25,7 +25,7 @@
         }
     </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="<?php echo base_url(); ?>Assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
 </head>
 
 <body class="bg-login-custom font-sans min-h-screen flex items-center justify-center p-4">

@@ -133,7 +133,7 @@ class DashboardModel extends Mysql
         $scope = $this->construirFiltroLegajos('cfg_legajo', $tiposPermitidos, $idUsuario, $soloPropios);
         $sql = "SELECT COUNT(*) AS cant_legajos_completados
                 FROM cfg_legajo
-                WHERE estado = 'generado'" . $scope['sql'];
+                WHERE estado IN ('completado', 'generado')" . $scope['sql'];
         $res = $this->select($sql, $scope['params']);
         return $res;
     }

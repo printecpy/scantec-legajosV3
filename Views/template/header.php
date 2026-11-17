@@ -37,8 +37,8 @@ if (isset($_SESSION['alert'])) {
     <?php include "Views/template/config_tailwind.php"; ?>
 
     <link rel="icon" href="<?php echo base_url(); ?>Assets/img/icoScantec-copia2.ico">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="<?php echo base_url(); ?>Assets/vendor/fontawesome/css/all.min.css">
+    <script src="<?php echo base_url(); ?>Assets/vendor/sweetalert2/sweetalert2.all.min.js"></script>
     <link rel="stylesheet" href="<?php echo base_url(); ?>Assets/css/select2.min.css">
     <link rel="stylesheet" href="<?php echo base_url(); ?>Assets/css/estilo.css">
 
@@ -150,7 +150,7 @@ if (isset($_SESSION['alert'])) {
             <?php
             $__idRol = intval($_SESSION['id_rol'] ?? 0);
             $__idDepartamento = intval($_SESSION['id_departamento'] ?? 0);
-            $__esAdministradorScantec = $__idRol === 1 || strtolower(trim((string)($_SESSION['usuario'] ?? ''))) === 'root';
+            $__esAdministradorScantec = esSuperadmin();
 
             $__funcionalidadesSistema = [];
             $__accesosRolDepartamento = [];
@@ -221,7 +221,7 @@ if (isset($_SESSION['alert'])) {
             ?>
 
             <?php if ($__seccionHabilitada('dashboard') && $__puedeVerDash): ?>
-            <a href="<?php echo base_url(); ?>dashboard/dashboard_legajos" class="flex items-center px-3 py-3 rounded-lg hover:bg-white/10 transition-colors">
+            <a href="<?php echo base_url(); ?>dashboard/dashboard" class="flex items-center px-3 py-3 rounded-lg hover:bg-white/10 transition-colors">
                 <span class="w-8 text-center"><i class="fas fa-chart-line text-scantec-white"></i></span>
                 <span class="ml-3 font-medium text-sm">Dashboard</span>
             </a>
@@ -417,7 +417,7 @@ if (isset($_SESSION['alert'])) {
                     <a href="<?php echo base_url(); ?>logsumango/views" class="block py-2 text-xs text-white/60 hover:text-white">Log Documentos</a>
                     <?php endif; ?>
                     <?php if ($__seccionHabilitada('archivos') && $__accesoItem('visitas_archivos')): ?>
-                    <a href="<?php echo base_url(); ?>logs/registro_views" class="block py-2 text-xs text-white/60 hover:text-white">Visitas Archivos</a>
+                    <a href="<?php echo base_url(); ?>logs/registro_views" class="block py-2 text-xs text-white/60 hover:text-white">Vistas Archivos</a>
                     <?php endif; ?>
                     <?php if ($__accesoItem('conexiones')): ?>
                     <a href="<?php echo base_url(); ?>usuarios/activos" class="block py-2 text-xs text-white/60 hover:text-white">Monitor de conexiones</a>

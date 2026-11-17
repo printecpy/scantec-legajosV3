@@ -12,9 +12,12 @@
                     Administra los roles del sistema que se utilizaran para asignar permisos a los usuarios.
                 </p>
             </div>
-            <button onclick="document.getElementById('modal-nuevo-rol').classList.remove('hidden')" class="bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2 px-5 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center">
-                <i class="fas fa-plus mr-2"></i> Nuevo Rol
-            </button>
+            <?php if (!empty($data['puede_crear'])): ?>
+                <button onclick="document.getElementById('modal-nuevo-rol').classList.remove('hidden')"
+                    class="bg-scantec-blue hover:bg-gray-800 text-white font-bold py-2 px-5 rounded-xl shadow-lg transition-all transform hover:scale-105 flex items-center">
+                    <i class="fas fa-plus mr-2"></i> Nuevo Rol
+                </button>
+            <?php endif; ?>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
@@ -33,11 +36,21 @@
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-200">
-                            <th class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-24 sticky left-0 bg-gray-50 z-10">ID Rol</th>
-                            <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 sticky left-24 bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Descripción / Nombre del Rol</th>
-                            <th class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-48">Departamento</th>
-                            <th class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-32">Estado</th>
-                            <th class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-40">Acciones</th>
+                            <th
+                                class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-24 sticky left-0 bg-gray-50 z-10">
+                                ID Rol</th>
+                            <th
+                                class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 sticky left-24 bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                                Descripción / Nombre del Rol</th>
+                            <th
+                                class="text-left px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-48">
+                                Departamento</th>
+                            <th
+                                class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-32">
+                                Estado</th>
+                            <th
+                                class="text-center px-4 py-3 font-bold text-xs uppercase tracking-wider text-gray-600 w-40">
+                                Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -52,14 +65,19 @@
                                 $esActivo = ($estado === 'activo');
                                 $esRolPropio = $idRol === intval($_SESSION['id_rol'] ?? 0);
                                 $idDepartamentoRol = intval($rol['id_departamento'] ?? 0);
-                            ?>
-                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors <?php echo !$esActivo ? 'opacity-70 bg-gray-50/50' : ''; ?>">
-                                    <td class="text-center px-4 py-3 font-medium text-gray-600 sticky left-0 bg-white z-10 <?php echo !$esActivo ? 'bg-gray-50/50' : ''; ?>">
+                                ?>
+                                <tr
+                                    class="border-b border-gray-100 hover:bg-gray-50 transition-colors <?php echo !$esActivo ? 'opacity-70 bg-gray-50/50' : ''; ?>">
+                                    <td
+                                        class="text-center px-4 py-3 font-medium text-gray-600 sticky left-0 bg-white z-10 <?php echo !$esActivo ? 'bg-gray-50/50' : ''; ?>">
                                         <?php echo $idRol; ?>
                                     </td>
-                                    <td class="text-left px-4 py-3 font-bold text-gray-800 sticky left-24 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] <?php echo !$esActivo ? 'bg-gray-50/50' : 'bg-white'; ?>">
-                                        <div class="w-8 h-8 rounded-full <?php echo $esActivo ? 'bg-blue-50 text-scantec-blue border-blue-100' : 'bg-gray-100 text-gray-400 border-gray-200'; ?> flex items-center justify-center mr-3 border flex-shrink-0">
-                                            <i class="fas <?php echo $idRol === 1 ? 'fa-user-shield text-amber-500' : 'fa-user'; ?> text-xs"></i>
+                                    <td
+                                        class="text-left px-4 py-3 font-bold text-gray-800 sticky left-24 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] <?php echo !$esActivo ? 'bg-gray-50/50' : 'bg-white'; ?>">
+                                        <div
+                                            class="w-8 h-8 rounded-full <?php echo $esActivo ? 'bg-blue-50 text-scantec-blue border-blue-100' : 'bg-gray-100 text-gray-400 border-gray-200'; ?> flex items-center justify-center mr-3 border flex-shrink-0">
+                                            <i
+                                                class="fas <?php echo $idRol === 1 ? 'fa-user-shield text-amber-500' : 'fa-user'; ?> text-xs"></i>
                                         </div>
                                         <?php echo htmlspecialchars($rol['descripcion'] ?? ''); ?>
                                     </td>
@@ -68,32 +86,55 @@
                                     </td>
                                     <td class="text-center px-4 py-3">
                                         <?php if ($esActivo): ?>
-                                            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Activo</span>
+                                            <span
+                                                class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">Activo</span>
                                         <?php else: ?>
-                                            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">Inactivo</span>
+                                            <span
+                                                class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">Inactivo</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center px-4 py-3">
                                         <div class="flex items-center justify-center gap-2">
-                                            <button
-                                                onclick="abrirModalEditarRol(<?php echo $idRol; ?>, '<?php echo htmlspecialchars($rol['descripcion'] ?? '', ENT_QUOTES); ?>', <?php echo $idDepartamentoRol; ?>)"
-                                                class="btn-action btn-action-primary"
-                                                title="Editar Rol">
-                                                <i class="fas fa-pen"></i>
-                                            </button>
-                                            <a
-                                                href="<?php echo base_url(); ?>seguridad/permisos_legajos?id_rol=<?php echo $idRol; ?>"
-                                                class="btn-action btn-action-neutral"
-                                                title="Editar permisos del rol">
-                                                <i class="fas fa-shield-alt"></i>
-                                            </a>
-                                            <?php $nuevoEstado = $esActivo ? 'inactivo' : 'activo'; ?>
-                                            <button onclick="<?php echo $esRolPropio ? 'return false;' : "cambiarEstadoRol($idRol, '$nuevoEstado')"; ?>" class="<?php echo $esRolPropio ? 'btn-action btn-action-disabled' : ($esActivo ? 'btn-action btn-action-warning' : 'btn-action btn-action-success'); ?>" title="<?php echo $esRolPropio ? 'No puedes cambiar el estado de tu propio rol' : ($esActivo ? 'Desactivar Rol' : 'Activar Rol'); ?>">
-                                                <i class="fas <?php echo $esActivo ? 'fa-toggle-on' : 'fa-toggle-off'; ?>"></i>
-                                            </button>
-                                            <button onclick="<?php echo $esRolPropio ? 'return false;' : "confirmarEliminarRol($idRol, '" . htmlspecialchars($rol['descripcion'] ?? '', ENT_QUOTES) . "')"; ?>" class="<?php echo $esRolPropio ? 'btn-action btn-action-disabled' : 'btn-action btn-action-danger'; ?>" title="<?php echo $esRolPropio ? 'No puedes eliminar tu propio rol' : 'Eliminar Rol'; ?>">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
+                                            <?php $descRolJs = htmlspecialchars(json_encode((string) ($rol['descripcion'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>
+
+                                            <?php if (!empty($rol['puede_renombrar'])): ?>
+                                                <button
+                                                    onclick="abrirModalEditarRol(<?php echo $idRol; ?>, <?php echo $descRolJs; ?>, <?php echo $idDepartamentoRol; ?>)"
+                                                    class="btn-action btn-action-primary" title="Editar Rol">
+                                                    <i class="fas fa-pen"></i>
+                                                </button>
+                                            <?php endif; ?>
+
+                                            <?php if (!empty($rol['puede_permisos'])): ?>
+                                                <a href="<?php echo base_url(); ?>seguridad/permisos_legajos?id_rol=<?php echo $idRol; ?>"
+                                                    class="btn-action btn-action-neutral" title="Editar permisos del rol">
+                                                    <i class="fas fa-shield-alt"></i>
+                                                </a>
+                                            <?php endif; ?>
+
+                                            <?php if (!empty($rol['puede_estado'])): ?>
+                                                <?php $nuevoEstado = $esActivo ? 'inactivo' : 'activo'; ?>
+                                                <button
+                                                    onclick="cambiarEstadoRol(<?php echo $idRol; ?>, '<?php echo $nuevoEstado; ?>')"
+                                                    class="<?php echo $esActivo ? 'btn-action btn-action-warning' : 'btn-action btn-action-success'; ?>"
+                                                    title="<?php echo $esActivo ? 'Desactivar Rol' : 'Activar Rol'; ?>">
+                                                    <i class="fas <?php echo $esActivo ? 'fa-toggle-on' : 'fa-toggle-off'; ?>"></i>
+                                                </button>
+                                            <?php endif; ?>
+
+                                            <?php if (!empty($rol['puede_eliminar'])): ?>
+                                                <button
+                                                    onclick="confirmarEliminarRol(<?php echo $idRol; ?>, <?php echo $descRolJs; ?>)"
+                                                    class="btn-action btn-action-danger" title="Eliminar Rol">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            <?php endif; ?>
+
+                                            <?php if (empty($rol['puede_renombrar']) && empty($rol['puede_permisos']) && empty($rol['puede_estado']) && empty($rol['puede_eliminar'])): ?>
+                                                <span class="text-xs text-gray-400 font-bold uppercase" title="Rol protegido">
+                                                    <i class="fas fa-lock mr-1"></i> Protegido
+                                                </span>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
@@ -107,9 +148,11 @@
     </div>
 </main>
 
-<div id="modal-nuevo-rol" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden" style="backdrop-filter: blur(2px);">
+<div id="modal-nuevo-rol" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden"
+    style="backdrop-filter: blur(2px);">
     <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-md transform transition-all p-6 relative">
-        <button onclick="document.getElementById('modal-nuevo-rol').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 focus:outline-none">
+        <button onclick="document.getElementById('modal-nuevo-rol').classList.add('hidden')"
+            class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 focus:outline-none">
             <i class="fas fa-times fa-lg"></i>
         </button>
 
@@ -120,23 +163,31 @@
             <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
             <div class="mb-5">
-                <label for="descripcion" class="block text-sm font-bold text-gray-700 mb-2">Nombre del Rol <span class="text-red-500">*</span></label>
-                <input type="text" name="descripcion" id="descripcion" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow" placeholder="Ej. Analista de Credito">
+                <label for="descripcion" class="block text-sm font-bold text-gray-700 mb-2">Nombre del Rol <span
+                        class="text-red-500">*</span></label>
+                <input type="text" name="descripcion" id="descripcion" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow"
+                    placeholder="Ej. Analista de Credito">
             </div>
 
             <div class="mb-5">
                 <label for="id_departamento" class="block text-sm font-bold text-gray-700 mb-2">Departamento</label>
-                <select name="id_departamento" id="id_departamento" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow">
+                <select name="id_departamento" id="id_departamento"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow">
                     <option value="0">Sin departamento</option>
                     <?php foreach (($data['departamentos'] ?? []) as $departamento): ?>
-                        <option value="<?php echo intval($departamento['id_departamento'] ?? 0); ?>"><?php echo htmlspecialchars($departamento['nombre'] ?? ''); ?></option>
+                        <option value="<?php echo intval($departamento['id_departamento'] ?? 0); ?>">
+                            <?php echo htmlspecialchars($departamento['nombre'] ?? ''); ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
             <div class="mb-5">
                 <label for="preset" class="block text-sm font-bold text-gray-700 mb-2">Permisos Iniciales</label>
-                <select name="preset" id="preset" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow" onchange="actualizarDescripcionPreset()">
+                <select name="preset" id="preset"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow"
+                    onchange="actualizarDescripcionPreset()">
                     <?php
                     require_once 'Models/SeguridadLegajosModel.php';
                     $presets = SeguridadLegajosModel::getPresetsPermisos();
@@ -154,20 +205,23 @@
                         } else {
                             $nombrePreset = $info['nombre'];
                         }
-                    ?>
+                        ?>
                         <option value="<?php echo $clave; ?>" <?php echo $clave === 'basico' ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($nombrePreset); ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <p id="descripcion-preset" class="text-xs text-gray-500 mt-2 italic">Puede armar, buscar, ver y editar legajos, sin tareas administrativas.</p>
+                <p id="descripcion-preset" class="text-xs text-gray-500 mt-2 italic">Puede armar, buscar, ver y editar
+                    legajos, sin tareas administrativas.</p>
             </div>
 
             <div class="flex justify-end gap-3 mt-8">
-                <button type="button" onclick="document.getElementById('modal-nuevo-rol').classList.add('hidden')" class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
+                <button type="button" onclick="document.getElementById('modal-nuevo-rol').classList.add('hidden')"
+                    class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" class="px-5 py-2 bg-scantec-blue hover:bg-gray-800 text-white font-bold rounded-xl shadow transition-colors flex items-center">
+                <button type="submit"
+                    class="px-5 py-2 bg-scantec-blue hover:bg-gray-800 text-white font-bold rounded-xl shadow transition-colors flex items-center">
                     <i class="fas fa-save mr-2"></i> Guardar
                 </button>
             </div>
@@ -175,9 +229,11 @@
     </div>
 </div>
 
-<div id="modal-editar-rol" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden" style="backdrop-filter: blur(2px);">
+<div id="modal-editar-rol" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center hidden"
+    style="backdrop-filter: blur(2px);">
     <div class="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-md transform transition-all p-6 relative">
-        <button onclick="cerrarModalEditarRol()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 focus:outline-none">
+        <button onclick="cerrarModalEditarRol()"
+            class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 focus:outline-none">
             <i class="fas fa-times fa-lg"></i>
         </button>
 
@@ -189,102 +245,127 @@
             <input type="hidden" name="id_rol" id="editar_id_rol" value="">
 
             <div class="mb-5">
-                <label for="editar_descripcion" class="block text-sm font-bold text-gray-700 mb-2">Nombre del Rol <span class="text-red-500">*</span></label>
-                <input type="text" name="descripcion" id="editar_descripcion" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow" placeholder="Ej. Analista de Credito">
+                <label for="editar_descripcion" class="block text-sm font-bold text-gray-700 mb-2">Nombre del Rol <span
+                        class="text-red-500">*</span></label>
+                <input type="text" name="descripcion" id="editar_descripcion" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow"
+                    placeholder="Ej. Analista de Credito">
             </div>
 
             <div class="mb-5">
-                <label for="editar_id_departamento" class="block text-sm font-bold text-gray-700 mb-2">Departamento</label>
-                <select name="id_departamento" id="editar_id_departamento" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow">
+                <label for="editar_id_departamento"
+                    class="block text-sm font-bold text-gray-700 mb-2">Departamento</label>
+                <select name="id_departamento" id="editar_id_departamento"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-scantec-blue focus:border-scantec-blue outline-none transition-shadow">
                     <option value="0">Sin departamento</option>
                     <?php foreach (($data['departamentos'] ?? []) as $departamento): ?>
-                        <option value="<?php echo intval($departamento['id_departamento'] ?? 0); ?>"><?php echo htmlspecialchars($departamento['nombre'] ?? ''); ?></option>
+                        <option value="<?php echo intval($departamento['id_departamento'] ?? 0); ?>">
+                            <?php echo htmlspecialchars($departamento['nombre'] ?? ''); ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
             <div class="flex justify-end gap-3 mt-8">
-                <button type="button" onclick="cerrarModalEditarRol()" class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
+                <button type="button" onclick="cerrarModalEditarRol()"
+                    class="px-5 py-2 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" class="px-5 py-2 bg-scantec-blue hover:bg-gray-800 text-white font-bold rounded-xl shadow transition-colors flex items-center">
+                <button type="submit"
+                    class="px-5 py-2 bg-scantec-blue hover:bg-gray-800 text-white font-bold rounded-xl shadow transition-colors flex items-center">
                     <i class="fas fa-save mr-2"></i> Guardar Cambios
                 </button>
             </div>
         </form>
     </div>
 </div>
-
+<form id="formAccionRol" method="POST" style="display:none">
+    <input type="hidden" name="token" value="<?php echo escapar($_SESSION['csrf_token'] ?? ''); ?>">
+    <input type="hidden" name="id_rol" id="accionRolId">
+    <input type="hidden" name="estado" id="accionRolEstado">
+</form>
 <?php pie() ?>
 
 <script>
-function actualizarDescripcionPreset() {
-    const presets = {
-        'solo_lectura': 'Puede buscar y ver legajos, sin modificar nada.',
-        'basico': 'Puede armar, buscar, ver y editar legajos, sin tareas administrativas.',
-        'total': 'Puede hacer toda la operativa de legajos, incluyendo verificar, administrar, cerrar y eliminar.',
-        'avanzado': 'Incluye control total de legajos y administracion de seguridad y permisos.',
-        'vacio': 'Sin permisos (se asignaran manualmente)'
-    };
+    function actualizarDescripcionPreset() {
+        const presets = {
+            'solo_lectura': 'Puede buscar y ver legajos, sin modificar nada.',
+            'basico': 'Puede armar, buscar, ver y editar legajos, sin tareas administrativas.',
+            'total': 'Puede hacer toda la operativa de legajos, incluyendo verificar, administrar, cerrar y eliminar.',
+            'avanzado': 'Incluye control total de legajos y administracion de seguridad y permisos.',
+            'vacio': 'Sin permisos (se asignaran manualmente)'
+        };
 
-    const select = document.getElementById('preset');
-    const selectedPreset = select.value;
-    const descripcion = document.getElementById('descripcion-preset');
+        const select = document.getElementById('preset');
+        const selectedPreset = select.value;
+        const descripcion = document.getElementById('descripcion-preset');
 
-    if (presets[selectedPreset]) {
-        descripcion.textContent = presets[selectedPreset];
+        if (presets[selectedPreset]) {
+            descripcion.textContent = presets[selectedPreset];
+        }
     }
-}
 
-function confirmarEliminarRol(idRol, descripcion) {
-    Swal.fire({
-        title: 'Eliminar Rol?',
-        html: `Estas seguro que deseas eliminar el rol <strong>${descripcion}</strong>?<br><br><span class="text-sm text-red-500 font-bold">Si este rol tiene usuarios asignados, no se podra eliminar. Se recomienda desactivarlo en su lugar.</span>`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#182541',
-        confirmButtonText: '<i class="fas fa-trash-alt"></i> Si, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `<?php echo base_url(); ?>seguridad/eliminar_rol?id_rol=${idRol}&token=<?php echo $_SESSION['csrf_token']; ?>`;
-        }
-    });
-}
+    function enviarAccionRol(url, idRol, estado) {
+        const form = document.getElementById('formAccionRol');
+        form.action = url;
+        document.getElementById('accionRolId').value = idRol;
+        document.getElementById('accionRolEstado').value = estado;
+        form.submit();
+    }
 
-function cambiarEstadoRol(idRol, nuevoEstado) {
-    const accion = nuevoEstado === 'activo' ? 'activar' : 'desactivar';
-    const btnColor = nuevoEstado === 'activo' ? '#10b981' : '#f59e0b';
+    function confirmarEliminarRol(idRol, descripcion) {
+        Swal.fire({
+            title: '¿Eliminar rol?',
+            html: '¿Estás seguro que deseas eliminar el rol <strong></strong>?<br><br><span class="text-sm text-red-500 font-bold">Si este rol tiene usuarios asignados, no se podrá eliminar. Se recomienda desactivarlo en su lugar.</span>',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#182541',
+            confirmButtonText: '<i class="fas fa-trash-alt"></i> Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            didOpen: () => {
+                // El nombre se inserta como texto, nunca como HTML
+                Swal.getHtmlContainer().querySelector('strong').textContent = descripcion;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                enviarAccionRol('<?php echo base_url(); ?>seguridad/eliminar_rol', idRol, '');
+            }
+        });
+    }
 
-    Swal.fire({
-        title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} rol?`,
-        text: `¿Estás seguro que deseas ${accion} este rol de usuario?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: btnColor,
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Sí, ' + accion,
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `<?php echo base_url(); ?>seguridad/cambiar_estado_rol?id_rol=${idRol}&estado=${nuevoEstado}&token=<?php echo $_SESSION['csrf_token']; ?>`;
-        }
-    });
-}
+    function cambiarEstadoRol(idRol, nuevoEstado) {
+        const accion = nuevoEstado === 'activo' ? 'activar' : 'desactivar';
+        const btnColor = nuevoEstado === 'activo' ? '#10b981' : '#f59e0b';
 
-function abrirModalEditarRol(idRol, descripcion, idDepartamento) {
-    document.getElementById('editar_id_rol').value = idRol;
-    document.getElementById('editar_descripcion').value = descripcion;
-    document.getElementById('editar_id_departamento').value = idDepartamento || 0;
-    document.getElementById('modal-editar-rol').classList.remove('hidden');
-    document.getElementById('editar_descripcion').focus();
-}
+        Swal.fire({
+            title: `¿${accion.charAt(0).toUpperCase() + accion.slice(1)} rol?`,
+            text: `¿Estás seguro que deseas ${accion} este rol de usuario?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: btnColor,
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, ' + accion,
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                enviarAccionRol('<?php echo base_url(); ?>seguridad/cambiar_estado_rol', idRol, nuevoEstado);
+            }
+        });
+    }
 
-function cerrarModalEditarRol() {
-    document.getElementById('modal-editar-rol').classList.add('hidden');
-    document.getElementById('editar_id_rol').value = '';
-    document.getElementById('editar_descripcion').value = '';
-    document.getElementById('editar_id_departamento').value = '0';
-}
+    function abrirModalEditarRol(idRol, descripcion, idDepartamento) {
+        document.getElementById('editar_id_rol').value = idRol;
+        document.getElementById('editar_descripcion').value = descripcion;
+        document.getElementById('editar_id_departamento').value = idDepartamento || 0;
+        document.getElementById('modal-editar-rol').classList.remove('hidden');
+        document.getElementById('editar_descripcion').focus();
+    }
+
+    function cerrarModalEditarRol() {
+        document.getElementById('modal-editar-rol').classList.add('hidden');
+        document.getElementById('editar_id_rol').value = '';
+        document.getElementById('editar_descripcion').value = '';
+        document.getElementById('editar_id_departamento').value = '0';
+    }
 </script>

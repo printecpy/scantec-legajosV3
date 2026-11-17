@@ -21,8 +21,7 @@ class Personas extends Controllers
             header('Location: ' . base_url());
             exit();
         }
-        $esAdministradorScantec = intval($_SESSION['id_rol'] ?? 0) === 1
-            || strtolower(trim((string)($_SESSION['usuario'] ?? ''))) === 'root';
+        $esAdministradorScantec = esSuperadmin();
         if (
             !$esAdministradorScantec &&
             !$funcionalidadesModel->puedeAccederItemPorContexto(

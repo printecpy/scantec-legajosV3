@@ -71,12 +71,12 @@
                                             <?php foreach ($data['tipos_documento'] as $tipo): ?>
                                                 <option value="<?php echo $tipo['id_tipoDoc'] ?? ''; ?>"
                                                     data-nombre="<?php echo $tipo['nombre_tipoDoc'] ?? ''; ?>"
-                                                    data-ind1="<?php echo $tipo['indice_01'] ?? ''; ?>"
-                                                    data-ind2="<?php echo $tipo['indice_02'] ?? ''; ?>"
-                                                    data-ind3="<?php echo $tipo['indice_03'] ?? ''; ?>"
-                                                    data-ind4="<?php echo $tipo['indice_04'] ?? ''; ?>"
-                                                    data-ind5="<?php echo $tipo['indice_05'] ?? ''; ?>"
-                                                    data-ind6="<?php echo $tipo['indice_06'] ?? ''; ?>">
+                                                    data-ind1="<?php echo $tipo['indice_1'] ?? ''; ?>"
+                                                    data-ind2="<?php echo $tipo['indice_2'] ?? ''; ?>"
+                                                    data-ind3="<?php echo $tipo['indice_3'] ?? ''; ?>"
+                                                    data-ind4="<?php echo $tipo['indice_4'] ?? ''; ?>"
+                                                    data-ind5="<?php echo $tipo['indice_5'] ?? ''; ?>"
+                                                    data-ind6="<?php echo $tipo['indice_6'] ?? ''; ?>">
                                                     <?php echo $tipo['nombre_tipoDoc'] ?? 'Sin Nombre'; ?>
                                                 </option>
                                             <?php endforeach; ?>

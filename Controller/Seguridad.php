@@ -60,7 +60,7 @@ class Seguridad extends Controllers
         // Verificar permiso para gestionar permisos
         if (!$this->puedeAccederItemSeguridad('permisos_legajos', 'permisos_legajos')) {
             setAlert('warning', 'No tienes permiso para gestionar permisos de legajos.');
-            header('Location: ' . base_url() . 'dashboard/listar');
+            header('Location: ' . base_url() . 'dashboard/dashboard');
             exit();
         }
 
@@ -91,7 +91,7 @@ class Seguridad extends Controllers
         }
 
         $data = [
-            'roles'    => $roles,
+            'roles' => $roles,
             'acciones' => $acciones,
             'permisos' => $permisos,
             'visibilidad_legajos_otros' => $visibilidadLegajosOtros,
@@ -263,16 +263,28 @@ class Seguridad extends Controllers
         $seguridadModel = new SeguridadLegajosModel();
         $usuariosModel = new UsuariosModel();
 
-        // Verificar permiso para gestionar roles
+        // Verificar permiso para ver la pantalla de roles
         if (!$this->puedeAccederItemSeguridad('roles', 'gestionar_roles')) {
             setAlert('warning', 'No tienes permiso para gestionar roles.');
-            header('Location: ' . base_url() . 'dashboard/listar');
+            header('Location: ' . base_url() . 'dashboard/dashboard');
             exit();
         }
-        
+
+        // Cada rol lleva lo que el usuario actual puede hacer con él (misma regla que valida el servidor)
+        $roles = $seguridadModel->selectRolesVisiblesPara(intval($_SESSION['id_rol'] ?? 0));
+        foreach ($roles as &$r) {
+            $id = intval($r['id_rol'] ?? 0);
+            $r['puede_renombrar'] = puedeGestionarRol($id, 'renombrar');
+            $r['puede_permisos'] = puedeGestionarRol($id, 'permisos');
+            $r['puede_estado'] = puedeGestionarRol($id, 'estado');
+            $r['puede_eliminar'] = puedeGestionarRol($id, 'eliminar');
+        }
+        unset($r);
+
         $data = [
-            'roles' => $seguridadModel->selectRolesVisiblesPara(intval($_SESSION['id_rol'] ?? 0)),
-            'departamentos' => $usuariosModel->selectDepartamentos()
+            'roles' => $roles,
+            'departamentos' => $usuariosModel->selectDepartamentos(),
+            'puede_crear' => puedeCrearRol(),
         ];
         $this->views->getView($this, "roles", $data);
     }
@@ -291,6 +303,10 @@ class Seguridad extends Controllers
             setAlert('error', 'Token CSRF inválido o expirado.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();
+        }
+
+        if (!puedeCrearRol()) {
+            $this->rechazarRol('Solo los administradores pueden crear roles.');
         }
 
         $descripcion = trim($_POST['descripcion'] ?? '');
@@ -317,7 +333,7 @@ class Seguridad extends Controllers
             header("Location: " . base_url() . "seguridad/roles");
             exit();
         }
-        
+
         $id_rol = $seguridadModel->insertarRolConPermisos($descripcion, $preset, $idDepartamento);
         if ($id_rol !== null) {
             setAlert('success', 'Rol agregado.');
@@ -326,6 +342,13 @@ class Seguridad extends Controllers
         }
 
         header("Location: " . base_url() . "seguridad/roles");
+        exit();
+    }
+
+    private function rechazarRol(string $mensaje, string $tipo = 'warning'): void
+    {
+        setAlert($tipo, $mensaje);
+        header('Location: ' . base_url() . 'seguridad/roles');
         exit();
     }
 
@@ -353,6 +376,10 @@ class Seguridad extends Controllers
             setAlert('warning', 'Debe indicar un rol válido y un nuevo nombre.');
             header("Location: " . base_url() . "seguridad/roles");
             exit();
+        }
+
+        if (!puedeGestionarRol($id_rol, 'renombrar')) {
+            $this->rechazarRol('No tienes permiso para modificar ese rol.');
         }
 
         require_once 'Models/SeguridadLegajosModel.php';
@@ -392,21 +419,21 @@ class Seguridad extends Controllers
      */
     public function eliminar_rol()
     {
-        $id_rol = intval($_GET['id_rol'] ?? $_POST['id_rol'] ?? 0);
-        $rolUsuarioActual = intval($_SESSION['id_rol'] ?? 0);
-
-        if ($id_rol <= 0 || !$this->tokenValidoGetOPost()) {
-            setAlert('error', 'Petición inválida o expirada.');
-            header("Location: " . base_url() . "seguridad/roles");
-            exit();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Validador::csrfValido()) {
+            $this->rechazarRol('Petición inválida o expirada.', 'error');
         }
 
-        if ($id_rol === $rolUsuarioActual) {
-            setAlert('warning', 'No puedes eliminar tu propio rol. Solo se permite editar su nombre.');
-            header("Location: " . base_url() . "seguridad/roles");
-            exit();
+        $id_rol = intval($_POST['id_rol'] ?? 0);
+        if ($id_rol <= 0) {
+            $this->rechazarRol('Petición inválida.', 'error');
         }
-        
+        if ($id_rol === intval($_SESSION['id_rol'] ?? 0)) {
+            $this->rechazarRol('No puedes eliminar tu propio rol.');
+        }
+        if (!puedeGestionarRol($id_rol, 'eliminar')) {
+            $this->rechazarRol('No tienes permiso para eliminar ese rol.');
+        }
+
         require_once 'Models/SeguridadLegajosModel.php';
         $seguridadModel = new SeguridadLegajosModel();
 
@@ -416,7 +443,7 @@ class Seguridad extends Controllers
             header("Location: " . base_url() . "seguridad/roles");
             exit();
         }
-        
+
         $usuariosAsignados = $seguridadModel->contarUsuariosPorRol($id_rol);
         if ($usuariosAsignados > 0) {
             setAlert('warning', 'No se puede eliminar porque hay ' . $usuariosAsignados . ' usuario(s) con este rol. Debe asignarles otro rol primero.');
@@ -434,45 +461,36 @@ class Seguridad extends Controllers
         exit();
     }
 
-    /**
-     * GET/POST: Cambiar el estado de un rol (activo/inactivo)
-     */
     public function cambiar_estado_rol()
     {
-        $id_rol = intval($_GET['id_rol'] ?? $_POST['id_rol'] ?? 0);
-        $estado = $_GET['estado'] ?? $_POST['estado'] ?? '';
-        $rolUsuarioActual = intval($_SESSION['id_rol'] ?? 0);
-
-        if ($id_rol <= 0 || !in_array($estado, ['activo', 'inactivo']) || !$this->tokenValidoGetOPost()) {
-            setAlert('error', 'Petición inválida o expirada.');
-            header("Location: " . base_url() . "seguridad/roles");
-            exit();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !Validador::csrfValido()) {
+            $this->rechazarRol('Petición inválida o expirada.', 'error');
         }
 
-        if ($id_rol === $rolUsuarioActual) {
-            setAlert('warning', 'No puedes cambiar el estado de tu propio rol. Solo se permite editar su nombre.');
-            header("Location: " . base_url() . "seguridad/roles");
-            exit();
+        $id_rol = intval($_POST['id_rol'] ?? 0);
+        $estado = strtolower(trim((string) ($_POST['estado'] ?? '')));
+        if ($id_rol <= 0 || !in_array($estado, ['activo', 'inactivo'], true)) {
+            $this->rechazarRol('Petición inválida.', 'error');
+        }
+        if ($id_rol === intval($_SESSION['id_rol'] ?? 0)) {
+            $this->rechazarRol('No puedes cambiar el estado de tu propio rol.');
+        }
+        if (!puedeGestionarRol($id_rol, 'estado')) {
+            $this->rechazarRol('No tienes permiso para cambiar el estado de ese rol.');
         }
 
         require_once 'Models/SeguridadLegajosModel.php';
         $seguridadModel = new SeguridadLegajosModel();
-
-        // Verificar permiso para cambiar estado rol
-        if (!$this->puedeAccederItemSeguridad('roles', 'cambiar_estado_rol')) {
-            setAlert('warning', 'No tienes permiso para cambiar el estado de roles.');
-            header("Location: " . base_url() . "seguridad/roles");
-            exit();
+        if (empty($seguridadModel->selectRolPorId($id_rol))) {
+            $this->rechazarRol('El rol seleccionado no existe.');
         }
-        
+
         if ($seguridadModel->cambiarEstadoRol($id_rol, $estado)) {
-            $msg = $estado === 'activo' ? 'Rol activado correctamente.' : 'Rol desactivado correctamente.';
-            setAlert('success', $msg);
+            setAlert('success', $estado === 'activo' ? 'Rol activado correctamente.' : 'Rol desactivado correctamente.');
         } else {
             setAlert('error', 'Error al actualizar el estado del rol.');
         }
-
-        header("Location: " . base_url() . "seguridad/roles");
+        header('Location: ' . base_url() . 'seguridad/roles');
         exit();
     }
 

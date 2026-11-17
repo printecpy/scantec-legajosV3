@@ -96,7 +96,7 @@
                                 </td>
 
                                 <td class="text-right">
-                                    <a href="<?php echo base_url(); ?>expedientes/mostrar_registros?indice_01=<?php echo $busqueda['indice_01']; ?>&nombre_tipoDoc=<?php echo $busqueda['nombre_tipoDoc']; ?>&termino=<?php echo $termino; ?>"
+                                    <a href="<?php echo base_url(); ?>expedientes/mostrar_registros?id_expediente=<?php echo (int) $busqueda['id_expediente']; ?>"
                                         class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-yellow-50 text-yellow-600 border border-yellow-200 hover:bg-yellow-100 hover:shadow-sm transition-all"
                                         title="Abrir Carpeta">
                                         <i class="fas fa-folder-open text-xs"></i>

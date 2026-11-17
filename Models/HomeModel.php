@@ -1,5 +1,6 @@
 <?php
-class HomeModel extends Mysql{
+class HomeModel extends Mysql
+{
     public $usuario, $clave;
     public function __construct()
     {
@@ -10,7 +11,7 @@ class HomeModel extends Mysql{
         $resul = $this->select($query);
         return $resul;
     }
-    
+
     public function restaurar_pw(string $nueva, string $nombre, string $usuario) {
         $this->nueva = $nueva;
         $this->nombre = $nombre;
@@ -21,18 +22,27 @@ class HomeModel extends Mysql{
         return $resul;
     } */
 
-    public function consultarPW($nombre, $usuario) {
+
+    public function selectRolesRegistrables(): array
+    {
+        $sql = "SELECT * FROM roles WHERE id_rol NOT IN (1, 2) ORDER BY descripcion ASC";
+        return $this->select_all($sql);
+    }
+    
+    public function consultarPW($nombre, $usuario)
+    {
         $query = "SELECT * FROM usuarios WHERE nombre = ? AND usuario = ?;";
         $resul = $this->select($query, [$nombre, $usuario]);
         return $resul;
     }
-    
-    public function restaurar_pw($clave, $nombre, $usuario) {
+
+    public function restaurar_pw($clave, $nombre, $usuario)
+    {
         $query = "UPDATE usuarios SET clave = ?, clave_actualizacion = NOW() WHERE nombre = ? AND usuario = ?;";
         $data = array($clave, $nombre, $usuario);
         $resul = $this->update($query, $data);
         return $resul;
     }
-    
+
 }
 ?>

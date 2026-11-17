@@ -5,6 +5,7 @@
         session_start();
         if (empty($_SESSION['ACTIVO'])) {
             header("location: " . base_url());
+            exit();
         }
             parent::__construct();
 

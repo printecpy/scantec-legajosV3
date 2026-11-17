@@ -14,13 +14,13 @@ use Firebase\JWT\SignatureInvalidException;
 abstract class ApiController extends Controllers // <-- Hereda correctamente de Controllers.php
 {
     // Propiedad para el modelo específico del controlador (Ej. ExpedientesModel)
-    protected $model;
+    public $model;
     // Propiedad NUEVA para el modelo de Logs (se usará en todos los controladores API)
     protected $apiLogModel;
     // Datos del usuario JWT extraídos
     protected $api_user_id;
     protected $api_user_roles;
-    protected $api_user_group_id; 
+    protected $api_user_group_id;
     protected $UsuariosModel;
 
     protected $secretKey;
@@ -202,7 +202,7 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
 
             // Asignar datos a las propiedades de la clase
             $this->api_user_id = $payload->data->id ?? null;
-            $this->api_user_roles = (array)($payload->data->roles ?? []);
+            $this->api_user_roles = (array) ($payload->data->roles ?? []);
             $this->api_user_group_id = $payload->data->id_grupo ?? null; // Asume que el grupo ID viene aquí
 
         } catch (Exception $e) {
@@ -221,31 +221,30 @@ abstract class ApiController extends Controllers // <-- Hereda correctamente de 
      * @param array $allowedRoles Array de strings o enteros de los IDs de roles requeridos.
      * @return array Retorna un array con el id, roles, y id_grupo del usuario API.
      */
-    protected function checkApiAccess(array $allowedRoles): array
+    protected function checkApiAccess(array $allowedRoles = []): array
     {
-        // 1. Autenticar (Decodificar el token y cargar los datos)
+        // 1. Autenticar (Decodificar el token; ya garantiza fuente_registro='API')
         $this->authenticateJwt();
 
-        // 2. Control de Autorización (Verificar Roles)
-        $userRoles = $this->api_user_roles;
+        $userData = [
+            'id' => $this->api_user_id,
+            'roles' => $this->api_user_roles,
+            'id_grupo' => $this->api_user_group_id
+        ];
 
-        if (count(array_intersect($userRoles, $allowedRoles)) > 0) {
-            // Coincidencia encontrada: Acceso concedido.
-            // Retornamos un array limpio de los datos principales
-            return [
-                'id' => $this->api_user_id,
-                'roles' => $this->api_user_roles,
-                'id_grupo' => $this->api_user_group_id
-            ];
+        // 2. Gate de rol SOLO si el endpoint lo pide explícitamente.
+        //    Sin lista (array vacío) = cualquier cuenta API autenticada entra;
+        //    el alcance real se resuelve en las capas de permisos granulares
+        //    (permisos_legajos_tipos, permisos_documentos, usuarioSoloVePropios, etc.)
+        if (!empty($allowedRoles) && count(array_intersect($userData['roles'], $allowedRoles)) === 0) {
+            if (isset($this->UsuariosModel)) {
+                $logMessage = 'Acceso API denegado por rol insuficiente. Usuario ID: '
+                    . $this->api_user_id . ' - Roles Requeridos: ' . implode(',', $allowedRoles);
+                $this->UsuariosModel->bloquarPC_IP('INTENTO_API_AUTH', $logMessage);
+            }
+            $this->sendErrorResponse(403, 'Acceso denegado. Rol insuficiente para esta operación.');
         }
 
-        // 3. Acceso denegado: Loguear y responder con 403
-        if (isset($this->UsuariosModel)) {
-            $logMessage = 'Acceso API denegado por rol insuficiente. Usuario ID: ' . $this->api_user_id . ' - Roles Requeridos: ' . implode(',', $allowedRoles);
-            $this->UsuariosModel->bloquarPC_IP('INTENTO_API_AUTH', $logMessage);
-        }
-
-        $this->sendErrorResponse(403, 'Acceso denegado. Rol insuficiente para esta operación.');
-        // La ejecución se detiene en sendErrorResponse, esta línea es solo para completar la firma.
+        return $userData;
     }
 }

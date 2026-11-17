@@ -278,7 +278,7 @@ class Alerta extends Controllers
                 
                 $enviado = false;
                 try {
-                    $enviado = $this->mailController->sendEmailWithAttachment($reporte['adjunto_path'], $correo, $correo, $asunto, $reporte['cuerpo_html']);
+                    $enviado = $this->mailController->model->sendEmailWithAttachment($reporte['adjunto_path'], $correo, $correo, $asunto, $reporte['cuerpo_html']);
                 } catch (\Throwable $e) {
                     $detalleError = $e->getMessage();
                 }

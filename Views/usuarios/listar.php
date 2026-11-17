@@ -396,6 +396,22 @@
                                 </div>
                             </div>
 
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Grupo</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><i class="fas fa-building text-gray-400"></i></div>
+                                    <select id="id_grupo" name="id_grupo" class="pl-10 w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue outline-none bg-white" required>
+                                        <option value="" selected disabled>Seleccione un Grupo</option>
+                                        <?php foreach (($data['grupos'] ?? []) as $grupos): ?>
+                                            <option value="<?php echo intval($grupos['id_grupo']); ?>">
+                                                <?php echo htmlspecialchars((string)($grupos['descripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+
                             <div>
                                 <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Rol</label>
                                 <div class="relative">

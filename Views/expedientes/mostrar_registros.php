@@ -77,10 +77,10 @@
                             <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
                                 Fecha</th>
                             <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
-                                Ver.</th>
+                                Fecha act.</th>
                             <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
                                 Acciones</th>
-                            <?php if ($_SESSION['id_rol'] == 1) { ?>
+                            <?php if (!empty($data['puede_gestionar'])) { ?>
                                 <th class="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">
                                     Admin</th>
                             <?php } ?>
@@ -117,7 +117,7 @@
                                     <?php echo $mostrar_registros['fecha_indexado']; ?>
                                 </td>
                                 <td class="px-4 py-3 text-center text-xs font-mono text-gray-500">
-                                    <?php echo $mostrar_registros['version']; ?>
+                                    <?php echo $mostrar_registros['fecha_actualizacion']; ?>
                                 </td>
 
                                 <td class="px-4 py-3 text-center">
@@ -134,22 +134,21 @@
                                     <?php else: ?>
                                         <div class="px-4 py-3 text-center">
                                             <button
-                                                onclick="mostrarPDFModal('<?php echo base_url(); ?>expedientes/expediente?ruta=<?php echo urlencode($mostrar_registros['ruta_original']); ?>&id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>')"
+                                                onclick="mostrarPDFModal('<?php echo base_url(); ?>expedientes/expediente?id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>')"
                                                 title="Ver con marca de agua"
                                                 class="text-[#182541] hover:text-[#dc153d] transition-colors mr-3 p-1">
                                                 <i class="fas fa-eye fa-lg"></i>
                                             </button>
 
                                             <button
-                                                onclick="mostrarPDFModal('<?php echo base_url(); ?>expedientes/ver_expediente?ruta=<?php echo urlencode($mostrar_registros['ruta_original']); ?>&id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>')"
+                                                onclick="mostrarPDFModal('<?php echo base_url(); ?>expedientes/ver_expediente?id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>')"
                                                 title="Ver Original"
                                                 class="text-[#878787] hover:text-[#182541] transition-colors mr-3 p-1">
                                                 <i class="fas fa-file-alt fa-lg"></i>
                                             </button>
 
-                                            <a href="<?php echo base_url() . 'expedientes/ver_expediente?ruta=' . urlencode($mostrar_registros['ruta_original']) . '&id_expediente=' . $mostrar_registros['id_expediente'] . '&return_url=' . urlencode($_SERVER['REQUEST_URI']); ?>"
-                                                target="_blank"
-                                                title="Abrir en Nueva Pestaña"
+                                            <a href="<?php echo base_url() . 'expedientes/ver_expediente?id_expediente=' . $mostrar_registros['id_expediente'] . '&return_url=' . urlencode($_SERVER['REQUEST_URI']); ?>"
+                                                target="_blank" title="Abrir en Nueva Pestaña"
                                                 class="text-[#dc153d] hover:text-[#182541] transition-colors mr-3 p-1">
                                                 <i class="fas fa-external-link-alt fa-lg"></i>
                                             </a>
@@ -157,16 +156,17 @@
                                     <?php endif; ?>
                                 </td>
 
-                                <?php if ($_SESSION['id_rol'] == 1) { ?>
+                                <?php if (!empty($data['puede_gestionar'])) { ?>
                                     <td class="px-4 py-3 text-center">
                                         <div class="flex justify-center gap-2">
-                                            <a href="<?php echo base_url(); ?>expedientes/editar?id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>"
+                                            <a href="<?php echo base_url(); ?>expedientes/editar?id_expediente=<?php echo $mostrar_registros['id_expediente']; ?>&volver=<?php echo rawurlencode('expedientes/mostrar_registros'); ?>"
                                                 class="p-1.5 rounded-lg text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700 transition-colors"
                                                 title="Modificar">
                                                 <i class="fas fa-edit"></i>
                                             </a>
                                             <form method="post" action="<?php echo base_url(); ?>expedientes/eliminar"
                                                 class="d-inline eliminar">
+                                                <input type="hidden" name="volver" value="expedientes/mostrar_registros">
                                                 <input type="hidden" name="token"
                                                     value="<?php echo $_SESSION['csrf_token']; ?>">
                                                 <input type="hidden" name="id_expediente"
@@ -179,7 +179,7 @@
                                             </form>
                                             <button
                                                 class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                                onclick="cargarMetadatos('<?php echo $mostrar_registros['ruta_original']; ?>')"
+                                                onclick="cargarMetadatos(<?php echo intval($mostrar_registros['id_expediente']); ?>)"
                                                 title="Info Metadatos">
                                                 <i class="fas fa-info-circle"></i>
                                             </button>
@@ -267,8 +267,8 @@
                     </div>
                 </div>
 
-                <div class="flex-1 bg-gray-200 relative w-full h-full">
-                    <iframe id="pdf_preview_modal" class="absolute inset-0 w-full h-full border-none" src=""></iframe>
+                <div class="flex-1 bg-gray-200 relative w-full h-[75vh]"> <iframe id="pdf_preview_modal"
+                        class="w-full h-full border-none block" src=""></iframe>
                 </div>
             </div>
         </div>
@@ -299,16 +299,22 @@
 
     // --- FUNCIÓN PARA ABRIR PDF EN MODAL ---
     function mostrarPDFModal(url) {
-        // 1. Asignar URL al iframe
         const iframe = document.getElementById('pdf_preview_modal');
-        iframe.src = url;
+        const modal = document.getElementById('pdfModal');
 
-        // 2. Abrir el modal usando la nueva lógica
-        toggleModal('pdfModal');
+        // FitH significa "Ajustar al ancho", el navegador debería expandirlo al 100% del contenedor
+        // #zoom=page-width asegura que el PDF intente ocupar el ancho del visor
+        const urlAjustada = url + "#toolbar=1&navpanes=0&view=FitH&zoom=page-width";
+
+        iframe.src = urlAjustada;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
     }
 
     // --- FUNCIÓN PARA CARGAR METADATOS (AJAX) ---
-    function cargarMetadatos(ruta) {
+    function cargarMetadatos(idExpediente) {
         const contenedor = document.getElementById('contenidoMetadatos');
 
         // Spinner de carga
@@ -325,14 +331,14 @@
         let urlDestino = baseURL.endsWith('/') ? baseURL + "expedientes/metadatos" : baseURL + "/expedientes/metadatos";
 
         const formData = new FormData();
-        formData.append('ruta', ruta);
+        formData.append('id_expediente', idExpediente);
         // Agregamos el token CSRF si tu sistema lo requiere en todas las peticiones POST
         // formData.append('token', '<?php echo $_SESSION['csrf_token']; ?>'); 
 
         fetch(urlDestino, {
-                method: 'POST',
-                body: formData
-            })
+            method: 'POST',
+            body: formData
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Error en la red: ' + response.status);
@@ -382,7 +388,7 @@
         const modal = document.getElementById('pdfModal');
 
         // Ajuste para modal: Fit (página completa) suele verse mejor en pantalla completa
-        const urlAjustada = url + "#view=FitH&toolbar=1&navpanes=0";
+        const urlAjustada = url + "#view=FitH,100&toolbar=1&navpanes=0";
 
         iframe.src = urlAjustada;
 

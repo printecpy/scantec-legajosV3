@@ -188,8 +188,8 @@ class LegajosModel extends Mysql
 
     private function construirDetalleAccion(?string $detalle, ?string $observacion = null): ?string
     {
-        $detalle = trim((string)$detalle);
-        $observacion = trim((string)$observacion);
+        $detalle = trim((string) $detalle);
+        $observacion = trim((string) $observacion);
         if ($detalle === '' && $observacion === '') {
             return null;
         }
@@ -243,6 +243,18 @@ class LegajosModel extends Mysql
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
+        $campoRequiereSecuencia = $this->existeColumna('cfg_tipo_legajo', 'requiere_secuencia')
+            ? 'requiere_secuencia'
+            : '0 AS requiere_secuencia';
+        $campoSecuenciaObligatoria = $this->existeColumna('cfg_tipo_legajo', 'secuencia_obligatoria')
+            ? 'secuencia_obligatoria'
+            : '0 AS secuencia_obligatoria';
+        $campoRequiereNroOperacion = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_operacion')
+            ? 'requiere_nro_operacion'
+            : '0 AS requiere_nro_operacion';
+        $campoOperacionModo = $this->existeColumna('cfg_tipo_legajo', 'operacion_modo')
+            ? 'operacion_modo'
+            : "'auto' AS operacion_modo";
         $campoSelloCaratulaTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')
             ? 'sello_caratula_texto'
             : 'NULL AS sello_caratula_texto';
@@ -257,6 +269,7 @@ class LegajosModel extends Mysql
             : "'derecha' AS sello_anexos_posicion";
 
         $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoDepartamento, $campoRequiereSolicitud,
+                $campoRequiereSecuencia, $campoSecuenciaObligatoria, $campoRequiereNroOperacion, $campoOperacionModo,
                 $campoSelloCaratulaTexto, $campoSelloCaratulaPosicion, $campoSelloAnexosTexto, $campoSelloAnexosPosicion
                 FROM cfg_tipo_legajo
                 WHERE activo = 1
@@ -273,6 +286,24 @@ class LegajosModel extends Mysql
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
+        $campoRequiereSecuencia = $this->existeColumna('cfg_tipo_legajo', 'requiere_secuencia')
+            ? 'requiere_secuencia'
+            : '0 AS requiere_secuencia';
+        $campoSecuenciaObligatoria = $this->existeColumna('cfg_tipo_legajo', 'secuencia_obligatoria')
+            ? 'secuencia_obligatoria'
+            : '0 AS secuencia_obligatoria';
+        $campoRequiereNroOperacion = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_operacion')
+            ? 'requiere_nro_operacion'
+            : '0 AS requiere_nro_operacion';
+        $campoOperacionModo = $this->existeColumna('cfg_tipo_legajo', 'operacion_modo')
+            ? 'operacion_modo'
+            : "'auto' AS operacion_modo";
+        $campoUnicidadSecuencia = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_secuencia')
+            ? 'unicidad_usa_secuencia'
+            : '0 AS unicidad_usa_secuencia';
+        $campoUnicidadOperacion = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_operacion')
+            ? 'unicidad_usa_operacion'
+            : '0 AS unicidad_usa_operacion';
         $campoSelloCaratulaTexto = $this->existeColumna('cfg_tipo_legajo', 'sello_caratula_texto')
             ? 'sello_caratula_texto'
             : 'NULL AS sello_caratula_texto';
@@ -287,6 +318,8 @@ class LegajosModel extends Mysql
             : "'derecha' AS sello_anexos_posicion";
 
         $sql = "SELECT id_tipo_legajo, nombre, descripcion, activo, $campoRequiereSolicitud,
+                $campoRequiereSecuencia, $campoSecuenciaObligatoria, $campoRequiereNroOperacion, $campoOperacionModo,
+                $campoUnicidadSecuencia, $campoUnicidadOperacion,
                 $campoSelloCaratulaTexto, $campoSelloCaratulaPosicion, $campoSelloAnexosTexto, $campoSelloAnexosPosicion
                 FROM cfg_tipo_legajo
                 WHERE id_tipo_legajo = ?";
@@ -384,33 +417,126 @@ class LegajosModel extends Mysql
         return $this->select_all($sql, [$idTipoLegajo]);
     }
 
-    public function insertarLegajo(int $idTipoLegajo, string $ciSocio, string $nombreCompleto, ?string $nroSolicitud, int $idUsuario, string $estado = 'borrador')
+    public function getDocumentoChecklistApiPorId(int $idLegajo, int $idRequisito): array
     {
-        $query = "INSERT INTO cfg_legajo (id_tipo_legajo, ci_socio, nombre_completo, nro_solicitud, estado, id_usuario)
-                VALUES (?, ?, ?, ?, ?, ?)";
-        return $this->insert($query, [
+        $sql = "SELECT cld.id_legajo_doc, cld.id_legajo, cld.id_requisito, cld.ruta_archivo,
+                   cld.estado, cl.id_tipo_legajo, cl.id_usuario, cl.id_usuario_armado
+            FROM cfg_legajo_documento cld
+            JOIN cfg_legajo cl ON cl.id_legajo = cld.id_legajo
+            WHERE cld.id_legajo = ?
+              AND cld.id_requisito = ?
+              AND cld.reemplazado_por IS NULL
+            LIMIT 1";
+        $res = $this->select_all($sql, [$idLegajo, $idRequisito]);
+        return !empty($res[0]) && is_array($res[0]) ? $res[0] : [];
+    }
+
+    public function insertarLegajo(
+        int $idTipoLegajo,
+        string $ciSocio,
+        string $nombreCompleto,
+        ?string $nroSolicitud,
+        int $idUsuario,
+        string $estado = 'borrador',
+        ?int $idPersona = null,
+        string $nroSocio = '',
+        string $secuencia = '',
+        ?string $nroOperacion = null
+    ) {
+        // Columnas base que siempre existen
+        $campos = ['id_tipo_legajo', 'ci_socio', 'nombre_completo', 'nro_solicitud', 'estado', 'id_usuario'];
+        $marcadores = ['?', '?', '?', '?', '?', '?'];
+        $valores = [
             $idTipoLegajo,
             $ciSocio,
             $nombreCompleto,
             $nroSolicitud !== '' ? $nroSolicitud : null,
             $estado,
             $idUsuario
-        ]);
+        ];
+
+        // nro_socio es NOT NULL en tu tabla: si no viene, guardamos cadena vacía para no romper el INSERT.
+        if ($this->existeColumna('cfg_legajo', 'nro_socio')) {
+            $campos[] = 'nro_socio';
+            $marcadores[] = '?';
+            $valores[] = $nroSocio;
+        }
+
+        if ($this->existeColumna('cfg_legajo', 'secuencia')) {
+            $campos[] = 'secuencia';
+            $marcadores[] = '?';
+            $valores[] = $secuencia !== '' ? $secuencia : null;
+        }
+
+        if ($this->existeColumna('cfg_legajo', 'nro_operacion')) {
+            $campos[] = 'nro_operacion';
+            $marcadores[] = '?';
+            $valores[] = trim((string) $nroOperacion) !== '' ? $nroOperacion : null;
+        }
+
+        // id_persona solo si la columna existe (fuente interna de personas)
+        if ($idPersona !== null && $this->existeColumna('cfg_legajo', 'id_persona')) {
+            $campos[] = 'id_persona';
+            $marcadores[] = '?';
+            $valores[] = $idPersona;
+        }
+
+        $query = "INSERT INTO cfg_legajo (" . implode(', ', $campos) . ") VALUES (" . implode(', ', $marcadores) . ")";
+        return $this->insert($query, $valores);
     }
 
-    public function actualizarLegajo(int $idLegajo, int $idTipoLegajo, string $ciSocio, string $nombreCompleto, ?string $nroSolicitud, string $estado = 'borrador')
-    {
-        $query = "UPDATE cfg_legajo
-                SET id_tipo_legajo = ?, ci_socio = ?, nombre_completo = ?, nro_solicitud = ?, estado = ?
-                WHERE id_legajo = ?";
-        return $this->update($query, [
+    public function actualizarLegajo(
+        int $idLegajo,
+        int $idTipoLegajo,
+        string $ciSocio,
+        string $nombreCompleto,
+        ?string $nroSolicitud,
+        string $estado = 'borrador',
+        ?int $idPersona = null,
+        string $nroSocio = '',
+        string $secuencia = '',
+        ?string $nroOperacion = null
+    ) {
+        $setClauses = [
+            'id_tipo_legajo = ?',
+            'ci_socio = ?',
+            'nombre_completo = ?',
+            'nro_solicitud = ?',
+            'estado = ?'
+        ];
+        $valores = [
             $idTipoLegajo,
             $ciSocio,
             $nombreCompleto,
             $nroSolicitud !== '' ? $nroSolicitud : null,
-            $estado,
-            $idLegajo
-        ]);
+            $estado
+        ];
+
+        if ($this->existeColumna('cfg_legajo', 'nro_socio')) {
+            $setClauses[] = 'nro_socio = ?';
+            $valores[] = $nroSocio;
+        }
+
+        if ($this->existeColumna('cfg_legajo', 'secuencia')) {
+            $setClauses[] = 'secuencia = ?';
+            $valores[] = $secuencia !== '' ? $secuencia : null;
+        }
+
+        if ($this->existeColumna('cfg_legajo', 'nro_operacion')) {
+            $setClauses[] = 'nro_operacion = ?';
+            $valores[] = trim((string) $nroOperacion) !== '' ? $nroOperacion : null;
+        }
+
+        // id_persona solo si se pasa explícitamente y la columna existe
+        if ($idPersona !== null && $this->existeColumna('cfg_legajo', 'id_persona')) {
+            $setClauses[] = 'id_persona = ?';
+            $valores[] = $idPersona;
+        }
+
+        $valores[] = $idLegajo;
+
+        $query = "UPDATE cfg_legajo SET " . implode(', ', $setClauses) . " WHERE id_legajo = ?";
+        return $this->update($query, $valores);
     }
 
     public function actualizarObservacionLegajo(int $idLegajo, ?string $observacion)
@@ -421,7 +547,7 @@ class LegajosModel extends Mysql
 
         $query = "UPDATE cfg_legajo SET observacion = ? WHERE id_legajo = ?";
         return $this->update($query, [
-            trim((string)$observacion) !== '' ? trim((string)$observacion) : null,
+            trim((string) $observacion) !== '' ? trim((string) $observacion) : null,
             $idLegajo
         ]);
     }
@@ -434,7 +560,17 @@ class LegajosModel extends Mysql
         $campoUsuarioArmado = $this->existeColumna('cfg_legajo', 'id_usuario_armado')
             ? 'l.id_usuario_armado'
             : 'l.id_usuario AS id_usuario_armado';
+        $campoNroSocio = $this->existeColumna('cfg_legajo', 'nro_socio')
+            ? 'l.nro_socio'
+            : "'' AS nro_socio";
+        $campoSecuencia = $this->existeColumna('cfg_legajo', 'secuencia')
+            ? 'l.secuencia'
+            : 'NULL AS secuencia';
+        $campoNroOperacion = $this->existeColumna('cfg_legajo', 'nro_operacion')
+            ? 'l.nro_operacion'
+            : 'NULL AS nro_operacion';
         $sql = "SELECT l.id_legajo, l.id_tipo_legajo, l.ci_socio, l.nombre_completo, l.nro_solicitud,
+                $campoNroSocio, $campoSecuencia, $campoNroOperacion,
                 l.estado, l.fecha_creacion, l.fecha_cierre, l.id_usuario, $campoObservacion, $campoUsuarioArmado,
                 tl.nombre AS nombre_tipo_legajo,
                 uc.nombre AS nombre_usuario_creador,
@@ -483,6 +619,12 @@ class LegajosModel extends Mysql
         $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
             ? 'tl.requiere_nro_solicitud'
             : '0 AS requiere_nro_solicitud';
+        $campoRequiereSecuencia = $this->existeColumna('cfg_legajo', 'secuencia')
+            ? 'l.secuencia'
+            : 'NULL AS secuencia';
+        $campoRequiereNroOperacion = $this->existeColumna('cfg_legajo', 'nro_operacion')
+            ? 'l.nro_operacion'
+            : 'NULL AS nro_operacion';
         $sql = "SELECT l.id_legajo, l.ci_socio, l.nombre_completo, l.nro_solicitud, l.estado, $campoObservacion,
                 $caseEstado AS estado_legajo_texto,
                 EXISTS (
@@ -490,16 +632,28 @@ class LegajosModel extends Mysql
                     FROM unirpdf up
                     WHERE up.ruta_creacion = CONCAT('Legajos/', l.id_legajo)
                 ) AS pdf_legajo_armado,
-                l.fecha_creacion, tl.nombre AS nombre_tipo_legajo, $campoRequiereSolicitud
+                l.fecha_creacion, tl.nombre AS nombre_tipo_legajo, $campoRequiereSolicitud,
+                $campoRequiereSecuencia, $campoRequiereNroOperacion
                 FROM cfg_legajo l
                 LEFT JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = l.id_tipo_legajo
                 WHERE 1=1";
 
         $params = [];
         if ($termino !== '' && $termino !== '*.*') {
-            $sql .= " AND (l.ci_socio LIKE ? OR l.nro_solicitud LIKE ? OR l.nombre_completo LIKE ?)";
+            $condicionesTermino = ['l.ci_socio LIKE ?', 'l.nro_solicitud LIKE ?', 'l.nombre_completo LIKE ?'];
             $like = '%' . $termino . '%';
             $params = [$like, $like, $like];
+
+            if ($this->existeColumna('cfg_legajo', 'secuencia')) {
+                $condicionesTermino[] = 'l.secuencia LIKE ?';
+                $params[] = $like;
+            }
+            if ($this->existeColumna('cfg_legajo', 'nro_operacion')) {
+                $condicionesTermino[] = 'l.nro_operacion LIKE ?';
+                $params[] = $like;
+            }
+
+            $sql .= " AND (" . implode(' OR ', $condicionesTermino) . ")";
         }
 
         if ($estadoFiltro === 'Proceso') {
@@ -572,10 +726,21 @@ class LegajosModel extends Mysql
             ? 'LEFT JOIN usuarios ua ON ua.id = l.id_usuario_armado'
             : 'LEFT JOIN usuarios ua ON ua.id = l.id_usuario';
         $caseEstado = $this->sqlCaseEstadoTexto('l');
+
+        $campoRequiereSolicitud = $this->existeColumna('cfg_tipo_legajo', 'requiere_nro_solicitud')
+            ? 'tl.requiere_nro_solicitud'
+            : '0 AS requiere_nro_solicitud';
+        $campoRequiereSecuencia = $this->existeColumna('cfg_legajo', 'secuencia')
+            ? 'l.secuencia'
+            : 'NULL AS secuencia';
+        $campoRequiereNroOperacion = $this->existeColumna('cfg_legajo', 'nro_operacion')
+            ? 'l.nro_operacion'
+            : 'NULL AS nro_operacion';
+
         $sql = "SELECT l.id_legajo, l.ci_socio, l.nombre_completo, l.nro_solicitud, l.estado, $campoObservacion,
                 $caseEstado AS estado_legajo_texto,
                 l.fecha_creacion, tl.nombre AS nombre_tipo_legajo,
-                ua.nombre AS nombre_usuario_armado
+                ua.nombre AS nombre_usuario_armado, $campoRequiereSolicitud, $campoRequiereSecuencia, $campoRequiereNroOperacion
                 FROM cfg_legajo l
                 LEFT JOIN cfg_tipo_legajo tl ON tl.id_tipo_legajo = l.id_tipo_legajo
                 $joinUsuarioArmado
@@ -586,10 +751,23 @@ class LegajosModel extends Mysql
         }
 
         $params = [];
+
+        // CORRECCIÓN AQUÍ: Agrupamos todo lo relacionado a la búsqueda por texto
         if ($termino !== '') {
-            $sql .= " AND (l.ci_socio LIKE ? OR l.nro_solicitud LIKE ? OR l.nombre_completo LIKE ?)";
+            $condicionesTermino = ['l.ci_socio LIKE ?', 'l.nro_solicitud LIKE ?', 'l.nombre_completo LIKE ?'];
             $like = '%' . $termino . '%';
             $params = [$like, $like, $like];
+
+            if ($this->existeColumna('cfg_legajo', 'secuencia')) {
+                $condicionesTermino[] = 'l.secuencia LIKE ?';
+                $params[] = $like;
+            }
+            if ($this->existeColumna('cfg_legajo', 'nro_operacion')) {
+                $condicionesTermino[] = 'l.nro_operacion LIKE ?';
+                $params[] = $like;
+            }
+
+            $sql .= " AND (" . implode(' OR ', $condicionesTermino) . ")";
         }
 
         if ($estadoFiltro !== '') {
@@ -689,7 +867,7 @@ class LegajosModel extends Mysql
         return is_array($result) ? $result : [];
     }
 
-    public function existeLegajoDuplicadoSinSolicitud(int $idTipoLegajo, string $ciSocio, int $idLegajoExcluir = 0): bool
+    public function existeLegajoDuplicadoSinSolicitud(int $idTipoLegajo, string $ciSocio, int $idLegajoExcluir = 0, string $secuencia = '', string $nroOperacion = ''): bool
     {
         $ciSocio = trim($ciSocio);
         if ($idTipoLegajo <= 0 || $ciSocio === '') {
@@ -703,6 +881,8 @@ class LegajosModel extends Mysql
                   AND (nro_solicitud IS NULL OR TRIM(nro_solicitud) = '')";
         $params = [$idTipoLegajo, $ciSocio];
 
+        $this->aplicarClaveUnicidad($sql, $params, $idTipoLegajo, $secuencia, $nroOperacion);
+
         if ($idLegajoExcluir > 0) {
             $sql .= " AND id_legajo <> ?";
             $params[] = $idLegajoExcluir;
@@ -712,7 +892,7 @@ class LegajosModel extends Mysql
         return !empty($result) && intval($result['total'] ?? 0) > 0;
     }
 
-    public function selectLegajoDuplicadoSinSolicitud(int $idTipoLegajo, string $ciSocio, int $idLegajoExcluir = 0)
+    public function selectLegajoDuplicadoSinSolicitud(int $idTipoLegajo, string $ciSocio, int $idLegajoExcluir = 0, string $secuencia = '', string $nroOperacion = '')
     {
         $ciSocio = trim($ciSocio);
         if ($idTipoLegajo <= 0 || $ciSocio === '') {
@@ -725,6 +905,8 @@ class LegajosModel extends Mysql
                   AND ci_socio = ?
                   AND (nro_solicitud IS NULL OR TRIM(nro_solicitud) = '')";
         $params = [$idTipoLegajo, $ciSocio];
+
+        $this->aplicarClaveUnicidad($sql, $params, $idTipoLegajo, $secuencia, $nroOperacion);
 
         if ($idLegajoExcluir > 0) {
             $sql .= " AND id_legajo <> ?";
@@ -740,6 +922,80 @@ class LegajosModel extends Mysql
 
         return is_array($result) ? $result : [];
     }
+
+    /**
+     * Agrega al WHERE la condición de unicidad configurada para el tipo de legajo.
+     * Prioridad: secuencia > operación. Si los valores están vacíos, cae a tipo + CI.
+     */
+    /* private function aplicarClaveUnicidad(string &$sql, array &$params, int $idTipoLegajo, string $secuencia, string $nroOperacion): void
+    {
+        $usaSecuencia = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_secuencia');
+        $usaOperacion = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_operacion');
+        if (!$usaSecuencia && !$usaOperacion) {
+            return;
+        }
+
+        $flags = $this->select(
+            "SELECT " .
+            ($usaSecuencia ? 'unicidad_usa_secuencia' : '0 AS unicidad_usa_secuencia') . ", " .
+            ($usaOperacion ? 'unicidad_usa_operacion' : '0 AS unicidad_usa_operacion') . "
+             FROM cfg_tipo_legajo WHERE id_tipo_legajo = ?",
+            [$idTipoLegajo]
+        );
+        $marcaSecuencia = !empty($flags['unicidad_usa_secuencia']);
+        $marcaOperacion = !empty($flags['unicidad_usa_operacion']);
+
+        $secuencia = trim($secuencia);
+        $nroOperacion = trim($nroOperacion);
+
+        if ($marcaSecuencia && $secuencia !== '' && $this->existeColumna('cfg_legajo', 'secuencia')) {
+            $sql .= " AND secuencia = ?";
+            $params[] = $secuencia;
+            return;
+        }
+
+        if ($marcaOperacion && $nroOperacion !== '' && $this->existeColumna('cfg_legajo', 'nro_operacion')) {
+            $sql .= " AND nro_operacion = ?";
+            $params[] = $nroOperacion;
+            return;
+        }
+    } */
+    private function aplicarClaveUnicidad(string &$sql, array &$params, int $idTipoLegajo, string $secuencia, string $nroOperacion): void
+    {
+        $usaSecuencia = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_secuencia');
+        $usaOperacion = $this->existeColumna('cfg_tipo_legajo', 'unicidad_usa_operacion');
+        if (!$usaSecuencia && !$usaOperacion) {
+            return;
+        }
+
+        $flags = $this->select(
+            "SELECT " .
+            ($usaSecuencia ? 'unicidad_usa_secuencia' : '0 AS unicidad_usa_secuencia') . ", " .
+            ($usaOperacion ? 'unicidad_usa_operacion' : '0 AS unicidad_usa_operacion') . "
+         FROM cfg_tipo_legajo WHERE id_tipo_legajo = ?",
+            [$idTipoLegajo]
+        );
+
+        $filaFlags = (!empty($flags) && isset($flags[0]) && is_array($flags[0])) ? $flags[0] : [];
+        $marcaSecuencia = !empty($filaFlags['unicidad_usa_secuencia']);
+        $marcaOperacion = !empty($filaFlags['unicidad_usa_operacion']);
+
+        $secuencia = trim($secuencia);
+        $nroOperacion = trim($nroOperacion);
+
+        if ($marcaSecuencia && $secuencia !== '' && $this->existeColumna('cfg_legajo', 'secuencia')) {
+            $sql .= " AND secuencia = ?";
+            $params[] = $secuencia;
+            return;
+        }
+
+        if ($marcaOperacion && $nroOperacion !== '' && $this->existeColumna('cfg_legajo', 'nro_operacion')) {
+            $sql .= " AND nro_operacion = ?";
+            $params[] = $nroOperacion;
+            return;
+        }
+    }
+
 
     public function selectLegajoDocumentosPorLegajo(int $idLegajo)
     {
@@ -1174,8 +1430,8 @@ class LegajosModel extends Mysql
             $idTipoLegajo,
             $idLegajoBase > 0 ? $idLegajoBase : null,
             $ciValidacion,
-            trim((string)$nombreReferencia) !== '' ? trim((string)$nombreReferencia) : null,
-            trim((string)$nroSolicitudReferencia) !== '' ? trim((string)$nroSolicitudReferencia) : null,
+            trim((string) $nombreReferencia) !== '' ? trim((string) $nombreReferencia) : null,
+            trim((string) $nroSolicitudReferencia) !== '' ? trim((string) $nroSolicitudReferencia) : null,
             $horasVigencia,
             $venceEn,
             $creadoPor > 0 ? $creadoPor : null
@@ -1289,8 +1545,8 @@ class LegajosModel extends Mysql
                  actualizado_en = NOW()
              WHERE id_formulario = ?",
             [
-                trim((string)$nombreReferencia) !== '' ? trim((string)$nombreReferencia) : null,
-                trim((string)$nroSolicitudReferencia) !== '' ? trim((string)$nroSolicitudReferencia) : null,
+                trim((string) $nombreReferencia) !== '' ? trim((string) $nombreReferencia) : null,
+                trim((string) $nroSolicitudReferencia) !== '' ? trim((string) $nroSolicitudReferencia) : null,
                 $idFormulario
             ]
         );
@@ -1352,10 +1608,10 @@ class LegajosModel extends Mysql
         return $this->insert($query, [
             $idFormulario,
             $idRequisito,
-            trim((string)$rutaArchivo) !== '' ? trim((string)$rutaArchivo) : null,
-            trim((string)$fechaExpedicion) !== '' ? trim((string)$fechaExpedicion) : null,
-            trim((string)$fechaVencimiento) !== '' ? trim((string)$fechaVencimiento) : null,
-            trim((string)$observacion) !== '' ? trim((string)$observacion) : null,
+            trim((string) $rutaArchivo) !== '' ? trim((string) $rutaArchivo) : null,
+            trim((string) $fechaExpedicion) !== '' ? trim((string) $fechaExpedicion) : null,
+            trim((string) $fechaVencimiento) !== '' ? trim((string) $fechaVencimiento) : null,
+            trim((string) $observacion) !== '' ? trim((string) $observacion) : null,
         ]) ? true : false;
     }
 
@@ -1390,7 +1646,7 @@ class LegajosModel extends Mysql
         $sqlUltima = "SELECT paginas_totales FROM cfg_legajo_facturacion WHERE id_legajo = ? ORDER BY id_facturacion DESC LIMIT 1";
         $resUltima = $this->select($sqlUltima, [$idLegajo]);
         $paginasAnteriores = !empty($resUltima) ? intval($resUltima['paginas_totales'] ?? 0) : 0;
-        
+
         $paginasIncrementales = max(0, $paginasTotales - $paginasAnteriores);
         if ($paginasIncrementales === 0 && $paginasTotales === $paginasAnteriores) {
             return false;

@@ -7,21 +7,21 @@
         $config = $data; 
     }    
     // 2. LÓGICA DE LICENCIA Y USO
-    // Obtenemos usuarios activos (del ajuste en el modelo) o 0 si no existe
-    $usuariosActivos = isset($config['total_usuarios']) ? $config['total_usuarios'] : 0;    
-    // Obtenemos el límite del archivo de licencia (o 10 por defecto en DEV)
-    $limiteUsuarios = defined('LICENCIA_MAX_USUARIOS') ? LICENCIA_MAX_USUARIOS : 10;
-    // Cálculo de porcentaje para la barra visual
+    // Forzamos la conversión a entero para evitar problemas de tipos
+    $usuariosActivos = isset($config['total_usuarios']) ? intval($config['total_usuarios']) : 0;  
+    // Obtenemos el límite del archivo de licencia
+    $limiteUsuarios = defined('LICENCIA_MAX_USUARIOS') ? intval(LICENCIA_MAX_USUARIOS) : 10;
+    // Cálculo de porcentaje
     $porcentajeUso = 0;
     if ($limiteUsuarios > 0) {
         $porcentajeUso = ($usuariosActivos / $limiteUsuarios) * 100;
     }
-    // Limitamos visualmente al 100% para que no se salga la barra
+    // Limitamos visualmente al 100%
     $anchoBarra = ($porcentajeUso > 100) ? 100 : $porcentajeUso;
-    // Color semántico: Verde si hay espacio, Rojo si está lleno (>90%)
+    // Color semántico: Rojo si supera el 90%
     $colorBarra = ($porcentajeUso > 90) ? 'bg-red-500' : 'bg-green-400';
     $departamentos = is_array($config['departamentos'] ?? null) ? $config['departamentos'] : [];
-    encabezado($data); 
+    encabezado($data);
 ?>
 <main class="app-content bg-gray-50 min-h-screen py-8">
     
@@ -190,21 +190,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                </div>
-
-                                <!-- <div>
-                                    <label class="block text-xs font-bold text-scantec-red uppercase tracking-widest mb-2">Límite Páginas / Lote</label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <i class="fa fa-file-text-o text-gray-400"></i>
-                                        </div>
-                                        <input type="number" name="total_pag" 
-                                            value="<?php echo $config['total_pag'] ?? ''; ?>"
-                                            class="pl-10 w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-scantec-red focus:border-transparent outline-none transition-all text-gray-700"
-                                            placeholder="0">
-                                    </div>
-                                    <p class="text-[10px] text-gray-400 mt-1 ml-1">Para control de digitalización.</p>
-                                </div> -->
+                                </div>                                
                             </div>
 
                         </form>

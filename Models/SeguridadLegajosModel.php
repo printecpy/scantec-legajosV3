@@ -208,20 +208,31 @@ class SeguridadLegajosModel extends Mysql
     public static function getDashboardCardsDisponibles(): array
     {
         return [
-            'dashboard_card_legajos_proceso' => ['etiqueta' => 'Legajos en proceso', 'icono' => 'fas fa-copy'],
-            'dashboard_card_legajos_completados' => ['etiqueta' => 'Legajos completados', 'icono' => 'fas fa-folder-open'],
-            'dashboard_card_legajos_rechazados' => ['etiqueta' => 'Legajos rechazados', 'icono' => 'fas fa-circle-xmark'],
-            'dashboard_card_legajos_verificados' => ['etiqueta' => 'Legajos verificados', 'icono' => 'fas fa-check-double'],
-            'dashboard_card_legajos_cerrados' => ['etiqueta' => 'Legajos cerrados', 'icono' => 'fas fa-box-archive'],
-            'dashboard_card_docs_vigentes' => ['etiqueta' => 'Documentos vigentes', 'icono' => 'fas fa-circle-check'],
-            'dashboard_card_docs_por_vencer' => ['etiqueta' => 'Documentos por vencer', 'icono' => 'fas fa-clock'],
-            'dashboard_card_docs_vencidos' => ['etiqueta' => 'Documentos vencidos / faltantes', 'icono' => 'fas fa-circle-exclamation'],
-            'dashboard_card_legajos_por_tipo' => ['etiqueta' => 'Legajos completados por tipo', 'icono' => 'fas fa-table-list'],
-            'dashboard_card_legajos_por_usuario' => ['etiqueta' => 'Legajos verificados por usuario', 'icono' => 'fas fa-users'],
-            'dashboard_card_grafico_productividad' => ['etiqueta' => 'Gráfico de productividad', 'icono' => 'fas fa-chart-line'],
+            // --- Grupo: Legajos ---
+            'dashboard_card_legajos_proceso' => ['etiqueta' => 'Legajos en proceso', 'icono' => 'fas fa-copy', 'grupo' => 'Legajos'],
+            'dashboard_card_legajos_completados' => ['etiqueta' => 'Legajos completados', 'icono' => 'fas fa-folder-open', 'grupo' => 'Legajos'],
+            'dashboard_card_legajos_rechazados' => ['etiqueta' => 'Legajos rechazados', 'icono' => 'fas fa-circle-xmark', 'grupo' => 'Legajos'],
+            'dashboard_card_legajos_verificados' => ['etiqueta' => 'Legajos verificados', 'icono' => 'fas fa-check-double', 'grupo' => 'Legajos'],
+            'dashboard_card_legajos_cerrados' => ['etiqueta' => 'Legajos cerrados', 'icono' => 'fas fa-box-archive', 'grupo' => 'Legajos'],
+            'dashboard_card_docs_vigentes' => ['etiqueta' => 'Documentos vigentes', 'icono' => 'fas fa-circle-check', 'grupo' => 'Legajos'],
+            'dashboard_card_docs_por_vencer' => ['etiqueta' => 'Documentos por vencer', 'icono' => 'fas fa-clock', 'grupo' => 'Legajos'],
+            'dashboard_card_docs_vencidos' => ['etiqueta' => 'Documentos vencidos / faltantes', 'icono' => 'fas fa-circle-exclamation', 'grupo' => 'Legajos'],
+            'dashboard_card_legajos_por_tipo' => ['etiqueta' => 'Legajos completados por tipo', 'icono' => 'fas fa-table-list', 'grupo' => 'Legajos'],
+            'dashboard_card_legajos_por_usuario' => ['etiqueta' => 'Legajos verificados por usuario', 'icono' => 'fas fa-users', 'grupo' => 'Legajos'],
+            'dashboard_card_grafico_productividad' => ['etiqueta' => 'Gráfico de productividad', 'icono' => 'fas fa-chart-line', 'grupo' => 'Legajos'],
+
+            // --- Grupo: Expedientes ---
+            'dashboard_card_exp_totales' => ['etiqueta' => 'Expedientes totales', 'icono' => 'fas fa-file-invoice', 'grupo' => 'Expedientes'],
+            'dashboard_card_exp_consultados' => ['etiqueta' => 'Expedientes consultados hoy', 'icono' => 'fas fa-folder-open', 'grupo' => 'Expedientes'],
+            'dashboard_card_exp_paginas' => ['etiqueta' => 'Páginas procesadas', 'icono' => 'fas fa-copy', 'grupo' => 'Expedientes'],
+            'dashboard_card_exp_usuarios_online' => ['etiqueta' => 'Usuarios en línea', 'icono' => 'fas fa-users', 'grupo' => 'Expedientes'],
+            'dashboard_card_exp_archivos_por_tipo' => ['etiqueta' => 'Archivos por tipo de documento', 'icono' => 'fas fa-table-list', 'grupo' => 'Expedientes'],
+            'dashboard_card_exp_paginas_por_tipo' => ['etiqueta' => 'Páginas por tipo de documento', 'icono' => 'fas fa-table-list', 'grupo' => 'Expedientes'],
+            'dashboard_card_exp_productividad_15dias' => ['etiqueta' => 'Productividad (últimos 15 días)', 'icono' => 'fas fa-chart-column', 'grupo' => 'Expedientes'],
+            'dashboard_card_exp_logs_umango' => ['etiqueta' => 'Logs del encaminador (Umango)', 'icono' => 'fas fa-history', 'grupo' => 'Expedientes'],
         ];
     }
-
+    
     /**
      * Obtiene los presets de permisos para nuevos roles.
      */
@@ -471,13 +482,13 @@ class SeguridadLegajosModel extends Mysql
             if (is_array($resultado) && !isset($resultado['id_rol']) && !empty($resultado[0])) {
                 $resultado = $resultado[0];
             }
-            
+
             if (empty($resultado)) {
                 return null;
             }
 
             $id_rol = intval($resultado['id_rol'] ?? 0);
-            
+
             if ($id_rol <= 0) {
                 return null;
             }
@@ -500,7 +511,7 @@ class SeguridadLegajosModel extends Mysql
     public function eliminarRol(int $id_rol): bool
     {
         $sql = "UPDATE roles SET estado = 'inactivo' WHERE id_rol = ?";
-        return (bool)$this->update($sql, [$id_rol]);
+        return (bool) $this->update($sql, [$id_rol]);
     }
 
     /**
@@ -527,7 +538,7 @@ class SeguridadLegajosModel extends Mysql
     {
         try {
             $sql = "UPDATE roles SET estado = ? WHERE id_rol = ?";
-            return (bool)$this->update($sql, [$nuevoEstado, $id_rol]);
+            return (bool) $this->update($sql, [$nuevoEstado, $id_rol]);
         } catch (Throwable $e) {
             return false;
         }
@@ -539,11 +550,11 @@ class SeguridadLegajosModel extends Mysql
             $columnaDepartamento = $this->select_all("SHOW COLUMNS FROM roles LIKE 'id_departamento'");
             if (!empty($columnaDepartamento)) {
                 $sql = "UPDATE roles SET descripcion = ?, id_departamento = ? WHERE id_rol = ?";
-                return (bool)$this->update($sql, [$descripcion, $idDepartamento > 0 ? $idDepartamento : null, $id_rol]);
+                return (bool) $this->update($sql, [$descripcion, $idDepartamento > 0 ? $idDepartamento : null, $id_rol]);
             }
 
             $sql = "UPDATE roles SET descripcion = ? WHERE id_rol = ?";
-            return (bool)$this->update($sql, [$descripcion, $id_rol]);
+            return (bool) $this->update($sql, [$descripcion, $id_rol]);
         } catch (Throwable $e) {
             error_log("Error actualizando rol $id_rol: " . $e->getMessage());
             return false;
@@ -603,7 +614,7 @@ class SeguridadLegajosModel extends Mysql
         try {
             $sql = "SELECT permitido FROM permisos_legajos WHERE id_rol = ? AND accion = ?";
             $resultado = $this->select($sql, [$id_rol, $accion]);
-            
+
             if (empty($resultado)) {
                 return false;
             }
@@ -611,7 +622,7 @@ class SeguridadLegajosModel extends Mysql
             if (is_array($resultado) && isset($resultado[0]) && is_array($resultado[0])) {
                 $resultado = $resultado[0];
             }
-            
+
             return intval($resultado['permitido'] ?? 0) === 1;
         } catch (Throwable $e) {
             error_log("Error verificando permiso $accion para rol $id_rol: " . $e->getMessage());
