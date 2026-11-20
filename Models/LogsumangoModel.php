@@ -6,7 +6,7 @@ class LogsumangoModel extends Mysql{
     }
     public function selectLogsumango()
     {
-        $sql = "SELECT * FROM logs_umango";
+        $sql = "SELECT * FROM logs_umango ORDER BY idlog_umango DESC LIMIT 2000";
         $res = $this->select_all($sql);
         return $res;
     }
