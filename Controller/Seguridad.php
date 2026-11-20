@@ -318,6 +318,10 @@ class Seguridad extends Controllers
 
         $preset = trim($_POST['preset'] ?? 'basico');
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
+        if ($idDepartamento <= 0) {
+            require_once 'Models/UsuariosModel.php';
+            $idDepartamento = (new UsuariosModel())->idDepartamentoSinAsignar();
+        }
         // Validar que el preset sea válido
         require_once 'Models/SeguridadLegajosModel.php';
         $presetsValidos = array_keys(SeguridadLegajosModel::getPresetsPermisos());

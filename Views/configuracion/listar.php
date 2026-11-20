@@ -253,17 +253,22 @@
                                                 <?php endif; ?>
                                             </td>
                                             <td class="px-4 py-3 align-middle text-center">
+                                            <?php if (!empty($departamento['es_sistema'])): ?>
+                                                <span class="text-xs text-gray-400 font-bold uppercase" title="Departamento del sistema">
+                                                    <i class="fas fa-lock mr-1"></i> Protegido
+                                                </span>
+                                            <?php else: ?>
+                                                <?php $nombreDeptoJs = htmlspecialchars(json_encode((string) ($departamento['nombre'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>
                                                 <div class="flex items-center justify-center gap-1.5 h-8 <?php echo $esActivoDepto ? '' : 'opacity-55'; ?>">
                                                     <div class="h-8 flex items-center">
                                                         <button type="button"
-                                                            onclick="abrirModalEditarDepartamento(<?php echo $idDepto; ?>, '<?php echo htmlspecialchars($departamento['nombre'] ?? '', ENT_QUOTES); ?>', '<?php echo $estadoDepto; ?>')"
-                                                            class="btn-action btn-action-primary"
-                                                            title="Editar Departamento">
+                                                            onclick="abrirModalEditarDepartamento(<?php echo $idDepto; ?>, <?php echo $nombreDeptoJs; ?>, '<?php echo $estadoDepto; ?>')"
+                                                            class="btn-action btn-action-primary" title="Editar Departamento">
                                                             <i class="fas fa-pen"></i>
                                                         </button>
                                                     </div>
                                                     <form action="<?php echo base_url(); ?>configuracion/eliminar_departamento" method="post" onsubmit="return confirmarAccionDepartamento(this);" class="h-8 flex items-center m-0">
-                                                        <input type="hidden" name="token" value="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+                                                        <input type="hidden" name="token" value="<?php echo escapar($_SESSION['csrf_token'] ?? ''); ?>">
                                                         <input type="hidden" name="id_departamento" value="<?php echo $idDepto; ?>">
                                                         <input type="hidden" name="accion_departamento" value="desactivar">
                                                         <button type="submit" class="btn-action btn-action-danger" title="Eliminar o desactivar departamento">
@@ -271,7 +276,8 @@
                                                         </button>
                                                     </form>
                                                 </div>
-                                            </td>
+                                            <?php endif; ?>
+                                        </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

@@ -540,6 +540,12 @@ class Configuracion extends Controllers
         }
 
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
+        require_once 'Models/UsuariosModel.php';
+        if ((new UsuariosModel())->esDepartamentoSistema($idDepartamento)) {
+            setAlert('warning', 'El departamento "SIN DEPARTAMENTO" es del sistema y no se puede modificar.');
+            header('Location: ' . base_url() . 'configuracion/listar');
+            exit();
+        }
         $nombre = trim((string) ($_POST['nombre_departamento'] ?? ''));
         $estado = strtoupper(trim((string) ($_POST['estado_departamento'] ?? 'ACTIVO')));
 
@@ -566,6 +572,12 @@ class Configuracion extends Controllers
         }
 
         $idDepartamento = intval($_POST['id_departamento'] ?? 0);
+        require_once 'Models/UsuariosModel.php';
+        if ((new UsuariosModel())->esDepartamentoSistema($idDepartamento)) {
+            setAlert('warning', 'El departamento "SIN DEPARTAMENTO" es del sistema y no se puede modificar.');
+            header('Location: ' . base_url() . 'configuracion/listar');
+            exit();
+        }
         $accion = trim((string) ($_POST['accion_departamento'] ?? 'desactivar'));
         $resultado = $this->usuariosModel->eliminarDepartamento($idDepartamento, $accion);
 

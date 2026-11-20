@@ -59,6 +59,94 @@ class UsuariosModel extends Mysql
         }
     }
 
+    /**
+     * Migración única: grupo "SIN DOCUMENTOS" y departamento "SIN DEPARTAMENTO", ambos de sistema (protegidos).
+     * El rol 1 queda en ellos: administra, pero no accede al contenido salvo asignación explícita.
+     */
+    public function asegurarEstructuraSinAcceso(): void
+    {
+        try {
+            $marca = $this->select_all("SELECT valor FROM funcionalidades_parametros WHERE clave = 'migracion_sin_acceso_v1' LIMIT 1");
+            if (!empty($marca)) {
+                return;
+            }
+
+            foreach (['usu_grupo', 'departamentos'] as $tabla) {
+                if (empty($this->select_all("SHOW COLUMNS FROM {$tabla} LIKE 'es_sistema'"))) {
+                    $this->update("ALTER TABLE {$tabla} ADD COLUMN es_sistema TINYINT(1) NOT NULL DEFAULT 0", []);
+                }
+            }
+
+            if ($this->idGrupoSinDocumentos() === 0) {
+                $this->insert("INSERT INTO usu_grupo (descripcion, estado, es_sistema) VALUES ('SIN DOCUMENTOS', 'ACTIVO', 1)", []);
+            }
+            if ($this->idDepartamentoSinAsignar() === 0) {
+                // 'nombre' es único: si un departamento común ya usa el nombre, el de sistema lleva otro
+                $ocupado = $this->select_all("SELECT id_departamento FROM departamentos WHERE nombre = 'SIN DEPARTAMENTO' LIMIT 1");
+                $nombre = empty($ocupado) ? 'SIN DEPARTAMENTO' : 'SIN DEPARTAMENTO (SISTEMA)';
+                $this->insert("INSERT INTO departamentos (nombre, estado, es_sistema) VALUES (?, 'ACTIVO', 1)", [$nombre]);
+            }
+            $idGrupo = $this->idGrupoSinDocumentos();
+            $idDepto = $this->idDepartamentoSinAsignar();
+            if ($idGrupo === 0 || $idDepto === 0) {
+                error_log("Migración sin acceso: no se pudo crear o encontrar el grupo ({$idGrupo}) o el departamento ({$idDepto}) de sistema");
+                return;   // no se marca la migración: se reintenta en el próximo login
+            }
+
+            // El grupo de sistema nunca tiene tipos de documento
+            $this->update("DELETE FROM permisos_documentos WHERE id_grupo = ?", [$idGrupo]);
+
+            // Rol 1: administrativo, sin acceso a contenido
+            $this->update("UPDATE usuarios SET id_grupo = ?, id_departamento = ? WHERE id_rol = 1", [$idGrupo, $idDepto]);
+            $this->update("UPDATE roles SET id_departamento = ? WHERE id_rol = 1", [$idDepto]);
+
+            $this->insert("INSERT INTO funcionalidades_parametros (clave, valor) VALUES ('migracion_sin_acceso_v1', NOW())", []);
+        } catch (\Throwable $e) {
+            error_log('No se pudo aplicar la migración de grupo y departamento sin acceso: ' . $e->getMessage());
+        }
+    }
+
+    public function idGrupoSinDocumentos(): int
+    {
+        try {
+            $r = $this->select_all("SELECT id_grupo FROM usu_grupo WHERE es_sistema = 1 ORDER BY id_grupo LIMIT 1");
+            return intval($r[0]['id_grupo'] ?? 0);
+        } catch (\Throwable $e) {
+            return 0;   // la columna todavía no existe (antes de la migración)
+        }
+    }
+
+    public function idDepartamentoSinAsignar(): int
+    {
+        try {
+            $r = $this->select_all("SELECT id_departamento FROM departamentos WHERE es_sistema = 1 ORDER BY id_departamento LIMIT 1");
+            return intval($r[0]['id_departamento'] ?? 0);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    public function esGrupoSistema(int $idGrupo): bool
+    {
+        try {
+            $r = $this->select_all("SELECT es_sistema FROM usu_grupo WHERE id_grupo = ? LIMIT 1", [$idGrupo]);
+            return intval($r[0]['es_sistema'] ?? 0) === 1;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public function esDepartamentoSistema(int $idDepartamento): bool
+    {
+        try {
+            $r = $this->select_all("SELECT es_sistema FROM departamentos WHERE id_departamento = ? LIMIT 1", [$idDepartamento]);
+            return intval($r[0]['es_sistema'] ?? 0) === 1;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+
     private function ensureDepartamentosTable(): void
     {
         try {
@@ -432,13 +520,7 @@ class UsuariosModel extends Mysql
 
     public function obtenerGrupoRegistroPorDefecto(): int
     {
-        $rows = $this->select_all("SELECT id_grupo FROM usu_grupo WHERE estado = 'ACTIVO' ORDER BY id_grupo ASC");
-        if (!empty($rows[0]['id_grupo'])) {
-            return intval($rows[0]['id_grupo']);
-        }
-
-        $rows = $this->select_all("SELECT id_grupo FROM usu_grupo ORDER BY id_grupo ASC");
-        return intval($rows[0]['id_grupo'] ?? 0);
+        return $this->idGrupoSinDocumentos();
     }
 
     public function selectTipoDoc()
@@ -473,6 +555,7 @@ class UsuariosModel extends Mysql
         );
         return intval($res[0]['total'] ?? 0) > 0;
     }
+
     /**
      * Verifica las credenciales de un usuario activo.
      * Busca el hash de la contraseña y lo compara con la clave proporcionada.

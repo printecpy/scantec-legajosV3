@@ -347,6 +347,11 @@ class Usuarios extends Controllers
         // Obtener datos del formulario
         $id_grupo = intval($_POST['id_grupo']);
         $id_tipoDoc = intval($_POST['id_tipoDoc']);
+        if ($this->model->esGrupoSistema($id_grupo)) {
+            setAlert('warning', 'El grupo "SIN DOCUMENTOS" es del sistema: no admite tipos de documento.');
+            header('Location: ' . base_url() . 'usuarios/grupo');
+            exit();
+        }
         // Verificar si el permiso ya existe
         $permisoExistente = $this->model->verificarPermisoExistente($id_grupo, $id_tipoDoc);
         if ($permisoExistente['total'] > 0) {
@@ -460,11 +465,17 @@ class Usuarios extends Controllers
         if ($rol === 2 && !$this->esAdministradorScantec() && intval($_SESSION['id_rol'] ?? 0) !== 2) {
             $this->rechazarOperacionUsuario('Solo un administrador puede crear usuarios con rol de Administrador.');
         }
+        if ($idDepartamento <= 0) {
+            $idDepartamento = $this->model->idDepartamentoSinAsignar();
+        }
         if (!$this->puedeAsignarRolYDepartamento($rol, $idDepartamento)) {
             $this->rechazarOperacionUsuario('No tienes permiso para crear usuarios con ese rol o departamento.');
         }
 
         // 5. Grupo (módulo Expedientes)
+        if ($grupo <= 0) {
+            $grupo = $this->model->idGrupoSinDocumentos();
+        }
         if (!$this->model->existeGrupoActivo($grupo)) {
             $this->rechazarOperacionUsuario('Seleccione un grupo válido y activo.');
         }
@@ -594,6 +605,11 @@ class Usuarios extends Controllers
         }
 
         $id_grupo = intval($_POST['id_grupo']);
+        if ($this->model->esGrupoSistema($id_grupo)) {
+            setAlert('warning', 'El grupo "SIN DOCUMENTOS" es del sistema y no se puede modificar.');
+            header('Location: ' . base_url() . 'usuarios/grupo');
+            exit();
+        }
         $descripcion = htmlspecialchars($_POST['descripcion']);
 
         $update = $this->model->actualizarGrupo($id_grupo, $descripcion);
@@ -850,7 +866,9 @@ class Usuarios extends Controllers
 
     public function login()
     {
-        (new UsuariosModel())->asegurarJerarquiaRolesScantec();   // migración única; si ya se aplicó, sale enseguida
+        // Migraciones únicas: si ya se aplicaron, salen enseguida
+        $this->model->asegurarJerarquiaRolesScantec();
+        $this->model->asegurarEstructuraSinAcceso();
         if (session_status() === PHP_SESSION_NONE)
             session_start();
         if (class_exists('LicenseLoader')) {
@@ -919,6 +937,9 @@ class Usuarios extends Controllers
         if ($fuente_registro === 'LDAP') {
             if (!function_exists('ldap_connect')) {
                 error_log('LDAP login: la extension ldap de PHP no esta cargada');
+                setAlert('error', 'El inicio de sesión con usuario de dominio no está disponible. Contacte al administrador.');
+                header('location: ' . base_url());
+                exit();
             }
             require_once 'Models/ConfiguracionModel.php';
             $configModel = new ConfiguracionModel();

@@ -58,7 +58,7 @@
                                 <select id="selectGrupo" name="id_grupo" required
                                     class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-scantec-blue bg-white">
                                     <option value="" disabled selected>Seleccione un grupo...</option>
-                                    <?php foreach ($data['grupos'] as $g) { ?>
+                                    <?php foreach ($data['grupos'] as $g) { if (!empty($g['es_sistema'])) { continue; } ?>
                                         <option value="<?php echo $g['id_grupo']; ?>"
                                             data-nombre="<?php echo htmlspecialchars($g['descripcion'], ENT_QUOTES); ?>">
                                             <?php echo $g['descripcion']; ?>
